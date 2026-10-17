@@ -34,8 +34,13 @@ it to the whole text, not only to the sentence that prompted it.
   approaches the subject sideways.
 - After the introduction, a summary of the rules the page explains,
   one line each, each linking its section.
-- Every section opens with a lead-in that says what question it
-  answers. A long section gets sub-headings.
+- A section starts by describing its subject. Its title says what it
+  covers; no lead-in restates the title or announces what "this
+  section says". A long section gets sub-headings.
+- Minimize self-reference: "this page", "this section", "this list",
+  "the page quotes". Describe the thing itself; the text flows better
+  and runs shorter. A self-reference stays only where it states a
+  scope the reader needs ("the rules here assume the predefined file").
 - A page reads linearly: no term is used before the page defines it,
   and no passage asks the reader to jump ahead or to read twice.
 - Define a word the page leans on at its first use, even an ordinary
@@ -65,8 +70,10 @@ it to the whole text, not only to the sentence that prompted it.
     a hang."
   - No cleft sentence at all: not "what the precision limit limits is
     effort" but "the precision limit limits effort".
-- Keep sentences short. A sentence that carries three or more parts
-  is broken up, or becomes a list.
+- Keep sentences short, about twenty words, one idea each. A sentence
+  that carries three or more parts is broken up, or becomes a list; one
+  that needs both a colon and a semicolon, or an aside inside an aside,
+  is split before anything else is done to it.
 - A statement that stands on its own gets a sentence of its own: a
   hard break, not a semicolon. A long sentence, or an implied
   connective between its parts, is hard to hold in the head.
@@ -78,6 +85,10 @@ it to the whole text, not only to the sentence that prompted it.
   Complex phrasing costs more than a passive verb.
 - No quaint voice: "in the opposite direction", not "the other way
   round".
+- No idiom for a literal relation. "As much as" keeps its literal
+  sense ("weighs as much as"); to say that two things fall in one class
+  or behave alike, say so directly ("both `0` and `1` are
+  dimensionless").
 - Every sentence has a subject and a verb. No fragment ("only its
   exponent counted"); write a second sentence instead.
 - In a pair of parallel clauses, repeat the verb rather than leaving it
@@ -89,7 +100,10 @@ it to the whole text, not only to the sentence that prompted it.
   usually belongs in its own sentence, or nowhere.
 - No filler and no rhetorical weight: drop "before it is anything
   else", "in the words of number theory", "the very point", and any
-  phrase that adds nothing when removed.
+  phrase that adds nothing when removed. A sentence that tells the
+  reader what they need or will meet ("you need the semantics of a
+  quantity", "you meet the angle in the built-ins") is filler too:
+  state the thing instead.
 - No teasing. Name the thing: not "two limits bound a value" and a wait,
   but "two limits bound a value: the significand limit, on the fraction,
   and the exponent bound, on the power of ten".
@@ -225,3 +239,5 @@ reviewer then reads a text that has passed that first reading.
 6. Any claim asserted without its mechanism, or without its scope?
 7. Any code span, link or emphasis broken across a line?
 8. Any filler phrase that reads the same without it?
+9. Any "this page" or "this section", or a lead-in that restates a
+   title?

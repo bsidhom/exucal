@@ -266,7 +266,20 @@ not expect (a unit list whose units do not decrease) is called out
 where its rule is summarized; a concrete type is named where it makes
 a representation clearer (a value is a `Ball`); and the value a
 quantity pairs with its dimension is its "scalar", never its
-"magnitude" (§8). The style
+"magnitude" (§8). From the page's second review (2026-10-17): a
+section starts by describing its subject, and no lead-in restates its
+title or announces what "this section says"; self-references ("this
+page", "this section", "this list") are minimized, since describing
+the thing itself flows better and runs shorter; a sentence that tells
+the reader what they need or will meet ("you need the semantics", "you
+meet the angle in the built-ins") is filler and is cut; a sentence
+runs to about twenty words with one idea, and one that needs both a
+colon and a semicolon is split; no idiom stands for a literal relation
+("as much as" keeps its literal sense); "dimensionless" is the default
+word for a quantity with neither dimension nor kind and "plain number"
+its synonym, as Q-019 already prefers, and the words the messages use
+are not cited, since the messages may change; and "scalar" is the word
+in all documentation, user docs and devdocs alike. The style
 rules of this paragraph are collected, as the house style every run of
 the rewrite reads, in `.claude/skills/prose-style/SKILL.md`; this
 paragraph records where each came from, and a rule set later is added

@@ -1158,6 +1158,24 @@ decision, are listed after the answers.
   passive; no quaint voice; no implied exhaustiveness; a fact of the current file that
   may drift presented as an example; clauses to scan set as a list; an unexpected error
   called out where its rule is summarized; a concrete type named where it clarifies.
+- **The second review of the quantities page (2026-10-17).** Thirteen threads, twelve
+  applied and one answered. "Primitives" is bold at its first use, in the opening, and the
+  glossary already carries it (§8). The opening's long sentences are split (the unit's
+  definition, the examples paragraph), and its "you need" sentence and "This page gives
+  them" are cut. Every section's lead-in ("This section says ...") is removed: a section
+  starts by describing its subject, and self-references are minimized (a new style rule;
+  the prose-style skill's section 1 rule on lead-ins is replaced). `^` is called out as
+  the one way to raise a quantity that is not dimensionless to a power, `pow()` taking a
+  dimensionless base, in the summary and in "A quantity", with `pow(2 m, 2)` as the
+  example row. "Are the same quantity" rather than "are one quantity"; a primitive that
+  does not occur "implicitly" has the exponent zero. "Dimensionless" is the page's default
+  word, with "plain number" defined once as its synonym, as Q-019 already prefers; the
+  words the messages use are no longer cited, since the owner may change the messages.
+  The zero sentence is simplified without the idiom "as much as", and "You meet the angle
+  in the built-ins" is cut as filler (two new style rules). The §8 row for "scalar" now
+  says that it is the word in all documentation. The owner's remark that torque and
+  energy sharing a dimension may be shored up one day is an open design question outside
+  the docs; the page states today's behaviour.
 
 ### The review's other corrections
 

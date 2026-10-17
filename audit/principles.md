@@ -279,7 +279,19 @@ colon and a semicolon is split; no idiom stands for a literal relation
 word for a quantity with neither dimension nor kind and "plain number"
 its synonym, as Q-019 already prefers, and the words the messages use
 are not cited, since the messages may change; and "scalar" is the word
-in all documentation, user docs and devdocs alike. The style
+in all documentation, user docs and devdocs alike. From the page's
+third review (2026-10-17): a bulleted list is not one sentence, its
+items standing on their own with full stops, since items joined by
+semicolons are harder to read than they need to be; a conversion
+"answers with" a ratio, a sum or a call, the form of the answer; the
+places where conformance is required are listed as pairs of quantities
+and never as "one check", since a user meets several checks whatever
+the engine does; a borrowed term is introduced as ours with its source
+credited, never as a description of the other program; a fact of the
+definitions file is never given as a complete list, since the file
+drifts; and an example that stands for a pattern carries the pattern's
+reason, as the body-mass index carries why a scale fitted to fixed
+units gives a dimensionless result. The style
 rules of this paragraph are collected, as the house style every run of
 the rewrite reads, in `.claude/skills/prose-style/SKILL.md`; this
 paragraph records where each came from, and a rule set later is added

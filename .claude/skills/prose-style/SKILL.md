@@ -116,15 +116,23 @@ it to the whole text, not only to the sentence that prompted it.
 
 ## 3. Lists and punctuation
 
-- Items of a list that themselves contain commas are separated by
-  semicolons.
+- Items of an inline list, within a sentence, that themselves contain
+  commas are separated by semicolons; a list of such items is better
+  set as a bulleted list.
+- A bulleted list is not one sentence. Its items are not joined by
+  semicolons into a sentence with the lead-in: each item stands on its
+  own, as a sentence with a full stop or as a short phrase, and a
+  semicolon inside an item becomes a full stop. The lead-in is a
+  sentence of its own, or ends with a colon.
 - An enumeration whose items each carry a qualifier of their own is set
   as a bulleted list, not run into a sentence, unless the flow needs it
   inline.
 - A list of examples is examples, never an inventory; say so, and say
   where the inventory lives. An enumeration that is not exhaustive says
   so (", etc.", "such as"); one that implies exhaustiveness is made
-  exhaustive.
+  exhaustive. Where the subject may drift, as the contents of the
+  definitions file may, the enumeration is made plainly non-exhaustive
+  instead (section 4).
 - Clauses a reader must scan, as in a summary's bullet, are set as a
   list, which is easier to scan and understand than a sentence of
   semicolons.
@@ -157,13 +165,26 @@ it to the whole text, not only to the sentence that prompted it.
   An identifier appears only when the reader must go to it.
 - When comparing with other work, link each thing compared to its own
   site, and say of it only what its own documentation says.
+- A borrowed term is introduced as ours, with its source credited in a
+  clause ("the word is borrowed from GNU units"), never as a
+  description of what the other program does, which the reader does
+  not need.
 - Credit prior art. Claim novelty or uniqueness only after checking;
   one counterexample makes the claim false.
 - State facts about today. No history ("it used to"), no futures ("it
   will"), no speculation, in anything a user reads.
 - A fact of the current definitions file that may drift (the radian as
   the only kind) is presented as an example where it is relevant, never
-  stated as the state of things.
+  stated as the state of things, and never as a complete list of what
+  the file contains: "some units are defined through `pi()`", with two
+  named, not the five the file has today.
+- A thing "answers with" the form of its answer: a conversion answers
+  with a ratio, a unit list with a sum, a function want with a call. It
+  does not "answer a sum", since the sum is the answer, not the
+  question.
+- A check the user meets in several places is several checks to the
+  user, whatever the engine does: list the places, as pairs of
+  quantities that must conform, and do not call them "one check".
 - Call out an error a reader might not expect where its rule is
   summarized (a unit list whose units do not decrease is an error to
   ask for), pointing to the section with the rationale.
@@ -241,3 +262,4 @@ reviewer then reads a text that has passed that first reading.
 8. Any filler phrase that reads the same without it?
 9. Any "this page" or "this section", or a lead-in that restates a
    title?
+10. Any bulleted list whose items are joined into one sentence?

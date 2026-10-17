@@ -1176,6 +1176,20 @@ decision, are listed after the answers.
   says that it is the word in all documentation. The owner's remark that torque and
   energy sharing a dimension may be shored up one day is an open design question outside
   the docs; the page states today's behaviour.
+- **The third review of the quantities page (2026-10-17).** Eight threads, all applied.
+  Every bulleted list is set as independent items with full stops (a new style rule); the
+  places where conformance is required are given as pairs of quantities, never as "one
+  check", since a user meets several checks whatever the engine does; the word conform is
+  credited to GNU units as borrowed, not described as that program's behaviour; a
+  conversion "answers with" a ratio, a sum or a call; the statement on `pi()` names the
+  degree and the turn as examples and claims no complete list, the house style's drift
+  rule, which the page had broken by naming the five units the file has today; and the
+  body-mass index example states why its result is dimensionless: the index is a scale
+  fitted to kilograms and metres, so the body divides the units out and the result is a
+  number on the scale, not a quantity in `kg / m^2` that could be converted into
+  `lb / ft^2`, the pattern for any scale defined on fixed units, and the division is what
+  keeps a scale on non-primitive units, pounds and feet, from giving the number in the
+  primitives. The torque thread stays open as the owner's design question.
 
 ### The review's other corrections
 

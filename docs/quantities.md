@@ -14,10 +14,10 @@ through every operation and every conversion.
 Because the calculator keeps track of them, in calculation and in
 conversion, it promises three things:
 
-- a result's dimension is right, and the result is written in the unit
-  you ask for;
-- a conversion is exact wherever the units' definitions are exact;
-- a mismatch of dimension or kind, in a sum, a conversion or a call, is
+- A result's dimension is right, and the result is written in the unit
+  you ask for.
+- A conversion is exact wherever the units' definitions are exact.
+- A mismatch of dimension or kind, in a sum, a conversion or a call, is
   an error and never a number.
 
 The names the calculator knows come from a **definitions file**, a
@@ -62,9 +62,9 @@ A quantity follows these rules:
   keeps an angle apart from a dimensionless quantity
   ([Primitives, dimensions and kinds](#primitives-dimensions-and-kinds)).
 - **Two quantities conform when their dimensions agree and then their kinds agree.**
-  One check decides a sum, a conversion, a call's argument and a list's
-  units, and a failure is a dimension mismatch or a kind mismatch
-  ([Conformance](#conformance)).
+  Conformance is required of a sum, a conversion, a call's argument and
+  a list's units, and a failure is a dimension mismatch or a kind
+  mismatch ([Conformance](#conformance)).
 - **A quantity carries no unit of its own.** It does not carry the
   units you typed. It carries its scalar and the exponents of the
   primitives, reduced to that form as soon as it is read, so `100 lb`
@@ -78,14 +78,14 @@ A quantity follows these rules:
   number is, so a conversion is exact unless a unit's definition uses
   an inexact function, as the definition of `deg` uses `pi()`
   ([Units, prefixes and exactness of factors](#units-prefixes-and-exactness-of-factors)).
-- **A conversion into one unit answers the ratio of the two scalars**
-  ([How a conversion is answered](#how-a-conversion-is-answered)):
-  - the want may carry a number of its own;
-  - a blank want answers in the primitives;
-  - a second line answers in the opposite direction;
-  - every line pastes back.
-- **A unit list answers a sum, largest unit first**: a whole number of
-  each unit but the last, and the remainder in the last. Asking for a
+- **A conversion into one unit answers with the ratio of the two scalars**
+  ([How a conversion is answered](#how-a-conversion-is-answered)).
+  - The want may carry a number of its own.
+  - A blank want answers in the primitives.
+  - A second line answers in the opposite direction.
+  - Every line pastes back.
+- **A unit list answers with a sum, largest unit first**: a whole number
+  of each unit but the last, and the remainder in the last. Asking for a
   list whose units do not decrease is an error
   ([Unit lists](#unit-lists)).
 - **An invertible function as the want recovers the function's argument**
@@ -131,14 +131,14 @@ dimension or a kind to a power.
 
 The operators act on dimensions as on paper:
 
-- a juxtaposition, two factors written side by side, multiplies the
-  dimensions, and so does `*`: the exponents are added;
-- `/` divides them: the exponents are subtracted;
+- A juxtaposition, two factors written side by side, multiplies the
+  dimensions, and so does `*`: the exponents are added.
+- `/` divides them: the exponents are subtracted.
 - `^` multiplies every exponent of the dimension by the power it
-  raises to;
+  raises to.
 - `+` and `-` require their two operands to conform
-  ([Conformance](#conformance)) and keep the shared dimension;
-- a negation, a `-` before a product, touches the scalar alone.
+  ([Conformance](#conformance)) and keep the shared dimension.
+- A negation, a `-` before a product, touches the scalar alone.
 
 Only the scalar can fail in arithmetic: at a divisor at zero, at a
 root of a negative, or at a size limit
@@ -218,35 +218,36 @@ and it is an angle whatever unit it is shown in: into `turn` it is
 
 ## Conformance
 
-Two quantities **conform** when they measure the same thing. The check
-has two steps, in a fixed order. First the dimensions must agree: the
+Two quantities **conform** when they measure the same thing. The word
+is borrowed from [GNU units](https://www.gnu.org/software/units/),
+which calls such quantities conformable. The check has two steps, in a
+fixed order. First the dimensions must agree: the
 exponent of every dimension primitive must be the same on both sides.
 Then the kinds must agree: the entry for every kind primitive must be
 the same too. A failure at the first step is a
 **dimension mismatch**, and a failure at the second is a
 **kind mismatch**, whose message names the kind that differs. Either
 is an error: nothing is converted by guess, and no unit is assumed.
-[GNU units](https://www.gnu.org/software/units/) calls two such
-quantities conformable.
 
-One check decides wherever a quantity meets another:
+These pairs of quantities must conform:
 
-- the have against the want, in a conversion;
-- the two operands of `+`, and the two operands of `-`;
-- the two arguments of a built-in that takes two conforming
-  quantities, `div`, `mod` or `atan2`;
-- a call's argument against its parameter's **annotation**, the unit
-  a defined function declares for the parameter; a parameter with no
+- The have and the want, in a conversion.
+- The two operands of `+`, and the two operands of `-`.
+- The two arguments of a built-in that takes two conforming
+  quantities, `div`, `mod` or `atan2`.
+- A call's argument and its parameter's **annotation**, the unit a
+  defined function declares for the parameter. A parameter with no
   annotation takes a dimensionless argument
-  ([Functions](definitions.md#functions));
-- the have against the function's result, in a conversion into a
-  function ([Conversion into a function](#conversion-into-a-function));
-- each unit of a unit list against the have ([Unit lists](#unit-lists)).
+  ([Functions](definitions.md#functions)).
+- The have and the function's result, in a conversion into a function
+  ([Conversion into a function](#conversion-into-a-function)).
+- Each unit of a unit list and the have ([Unit lists](#unit-lists)).
 
-The annotation check shows best on a function whose body needs its
-arguments as counts of particular units: a body-mass index is computed
+A body-mass index illustrates the annotation check. It is computed
 from how many kilograms a weight holds and how many metres a height
-holds. Say the definitions file defines one as follows
+holds, and it is a scale fitted to those units: its number means
+something only with the weight counted in kilograms and the height in
+metres. Say the definitions file defines one as follows
 ([Functions](definitions.md#functions) says how a function is
 written):
 
@@ -254,9 +255,15 @@ written):
 bmi(weight: kg, height: m): 1 = (weight / kg) / (height / m)^2
 ```
 
-The annotations say that `weight` takes a mass and `height` a length,
-and the `: 1` after the parentheses says that the result is a plain
-number. Each argument is checked against its annotation:
+The annotations say that `weight` takes a mass and `height` a length.
+The `: 1` after the parentheses says that the result is dimensionless,
+and the body divides each argument by the scale's unit, so that the
+result is a number on the scale and not a quantity in `kg / m^2`. A
+quantity in `kg / m^2` could be converted into `lb / ft^2`, where the
+scale means nothing. A function that defines a scale on fixed units
+follows this pattern: an annotation on each parameter, a dimensionless
+result, and the units divided out in the body. Each argument is
+checked against its annotation:
 `bmi(100, 4 ft)` is a dimension mismatch, since `100` is dimensionless
 where a mass is needed, and `bmi(100 lb, 4 s)` is a dimension mismatch
 too, since `4 s` is a time where a length is needed.
@@ -305,6 +312,12 @@ Three things follow.
   and the number of metres in the height. It gets each by dividing the
   argument by the unit in question, `weight / kg` for the kilograms and
   `height / m` for the metres, since the argument remembers no unit.
+  The division is what makes the body right for any scale. A scale
+  fitted to pounds and feet would divide by `lb` and `ft`, where
+  `weight / height^2` alone would give the number in the primitives,
+  kilograms and metres, and so mislead. The result is dimensionless for
+  the reason [Conformance](#conformance) gives: it is a number on the
+  scale.
 - A call of a function that takes a dimensionless argument fails for an
   argument with a dimension or a kind, whatever unit it was typed in.
   `floor`, `ceil`, `trunc` and `round` are such functions, and so are
@@ -369,16 +382,13 @@ true as the measurement behind the digits.
 [Which factors are exact](units.md#which-factors-are-exact) names the
 measured ones.
 
-In the predefined file, the only function a unit's definition calls is
-`pi()`, and it is inexact: `deg`, `grad`, `turn`, `parsec` and
-`oersted` are defined through it, so they are inexact units, and so is
-every unit built on one of them.
+Some units are defined through `pi()`, which is inexact: the degree
+is `pi() radian / 180` and the turn `2 pi() radian`, so `deg` and
+`turn` are inexact units, and so is every unit built on one of them.
 [Which factors are exact](units.md#which-factors-are-exact) lists the
 inexact units by name. A conversion through an inexact unit is `≈`.
 `sr`, defined as `radian^2` with no factor but one, is exact, as the
-radian itself is. The functions for logarithmic levels, `neper`, `bel`
-and `decibel`, call `exp()`, `ln()`, `pow()` and `log10()` in their
-bodies, but a function is not a unit.
+radian itself is.
 [Temperature and logarithmic levels as functions](#temperature-and-logarithmic-levels-as-functions)
 describes them.
 
@@ -420,17 +430,17 @@ blank want answers in the primitives: `1 in` with a blank want is
 `= 0.0254 m`.
 
 [The want field](expressions.md#the-want-field) says how the want is
-read, and each form answers in its own way:
+read. Each form answers in its own way.
 
-- one unit, or any other expression, a call included, answers the
-  ratio ([The ratio](#the-ratio));
-- units separated by `;`, or the name of a list the definitions file
-  defines, answer a sum ([Unit lists](#unit-lists));
-- a defined function's name answers a call
-  ([Conversion into a function](#conversion-into-a-function));
-- a built-in's name is an error, since a conversion into a function
+- One unit, or any other expression, a call included, answers with
+  the ratio ([The ratio](#the-ratio)).
+- Units separated by `;`, or the name of a list the definitions file
+  defines, answer with a sum ([Unit lists](#unit-lists)).
+- A defined function's name answers with a call
+  ([Conversion into a function](#conversion-into-a-function)).
+- A built-in's name is an error, since a conversion into a function
   needs an inverse written in the definitions file, and a built-in has
-  none there; the message says to apply the function to a value
+  none there. The message says to apply the function to a value
   instead, `sin(value)`.
 
 | You type | Into      | Exucal shows                              | Note                               |
@@ -447,20 +457,21 @@ read, and each form answers in its own way:
 Six things can stop a conversion into one unit once the want has been
 read. Four are errors, and two are refusals, a value the size limits
 keep from being computed
-([Values too big to hold](numbers.md#values-too-big-to-hold)):
+([Values too big to hold](numbers.md#values-too-big-to-hold)).
 
-- a dimension mismatch or a kind mismatch
-  ([Conformance](#conformance));
-- a want of zero, since nothing is a multiple of it;
-- a want that cannot be told from zero at the ceiling
-  ([Values at an edge](numbers.md#values-at-an-edge));
-- a ratio whose error radius still reaches across the exponent bound
-  at the ceiling, so that the calculator cannot tell whether the value
-  is past it ([Values at an edge](numbers.md#values-at-an-edge));
-- a ratio past the exponent bound, refused as too large or too small
-  to compute;
-- a ratio whose exact significand would pass the significand limit,
-  refused; the message names the limit and suggests `approx` around
+- A dimension mismatch or a kind mismatch is an error
+  ([Conformance](#conformance)).
+- A want of zero is an error, since nothing is a multiple of it.
+- A want that cannot be told from zero at the ceiling is an error
+  ([Values at an edge](numbers.md#values-at-an-edge)).
+- A ratio whose error radius still reaches across the exponent bound
+  at the ceiling is an error, since the calculator cannot tell whether
+  the value is past it
+  ([Values at an edge](numbers.md#values-at-an-edge)).
+- A ratio past the exponent bound is refused as too large or too small
+  to compute.
+- A ratio whose exact significand would pass the significand limit is
+  refused. The message names the limit and suggests `approx` around
   the have, or decimal mode, to compute the ratio to the digits asked
   ([approx](numbers.md#approx)).
 
@@ -480,16 +491,16 @@ which gives the want as a multiple of the have: `3 ft = 36 in` and,
 under it, `in ≈ 0.027777778 × 3 ft`. Each line's relation is decided
 from its own value: the first line here is `=`, since its value is
 exact and entire, and the second is `≈`, since `1/36` has more digits
-than are shown. There is no reciprocal line:
+than are shown. There is no reciprocal line in three cases.
 
-- for a unit list, a blank want or a function want;
-- when the have is zero, or cannot be told from zero: `0 ft` into `in`
-  is the one line `= 0 in`;
-- when the reciprocal line would itself be refused for its size; it is
-  then left out, and no message says so. `5e1000000000000000000 m`
-  into `m` shows one line, since the reciprocal is past the exponent
-  bound, while the have itself can be held, its exponent being at the
-  bound and not past it.
+- A unit list, a blank want or a function want has none.
+- A have that is zero, or cannot be told from zero, has none: `0 ft`
+  into `in` is the one line `= 0 in`.
+- A reciprocal line that would itself be refused for its size is left
+  out, and no message says so. `5e1000000000000000000 m` into `m`
+  shows one line, since the reciprocal is past the exponent bound,
+  while the have itself can be held, its exponent being at the bound
+  and not past it.
 
 In decimal mode the reciprocal line is computed from the ratio as
 shown, as [The two modes](numbers.md#the-two-modes) describes.
@@ -609,12 +620,12 @@ of nothing but zeros keeps its last term: `0 m` into `ft;in` is
 
 ### What a list's units must satisfy
 
-The units of a list must:
+A list's units must satisfy three rules.
 
-- conform to the have, each of them ([Conformance](#conformance));
-- be positive throughout their error radius;
-- decrease along the list, each smaller than the one before it:
-  `in;ft` is an error, and so is `ft;12 in`.
+- Each unit conforms to the have ([Conformance](#conformance)).
+- Each unit is positive throughout its error radius.
+- The units decrease along the list, each smaller than the one before
+  it: `in;ft` is an error, and so is `ft;12 in`.
 
 They need not be multiples of one another: `1.5 mi` into `mi;km` is
 `= 1 mi + 0.804672 km`. They may carry numbers, as `ft;in/8` does. A
@@ -782,13 +793,13 @@ and [Logarithmic levels](units.md#logarithmic-levels).
 A dimension in a message, and in an answer with a blank want, is
 written in the expression language:
 
-- the primitives come in the order the definitions file declares them;
-- those with positive exponents come first, then a `/`, then those
+- The primitives come in the order the definitions file declares them.
+- Those with positive exponents come first, then a `/`, then those
   with negative exponents, their exponents written positive after the
-  `/`;
+  `/`.
 - `1` stands for an empty numerator, and a dimensionless quantity's
-  dimension is `1` alone, the empty product;
-- an exponent that is not a whole number is parenthesized.
+  dimension is `1` alone, the empty product.
+- An exponent that is not a whole number is parenthesized.
 
 The watt's dimension is written `m^2 kg / s^3`, the hertz's `1 / s`,
 and a square root of a metre `m^(1/2)`. A kind primitive is written

@@ -1177,7 +1177,11 @@ decision, are listed after the answers.
   energy sharing a dimension may be shored up one day is an open design question outside
   the docs; the page states today's behaviour.
 - **The third review of the quantities page (2026-10-17).** Eight threads, all applied.
-  Every bulleted list is set as independent items with full stops (a new style rule); the
+  Every bulleted list of descriptive items is set as independent items with full stops (a
+  new style rule, which the owner then refined: a long list, or one of descriptive items,
+  takes a sentence per item with full stops; single words or simple objects need no
+  sentence structure; a short list read inline may run one sentence across its items,
+  sparingly; full stops when in doubt); the
   places where conformance is required are given as pairs of quantities, never as "one
   check", since a user meets several checks whatever the engine does; the word conform is
   credited to GNU units as borrowed, not described as that program's behaviour; a

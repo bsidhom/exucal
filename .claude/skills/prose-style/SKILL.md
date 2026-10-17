@@ -119,11 +119,15 @@ it to the whole text, not only to the sentence that prompted it.
 - Items of an inline list, within a sentence, that themselves contain
   commas are separated by semicolons; a list of such items is better
   set as a bulleted list.
-- A bulleted list is not one sentence. Its items are not joined by
-  semicolons into a sentence with the lead-in: each item stands on its
-  own, as a sentence with a full stop or as a short phrase, and a
-  semicolon inside an item becomes a full stop. The lead-in is a
-  sentence of its own, or ends with a colon.
+- The shape of a bulleted list follows its items. Where the list is
+  long, or an item is a description with any sentence structure of its
+  own, each item is a sentence, or several, with full stops, and a
+  semicolon inside such an item becomes a full stop. Items that are
+  single words or simple objects need no sentence structure and stand
+  on their own. A short list meant to be read inline may run one
+  sentence across its items, sparingly and tastefully. When in doubt,
+  with a long list or long-form items, use full stops. The lead-in is
+  a sentence of its own, or ends with a colon.
 - An enumeration whose items each carry a qualifier of their own is set
   as a bulleted list, not run into a sentence, unless the flow needs it
   inline.
@@ -262,4 +266,5 @@ reviewer then reads a text that has passed that first reading.
 8. Any filler phrase that reads the same without it?
 9. Any "this page" or "this section", or a lead-in that restates a
    title?
-10. Any bulleted list whose items are joined into one sentence?
+10. Any long list, or list of descriptive items, run as one sentence
+    across its bullets?

@@ -280,9 +280,15 @@ word for a quantity with neither dimension nor kind and "plain number"
 its synonym, as Q-019 already prefers, and the words the messages use
 are not cited, since the messages may change; and "scalar" is the word
 in all documentation, user docs and devdocs alike. From the page's
-third review (2026-10-17): a bulleted list is not one sentence, its
-items standing on their own with full stops, since items joined by
-semicolons are harder to read than they need to be; a conversion
+third review (2026-10-17): the shape of a bulleted list follows its
+items, as the owner then put it: where the list is long or an item is
+a description with sentence structure of its own, each item is a
+sentence with a full stop, since items joined by semicolons are harder
+to read than they need to be; items that are single words or simple
+objects stand on their own without sentence structure; and a short list
+meant to be read inline may run one sentence across its items,
+sparingly and tastefully, full stops being the choice in doubt; a
+conversion
 "answers with" a ratio, a sum or a call, the form of the answer; the
 places where conformance is required are listed as pairs of quantities
 and never as "one check", since a user meets several checks whatever

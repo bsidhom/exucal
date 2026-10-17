@@ -20,48 +20,47 @@ conversion, it promises three things:
 - a mismatch of dimension or kind, in a sum, a conversion or a call, is
   an error and never a number.
 
-To predict what a conversion answers, to read a mismatch when one is
-reported, and to know when a conversion is exact, you need the
-semantics of a quantity: how a dimension is formed and compared, what a
-conversion computes, and how its answer is written. This page gives
-them. It builds on [Numbers](numbers.md), whose sections it links
-rather than restates. The expression language, the definition
-language, the units and the built-in functions have pages of their own,
-which this page links where a rule is theirs.
+The semantics of a quantity build on [Numbers](numbers.md), whose
+sections are linked rather than restated. The expression language, the
+definition language, the units and the built-in functions have pages
+of their own, linked where a rule is theirs.
 
 The names the calculator knows come from a **definitions file**, a
 text file in the definition language that the app loads as it starts
 ([The definition language](definitions.md) describes the format, and
 [Units](units.md) lists the contents). A **unit** is a name the file
-gives to a quantity, the metre or the inch, so that other quantities
-can be written as multiples of it; the file also defines prefixes, unit
-lists and functions, and it declares the primitives, the base
-quantities every dimension is built from, and the kinds. The
-app loads the predefined definitions file, the one that ships with it,
-and this page describes the calculator with that file loaded.
+gives to a quantity, so that other quantities can be written as
+multiples of it. The metre and the inch are units. The file also
+defines prefixes, unit lists and functions, and it declares the
+**primitives**: the base quantities every dimension is built from, and
+the kinds. The app loads the predefined definitions file, the one that
+ships with it, and the rules and examples here assume that file.
 
-Examples on this page give what you type, what you convert it into,
-and what Exucal shows: the result side of an output line, with the
-relation, `=` or `≈`, in front of the value; where a conversion's
-second line, the one that answers in the opposite direction, matters,
-the page quotes it whole. The quantity you type
-is the **have**; the unit, list or function you convert it into is the
-**want**. The want may be left blank; a blank want asks for the have
-in the primitives. The
-typed forms paste straight into the two fields. A setting or a mode an
-example depends on stands in its note. Where the calculator reports an
-error, the table says so and describes the message in a few words; the
-last section quotes messages as the calculator writes them.
+Each example gives what you type, what you convert it into, and what
+Exucal shows. The shown text is the result side of an output line,
+with the relation, `=` or `≈`, in front of the value. Where a
+conversion's second line matters, the one that answers in the opposite
+direction, the example quotes it whole. The quantity you type is the
+**have**. The unit, list or function you convert it into is the
+**want**. The want may be left blank, and a blank want asks for the
+have in the primitives. The typed forms paste straight into the two
+fields. A setting or a mode an example depends on stands in its note.
+Where the calculator reports an error, the table says so and describes
+the message in a few words.
+[How dimensions are written in messages](#how-dimensions-are-written-in-messages)
+quotes messages as the calculator writes them.
 
 A quantity follows these rules:
 
 - **A quantity is a scalar with a dimension.** The dimension is a list
-  of exact rational exponents over the primitives, and `^` takes its
+  of exact rational exponents over the primitives. `^` takes its
   exponent from the text as a number, so that no exponent is ever
-  computed ([A quantity](#a-quantity)).
+  computed, and it is the one way to raise a quantity that is not
+  dimensionless to a power, since `pow()` takes a dimensionless base
+  ([A quantity](#a-quantity)).
 - **The primitives and the kinds come from the definitions file.** A
   kind keeps apart quantities that one dimension cannot, as the radian
-  keeps an angle apart from a plain number
+  keeps an angle apart from a dimensionless quantity
   ([Primitives, dimensions and kinds](#primitives-dimensions-and-kinds)).
 - **Two quantities conform when their dimensions agree and then their kinds agree.**
   One check decides a sum, a conversion, a call's argument and a list's
@@ -70,9 +69,10 @@ A quantity follows these rules:
 - **A quantity carries no unit of its own.** It does not carry the
   units you typed. It carries its scalar and the exponents of the
   primitives, reduced to that form as soon as it is read, so `100 lb`
-  and `45.359237 kg` are one quantity. A function does not change the
+  and `45.359237 kg` are the same quantity. A function does not change the
   underlying units of its declared parameters. It only checks them. A
-  function that takes a plain number fails for any other quantity
+  function that takes a dimensionless argument fails for an argument
+  with a dimension or a kind
   ([No unit of its own](#no-unit-of-its-own)).
 - **Every factor is read exactly as written.** A unit is defined as a
   factor times other units. The factor is read the same way a typed
@@ -101,21 +101,19 @@ A quantity follows these rules:
 
 ## A quantity
 
-This section says what a quantity is made of, why its dimension is
-exact, and what the operators do to a dimension.
-
 The scalar of a quantity is a value, a `Ball`, as
 [Exact and inexact values](numbers.md#exact-and-inexact-values)
 describes one. The rest of the quantity is one list of exponents, with
-an entry for each of the **primitives**, which the definitions file
+an entry for each of the primitives, which the definitions file
 declares in two roles ([The primitives](units.md#the-primitives) lists
 them). A **dimension primitive** is a base quantity, such as the metre,
 the kilogram or the second, and the entries for the dimension
 primitives are the quantity's dimension: `6 m kg / s^2` has the
 exponent one for the metre, one for the kilogram and minus two for the
-second, and a primitive that does not occur has the exponent zero. A
-**kind primitive** is a marker of a kind, with no dimension of its own,
-and its entry is the quantity's kind; the radian is one.
+second, and a primitive that does not occur implicitly has the
+exponent zero. A **kind primitive** is a marker of a kind, with no
+dimension of its own, and its entry is the quantity's kind. The radian
+is one.
 
 The exponents are rational numbers, by design, so that a dimension
 stays exact: `m^(1/2)` is a dimension, `(m^2)^(1/2)` is `m` again, and
@@ -128,9 +126,12 @@ The exponent is never computed, so no dimension ever depends on a
 computed value. An exponent written as an expression, `sqrt(2)` or
 `1+1`, is not read at all: `m^sqrt(2)` and `2^(1+1)` are errors as they
 are typed, which the grammar reports before anything is computed
-([Operators](expressions.md#operators)). The rule holds for a number
-without a dimension too, since `^` is one operator; `pow(2, sqrt(2))`
-raises such a number to a computed power.
+([Operators](expressions.md#operators)). The rule holds for a
+dimensionless base too, since `^` is one operator. `pow()` raises a
+dimensionless base to a computed power, `pow(2, sqrt(2))`, and it
+takes nothing else: `pow(2 m, 2)` is an error whose message says to
+write `(2 m)^2`. So `^` is the one way to raise a quantity that is not
+dimensionless to a power.
 
 The operators act on dimensions as on paper:
 
@@ -150,53 +151,51 @@ arithmetic on a dimension never fails; a mismatch, which
 [Conformance](#conformance) covers, is a failure to combine two
 quantities at all, not a failure of arithmetic.
 
-| You type         | Exucal shows     | Note                                 |
-| ---------------- | ---------------- | ------------------------------------ |
-| `2 kg * 3 m/s^2` | `= 6 m kg / s^2` | the exponents added                  |
-| `6 m / 2 s`      | `= 3 m / s`      | the exponents subtracted             |
-| `(2 m)^2`        | `= 4 m^2`        | the exponent doubled                 |
-| `(1 m^2)^(1/2)`  | `= 1 m`          | the exponent halved, exactly         |
-| `1 m^(1/2)`      | `= 1 m^(1/2)`    | a dimension with a rational exponent |
-| `1 m + 2 ft`     | `= 1.6096 m`     | the shared dimension kept            |
-| `-3 m`           | `= -3 m`         | the scalar negated                   |
+| You type         | Exucal shows                                                                           | Note                                 |
+| ---------------- | -------------------------------------------------------------------------------------- | ------------------------------------ |
+| `2 kg * 3 m/s^2` | `= 6 m kg / s^2`                                                                       | the exponents added                  |
+| `6 m / 2 s`      | `= 3 m / s`                                                                            | the exponents subtracted             |
+| `(2 m)^2`        | `= 4 m^2`                                                                              | the exponent doubled                 |
+| `(1 m^2)^(1/2)`  | `= 1 m`                                                                                | the exponent halved, exactly         |
+| `1 m^(1/2)`      | `= 1 m^(1/2)`                                                                          | a dimension with a rational exponent |
+| `pow(2 m, 2)`    | an error: the base of `pow` must be dimensionless; the message says to write `(2 m)^2` | `^` for a power of a quantity        |
+| `1 m + 2 ft`     | `= 1.6096 m`                                                                           | the shared dimension kept            |
+| `-3 m`           | `= -3 m`                                                                               | the scalar negated                   |
 
 ## Primitives, dimensions and kinds
 
-This section says where the primitives come from, what a kind is and
-what it does, with the radian as the example.
+The definitions file declares the primitives in their two roles
+([The primitives](units.md#the-primitives) lists them): the dimension
+primitives, `m`, `kg`, `s` and the rest, and the kind primitives. The
+radian, `radian`, is a kind primitive. The definitions file decides
+which kinds exist, and the calculator only keeps them apart. A
+quantity of the radian kind is an **angle**.
 
-The definitions file declares the primitives, in the two roles the
-last section named ([The primitives](units.md#the-primitives)): the
-dimension primitives, `m`, `kg`, `s` and the rest, and the kind
-primitives. The radian, `radian`, is a kind primitive. The definitions
-file decides which kinds exist, and the calculator only keeps them
-apart. This page calls a quantity of the
-radian kind an **angle**.
-
-A quantity with neither dimension nor kind is **dimensionless**, or a
-**plain number**; the two words are synonyms, and this page says plain
-number, the words the messages use. A quantity with a kind and no
-dimension is not a plain number: `asin(0.5)` is an angle.
+A quantity with neither dimension nor kind is **dimensionless**. A
+**plain number** means the same. A quantity with a kind and no
+dimension is not dimensionless: `asin(0.5)` is an angle.
 
 A kind exists because a dimension alone cannot tell some quantities
-apart. An angle and a plain number have the same dimension, none, and
-so do a radian per second and a hertz. Without the radian kind, a value
-could pass for either. The kind keeps them apart: `rad/s` does not
-convert into `Hz`, a kind mismatch, while `rpm` converts into `rad/s`,
-both being angles per time. Where the file declares no kind, two
-quantities of one dimension are one quantity: a joule is a newton metre
-here, since no kind keeps torque from energy.
+apart. An angle and a dimensionless quantity have the same dimension,
+none, and so do a radian per second and a hertz. Without the radian
+kind, a value could pass for either. The kind keeps them apart:
+`rad/s` does not convert into `Hz`, a kind mismatch, while `rpm`
+converts into `rad/s`, both being angles per time. Where the file
+declares no kind, quantities of one dimension conform whatever they
+measure: a joule is a newton metre here, since no kind keeps torque
+from energy.
 
-There is no special case for zero. `0` is a plain number as much as
-`1` is, and a mismatch is decided by the dimensions and kinds alone,
-never by a value, so `1 m + 0` is a dimension mismatch and `sin(0)` is
-a kind mismatch, exactly as `1 m + 1` and `sin(1)` are.
+There is no special case for zero. Both `0` and `1` are dimensionless,
+and a mismatch is decided by the dimensions and the kinds alone, never
+by the value. Zero does not conform to every dimension: `1 m + 0` is a
+dimension mismatch and `sin(0)` is a kind mismatch, exactly as
+`1 m + 1` and `sin(1)` are.
 
-The **built-in** functions are those the calculator provides; the
-**defined functions** are those the definitions file defines. You meet
-the angle in the built-ins. The trigonometric functions take an angle,
-and the inverse trigonometric functions return one; the hyperbolic
-functions take a plain number; each entry of
+The **built-in** functions are those the calculator provides. The
+**defined functions** are those the definitions file defines. The
+trigonometric functions take an angle, and the inverse trigonometric
+functions return one. The hyperbolic functions take a dimensionless
+argument. Each entry of
 [Built-in functions](builtins.md#rules-every-built-in-follows) says
 what its function takes. `sin(30 deg)` is `≈ 0.5` and not `= 0.5`:
 `deg` is defined through `pi()`, so the argument is inexact before the
@@ -205,26 +204,23 @@ sine is taken
 `asin(0.5)` lies outside the exact cases of `asin`, so it is inexact,
 and it is an angle whatever unit it is shown in: into `turn` it is
 `≈ 0.083333333 turn`, the same angle counted in turns, and only
-`asin(0.5) / radian` is the plain number. The table gives the rest.
+`asin(0.5) / radian` is dimensionless. The table gives the rest.
 
-| You type             | Into    | Exucal shows                                               | Note                                                          |
-| -------------------- | ------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
-| `sin(30 deg)`        |         | `≈ 0.5`                                                    | an angle in; `≈` since `deg` is inexact                       |
-| `sin(0 radian)`      |         | `= 0`                                                      | an exact case                                                 |
-| `sin(1)`             |         | an error, a kind mismatch, saying to write `sin(1 radian)` |                                                               |
-| `asin(0.5)`          | `deg`   | `≈ 30 deg`                                                 | an angle out                                                  |
-| `asin(0.5)`          | `turn`  | `≈ 0.083333333 turn`                                       | an angle still                                                |
-| `asin(0.5) / radian` |         | `≈ 0.52359878`                                             | the plain number                                              |
-| `2 asin(0.5) + 1`    |         | an error, a kind mismatch                                  |                                                               |
-| `1 rad/s`            | `Hz`    | an error, a kind mismatch: the radian                      |                                                               |
-| `1 rpm`              | `rad/s` | `≈ 0.10471976 rad / s`                                     | angles per time on both sides                                 |
-| `1 J`                | `N m`   | `= 1 N m`                                                  | no kind keeps torque from energy                              |
-| `1 m + 0`            |         | an error, a dimension mismatch                             | zero is a plain number; a message writes its dimension as `1` |
+| You type             | Into    | Exucal shows                                               | Note                                                         |
+| -------------------- | ------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
+| `sin(30 deg)`        |         | `≈ 0.5`                                                    | an angle in; `≈` since `deg` is inexact                      |
+| `sin(0 radian)`      |         | `= 0`                                                      | an exact case                                                |
+| `sin(1)`             |         | an error, a kind mismatch, saying to write `sin(1 radian)` |                                                              |
+| `asin(0.5)`          | `deg`   | `≈ 30 deg`                                                 | an angle out                                                 |
+| `asin(0.5)`          | `turn`  | `≈ 0.083333333 turn`                                       | an angle still                                               |
+| `asin(0.5) / radian` |         | `≈ 0.52359878`                                             | dimensionless                                                |
+| `2 asin(0.5) + 1`    |         | an error, a kind mismatch                                  |                                                              |
+| `1 rad/s`            | `Hz`    | an error, a kind mismatch: the radian                      |                                                              |
+| `1 rpm`              | `rad/s` | `≈ 0.10471976 rad / s`                                     | angles per time on both sides                                |
+| `1 J`                | `N m`   | `= 1 N m`                                                  | no kind keeps torque from energy                             |
+| `1 m + 0`            |         | an error, a dimension mismatch                             | zero is dimensionless; a message writes its dimension as `1` |
 
 ## Conformance
-
-This section says when two quantities conform, where the check is
-made, and how a failure is named.
 
 Two quantities **conform** when they measure the same thing. The check
 has two steps, in a fixed order. First the dimensions must agree: the
@@ -245,7 +241,7 @@ One check decides, at every call, where a quantity meets another:
   quantities, `div`, `mod` or `atan2`;
 - a call's argument against its parameter's **annotation**, the unit
   a defined function declares for the parameter; a parameter with no
-  annotation takes a plain number
+  annotation takes a dimensionless argument
   ([Functions](definitions.md#functions));
 - the have against the function's result, in a conversion into a
   function ([Conversion into a function](#conversion-into-a-function));
@@ -265,7 +261,7 @@ bmi(weight: kg, height: m): 1 = (weight / kg) / (height / m)^2
 The annotations say that `weight` takes a mass and `height` a length,
 and the `: 1` after the parentheses says that the result is a plain
 number. Each argument is checked against its annotation:
-`bmi(100, 4 ft)` is a dimension mismatch, since `100` is a plain number
+`bmi(100, 4 ft)` is a dimension mismatch, since `100` is dimensionless
 where a mass is needed, and `bmi(100 lb, 4 s)` is a dimension mismatch
 too, since `4 s` is a time where a length is needed.
 
@@ -282,25 +278,22 @@ call, not for conformance.
 The check comes before anything else. `1 m` into `0 s` is a dimension
 mismatch, and the zero is never looked at.
 
-| You type           | Into    | Exucal shows                                                                         | Note                                                                                             |
-| ------------------ | ------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| `1 m`              | `s`     | an error, a dimension mismatch: `m` against `s`                                      | the have against the want                                                                        |
-| `1 m`              | `0 s`   | an error, the same dimension mismatch                                                | checked before the zero                                                                          |
-| `1 m + 1 s`        |         | an error, a dimension mismatch: `m` against `s`                                      | the operands of `+`                                                                              |
-| `1 rad/s`          | `Hz`    | an error, a kind mismatch: the radian                                                | the have against the want                                                                        |
-| `tempC(20 m)`      |         | an error, a dimension mismatch: `m` against `1`, the parameter taking a plain number | a call's argument                                                                                |
-| `bmi(100, 4 ft)`   |         | an error, a dimension mismatch: `1` against `kg`, named for the parameter `weight`   | a call's argument, with `bmi` as above                                                           |
-| `bmi(100 lb, 4 s)` |         | an error, a dimension mismatch: `s` against `m`, named for the parameter `height`    | a call's argument, with `bmi` as above                                                           |
-| `300 m`            | `tempF` | an error, a dimension mismatch: `m` against `K`                                      | the have against the result of `tempF`, which gives the temperature a Fahrenheit reading denotes |
-| `1 m`              | `ft;s`  | an error, a dimension mismatch: `m` against `s`                                      | a list's unit                                                                                    |
+| You type           | Into    | Exucal shows                                                                                   | Note                                                                                             |
+| ------------------ | ------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `1 m`              | `s`     | an error, a dimension mismatch: `m` against `s`                                                | the have against the want                                                                        |
+| `1 m`              | `0 s`   | an error, the same dimension mismatch                                                          | checked before the zero                                                                          |
+| `1 m + 1 s`        |         | an error, a dimension mismatch: `m` against `s`                                                | the operands of `+`                                                                              |
+| `1 rad/s`          | `Hz`    | an error, a kind mismatch: the radian                                                          | the have against the want                                                                        |
+| `tempC(20 m)`      |         | an error, a dimension mismatch: `m` against `1`, the parameter taking a dimensionless argument | a call's argument                                                                                |
+| `bmi(100, 4 ft)`   |         | an error, a dimension mismatch: `1` against `kg`, named for the parameter `weight`             | a call's argument, with `bmi` as above                                                           |
+| `bmi(100 lb, 4 s)` |         | an error, a dimension mismatch: `s` against `m`, named for the parameter `height`              | a call's argument, with `bmi` as above                                                           |
+| `300 m`            | `tempF` | an error, a dimension mismatch: `m` against `K`                                                | the have against the result of `tempF`, which gives the temperature a Fahrenheit reading denotes |
+| `1 m`              | `ft;s`  | an error, a dimension mismatch: `m` against `s`                                                | a list's unit                                                                                    |
 
 ## No unit of its own
 
-This section says what follows from a quantity being held in the
-primitives rather than in the unit you typed.
-
 A quantity carries no unit of its own. Its scalar is held in the
-primitives, so `100 lb` and `45.359237 kg` are one quantity, and
+primitives, so `100 lb` and `45.359237 kg` are the same quantity, and
 nothing remembers which was typed: with a blank want, either shows as
 `= 45.359237 kg`. The units you type in the have are multiplied in as
 the expression is read, each standing for its value in the primitives,
@@ -311,13 +304,13 @@ Three things follow.
   and changes no value: the argument is held in the primitives whatever
   unit the annotation names ([Functions](definitions.md#functions)).
   With `bmi` defined as above, `bmi(100 lb, 4 ft)` and
-  `bmi(45.359237 kg, 1.2192 m)` are one call, and both give
+  `bmi(45.359237 kg, 1.2192 m)` are the same call, and both give
   `≈ 30.515173`. The body wants the number of kilograms in the weight
   and the number of metres in the height. It gets each by dividing the
   argument by the unit in question, `weight / kg` for the kilograms and
   `height / m` for the metres, since the argument remembers no unit.
-- A call of a function that takes a plain number fails for any other
-  quantity, with a dimension or a kind, whatever unit it was typed in.
+- A call of a function that takes a dimensionless argument fails for an
+  argument with a dimension or a kind, whatever unit it was typed in.
   `floor`, `ceil`, `trunc` and `round` are such functions, and so are
   the functions that take only whole numbers, `factorial` among them.
   `floor(3.7 ft)` is an error: the value is held in metres, and the
@@ -326,34 +319,32 @@ Three things follow.
   multiply the unit back: `floor(3.7 ft / ft) ft` is `= 3 ft`.
 - A function that takes a quantity with a dimension works on the
   scalar and says what becomes of the dimension. `abs` keeps it,
-  `sign` gives a plain number, and `approx`, the one operation whose
-  purpose is to make a value inexact, keeps the dimension and makes the
-  scalar inexact ([approx](numbers.md#approx)). `div`, `mod` and
-  `atan2` take two quantities that conform: `div` gives a plain number,
-  `mod` keeps the dimension, and `atan2` gives an angle. These are
-  examples; the entry of each function says what it takes and gives
+  `sign` gives a dimensionless result, and `approx`, the one operation
+  whose purpose is to make a value inexact, keeps the dimension and
+  makes the scalar inexact ([approx](numbers.md#approx)). `div`, `mod`
+  and `atan2` take two quantities that conform: `div` gives a
+  dimensionless result, `mod` keeps the dimension, and `atan2` gives an
+  angle. These are examples. The entry of each function says what it
+  takes and gives
   ([Built-in functions](builtins.md#rules-every-built-in-follows)).
 
-| You type                      | Into  | Exucal shows                                             | Note                                                    |
-| ----------------------------- | ----- | -------------------------------------------------------- | ------------------------------------------------------- |
-| `100 lb`                      |       | `= 45.359237 kg`                                         | held in the primitives                                  |
-| `45.359237 kg`                | `lb`  | `= 100 lb`                                               | the same quantity                                       |
-| `bmi(100 lb, 4 ft)`           |       | `≈ 30.515173`                                            | with `bmi` as above; exact, with more digits than shown |
-| `bmi(45.359237 kg, 1.2192 m)` |       | `≈ 30.515173`                                            | the same call                                           |
-| `floor(3.7 ft)`               |       | an error: the argument of `floor` must be a plain number |                                                         |
-| `floor(3.7 ft / ft) ft`       | `ft`  | `= 3 ft`                                                 | the unit divided out and back                           |
-| `abs(-3 m)`                   |       | `= 3 m`                                                  | the dimension kept                                      |
-| `sign(-3 m)`                  |       | `= -1`                                                   | a plain number                                          |
-| `approx(2 m)`                 |       | `≈ 2 m`                                                  | the scalar made inexact on purpose                      |
-| `div(7 ft, 2 ft)`             |       | `= 3`                                                    | a plain number                                          |
-| `mod(7 ft, 2 ft)`             | `ft`  | `= 1 ft`                                                 | the dimension kept                                      |
-| `mod(-30 deg, 360 deg)`       | `deg` | `≈ 330 deg`                                              | angles are quantities too                               |
-| `atan2(3 m, 4 m)`             | `deg` | `≈ 36.869898 deg`                                        | an angle from two lengths                               |
+| You type                      | Into  | Exucal shows                                     | Note                                                    |
+| ----------------------------- | ----- | ------------------------------------------------ | ------------------------------------------------------- |
+| `100 lb`                      |       | `= 45.359237 kg`                                 | held in the primitives                                  |
+| `45.359237 kg`                | `lb`  | `= 100 lb`                                       | the same quantity                                       |
+| `bmi(100 lb, 4 ft)`           |       | `≈ 30.515173`                                    | with `bmi` as above; exact, with more digits than shown |
+| `bmi(45.359237 kg, 1.2192 m)` |       | `≈ 30.515173`                                    | the same call                                           |
+| `floor(3.7 ft)`               |       | an error: `floor` takes a dimensionless argument |                                                         |
+| `floor(3.7 ft / ft) ft`       | `ft`  | `= 3 ft`                                         | the unit divided out and back                           |
+| `abs(-3 m)`                   |       | `= 3 m`                                          | the dimension kept                                      |
+| `sign(-3 m)`                  |       | `= -1`                                           | dimensionless                                           |
+| `approx(2 m)`                 |       | `≈ 2 m`                                          | the scalar made inexact on purpose                      |
+| `div(7 ft, 2 ft)`             |       | `= 3`                                            | dimensionless                                           |
+| `mod(7 ft, 2 ft)`             | `ft`  | `= 1 ft`                                         | the dimension kept                                      |
+| `mod(-30 deg, 360 deg)`       | `deg` | `≈ 330 deg`                                      | angles are quantities too                               |
+| `atan2(3 m, 4 m)`             | `deg` | `≈ 36.869898 deg`                                | an angle from two lengths                               |
 
 ## Units, prefixes and exactness of factors
-
-This section says how a unit is defined, how its name is read, and
-when a conversion between units is exact.
 
 A unit is defined as a **factor**, an expression that is usually a
 number, times other units, down to the primitives
@@ -419,10 +410,6 @@ looked up, like any other step
 
 ## How a conversion is answered
 
-This section says what a conversion into one unit computes, what the
-want may be, when the conversion fails, what the second line under it
-is, and how every line is written so that it pastes back.
-
 ### The ratio
 
 After the conformance check, the answer is the have's scalar divided
@@ -437,10 +424,10 @@ blank want answers in the primitives: `1 in` with a blank want is
 `= 0.0254 m`.
 
 [The want field](expressions.md#the-want-field) says how the want is
-read. This page says what each reading answers:
+read, and each reading answers in its own way:
 
 - one unit, or any other expression, a call included, answers the
-  ratio of this section;
+  ratio ([The ratio](#the-ratio));
 - units separated by `;`, or the name of a list the definitions file
   defines, answer a sum ([Unit lists](#unit-lists));
 - a defined function's name answers a call
@@ -557,10 +544,6 @@ front of the have on the reciprocal line, by these rules:
 | `1 m`      | `in`         | `= (5000/127) in`             | `in = 127/5000 × 1 m`       | under the ratio notation at width 20 |
 
 ## Unit lists
-
-This section says what a unit list answers, how its counts and its
-remainder are formed and rounded, what a list's units must satisfy,
-and what a comparison that cannot be decided does inside a list.
 
 ### What a list answers
 
@@ -685,9 +668,6 @@ while `1 m` into `ft;(1e-30 + approx(1) - 1) m` is an error.
 
 ## Conversion into a function
 
-This section says what a function as the want answers, the checks the
-conversion passes, and how the answer is written.
-
 A defined function's name as the want asks for the argument the
 function would need to give the have. This is a
 **conversion into a function**, and it recovers the argument through
@@ -723,9 +703,10 @@ reading denotes, so `300 K` into `tempF` is `= tempF(80.33)`, since
 6. The answer is written as the call, with the recovered argument
    written as a count of the parameter's annotation unit, the number
    of that unit the argument amounts to; where the parameter takes a
-   plain number, that count is the number itself: `tempF(80.33)`. The
-   predefined file's functions all take a plain number, so every
-   example here does. There is no reciprocal line.
+   dimensionless argument, that count is the number itself:
+   `tempF(80.33)`. The predefined file's functions all take a
+   dimensionless argument, so every example here does. There is no
+   reciprocal line.
 
 An inexact have gives an inexact recovered argument: `approx(300) K`
 into `tempF` is `≈ tempF(80.33)`. Under the ratio notation the
@@ -748,10 +729,6 @@ what the definitions file checks about one when it loads.
 | `-5 K`          | `tempC`   | an error: the recovered argument does not meet `x >= -273.15`         | step 4                                                     |
 
 ## Temperature and logarithmic levels as functions
-
-This section says what the temperature units measure, why a reading
-on a temperature scale and a logarithmic level are functions here
-rather than units, and how to write each.
 
 A **reading** on a temperature scale, a number on that scale, is not a
 multiple of anything: zero degrees Celsius is not zero kelvin, so no
@@ -805,9 +782,6 @@ and [Logarithmic levels](units.md#logarithmic-levels).
 
 ## How dimensions are written in messages
 
-This section says how a message writes a dimension, so that you can
-read one and paste it back, and how an error names the text at fault.
-
 A dimension in a message, and in an answer with a blank want, is
 written in the expression language:
 
@@ -815,8 +789,8 @@ written in the expression language:
 - those with positive exponents come first, then a `/`, then those
   with negative exponents, their exponents written positive after the
   `/`;
-- `1` stands for an empty numerator, and a plain number's dimension is
-  `1` alone, the empty product;
+- `1` stands for an empty numerator, and a dimensionless quantity's
+  dimension is `1` alone, the empty product;
 - an exponent that is not a whole number is parenthesized.
 
 The watt's dimension is written `m^2 kg / s^3`, the hertz's `1 / s`,

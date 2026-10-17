@@ -3,13 +3,13 @@
 Everything you type into Exucal, and every result it shows, is a
 quantity. A **quantity** is a **scalar** paired with a **dimension**.
 The scalar is a value (a `Ball`, as [Numbers](numbers.md) describes
-it), exact or inexact; the dimension is the thing the quantity
+it), exact or inexact. The dimension is the thing the quantity
 measures: a length, a speed, an energy, etc. Some quantities also carry
 a **kind**, a marker that keeps apart quantities which share a
-dimension and would otherwise look alike; the radian, which marks an
-angle, is one such marker. A
-quantity carries its dimension and its kind through every operation
-and every conversion.
+dimension and would otherwise look alike. The radian, which marks an
+angle, is one such marker. A quantity with neither dimension nor kind
+is **dimensionless**. A quantity carries its dimension and its kind
+through every operation and every conversion.
 
 Because the calculator keeps track of them, in calculation and in
 conversion, it promises three things:
@@ -20,31 +20,30 @@ conversion, it promises three things:
 - a mismatch of dimension or kind, in a sum, a conversion or a call, is
   an error and never a number.
 
-The semantics of a quantity build on [Numbers](numbers.md), whose
-sections are linked rather than restated. The expression language, the
-definition language, the units and the built-in functions have pages
-of their own, linked where a rule is theirs.
-
 The names the calculator knows come from a **definitions file**, a
 text file in the definition language that the app loads as it starts
 ([The definition language](definitions.md) describes the format, and
 [Units](units.md) lists the contents). A **unit** is a name the file
 gives to a quantity, so that other quantities can be written as
 multiples of it. The metre and the inch are units. The file also
-defines prefixes, unit lists and functions, and it declares the
-**primitives**: the base quantities every dimension is built from, and
-the kinds. The app loads the predefined definitions file, the one that
-ships with it, and the rules and examples here assume that file.
+defines the prefixes, the unit lists and the functions the calculator
+knows, and it declares the **primitives**, the base quantities that
+every dimension is built from. The kinds are primitives too, markers
+with no dimension of their own. The app loads the predefined
+definitions file, the one that ships with it, and the rules and
+examples here assume that file.
 
 Each example gives what you type, what you convert it into, and what
 Exucal shows. The shown text is the result side of an output line,
-with the relation, `=` or `≈`, in front of the value. Where a
-conversion's second line matters, the one that answers in the opposite
-direction, the example quotes it whole. The quantity you type is the
-**have**. The unit, list or function you convert it into is the
+with the relation, `=` or `≈`, in front of the value. A conversion
+answers in two lines, the second in the opposite direction
+([The reciprocal line](#the-reciprocal-line)), and where that second
+line matters, the example quotes it whole. The quantity you type is
+the **have**. The unit, list or function you convert it into is the
 **want**. The want may be left blank, and a blank want asks for the
-have in the primitives. The typed forms paste straight into the two
-fields. A setting or a mode an example depends on stands in its note.
+have in the primitives. The typed forms paste straight into the have
+and want fields. A setting or a mode an example depends on stands in
+its note.
 Where the calculator reports an error, the table says so and describes
 the message in a few words.
 [How dimensions are written in messages](#how-dimensions-are-written-in-messages)
@@ -55,9 +54,9 @@ A quantity follows these rules:
 - **A quantity is a scalar with a dimension.** The dimension is a list
   of exact rational exponents over the primitives. `^` takes its
   exponent from the text as a number, so that no exponent is ever
-  computed, and it is the one way to raise a quantity that is not
-  dimensionless to a power, since `pow()` takes a dimensionless base
-  ([A quantity](#a-quantity)).
+  computed. `^` is also the one way to raise a quantity with a
+  dimension or a kind to a power, since `pow()` takes a dimensionless
+  base ([A quantity](#a-quantity)).
 - **The primitives and the kinds come from the definitions file.** A
   kind keeps apart quantities that one dimension cannot, as the radian
   keeps an angle apart from a dimensionless quantity
@@ -69,10 +68,10 @@ A quantity follows these rules:
 - **A quantity carries no unit of its own.** It does not carry the
   units you typed. It carries its scalar and the exponents of the
   primitives, reduced to that form as soon as it is read, so `100 lb`
-  and `45.359237 kg` are the same quantity. A function does not change the
-  underlying units of its declared parameters. It only checks them. A
-  function that takes a dimensionless argument fails for an argument
-  with a dimension or a kind
+  and `45.359237 kg` are the same quantity. A function does not change
+  the underlying units of its declared parameters. It only checks the
+  argument against them. A function that takes a dimensionless
+  argument fails for an argument with a dimension or a kind
   ([No unit of its own](#no-unit-of-its-own)).
 - **Every factor is read exactly as written.** A unit is defined as a
   factor times other units. The factor is read the same way a typed
@@ -93,7 +92,7 @@ A quantity follows these rules:
   through its inverse, and the answer is written as the call
   ([Conversion into a function](#conversion-into-a-function)).
 - **A temperature reading and a logarithmic level are functions, not units**:
-  a reading, a number on a scale, and a level are multiples of nothing
+  neither a reading on a scale nor a level is a multiple of anything
   ([Temperature and logarithmic levels as functions](#temperature-and-logarithmic-levels-as-functions)).
 - **A dimension in a message is written in the expression language**,
   so that it pastes back
@@ -101,37 +100,34 @@ A quantity follows these rules:
 
 ## A quantity
 
-The scalar of a quantity is a value, a `Ball`, as
-[Exact and inexact values](numbers.md#exact-and-inexact-values)
-describes one. The rest of the quantity is one list of exponents, with
-an entry for each of the primitives, which the definitions file
+The rest of a quantity, beside its scalar, is one list of exponents,
+with an entry for each of the primitives, which the definitions file
 declares in two roles ([The primitives](units.md#the-primitives) lists
 them). A **dimension primitive** is a base quantity, such as the metre,
-the kilogram or the second, and the entries for the dimension
-primitives are the quantity's dimension: `6 m kg / s^2` has the
-exponent one for the metre, one for the kilogram and minus two for the
-second, and a primitive that does not occur implicitly has the
-exponent zero. A **kind primitive** is a marker of a kind, with no
-dimension of its own, and its entry is the quantity's kind. The radian
-is one.
+the kilogram or the second. The entries for the dimension primitives
+are the quantity's dimension: `6 m kg / s^2` has the exponent one for
+the metre, one for the kilogram and minus two for the second. A
+primitive absent from the list implicitly has the exponent zero. A
+**kind primitive** is a marker of a kind, with no dimension of its
+own, and its entry is the quantity's kind. The radian is one.
 
 The exponents are rational numbers, by design, so that a dimension
-stays exact: `m^(1/2)` is a dimension, `(m^2)^(1/2)` is `m` again, and
-no dimension is ever rounded, in exact mode or in decimal mode, which
+stays exact: `m^(1/2)` is a dimension, and `(m^2)^(1/2)` is `m` again.
+No dimension is ever rounded, in exact mode or in decimal mode, which
 rounds scalars alone ([The two modes](numbers.md#the-two-modes)).
 To keep them rational, `^` takes its exponent from the text, as a
 number: a whole number or a decimal, with a sign if needed, or a ratio
-of two whole numbers in parentheses, so `2`, `0.5`, `-1` and `(1/2)`.
-The exponent is never computed, so no dimension ever depends on a
-computed value. An exponent written as an expression, `sqrt(2)` or
-`1+1`, is not read at all: `m^sqrt(2)` and `2^(1+1)` are errors as they
-are typed, which the grammar reports before anything is computed
+of two whole numbers in parentheses, as in `2`, `0.5`, `-1` and
+`(1/2)`. The exponent is never computed, so no dimension ever depends
+on a computed value. An exponent written as an expression, `sqrt(2)`
+or `1+1`, is not read at all: `m^sqrt(2)` and `2^(1+1)` are errors
+reported as the text is read, before anything is computed
 ([Operators](expressions.md#operators)). The rule holds for a
 dimensionless base too, since `^` is one operator. `pow()` raises a
 dimensionless base to a computed power, `pow(2, sqrt(2))`, and it
 takes nothing else: `pow(2 m, 2)` is an error whose message says to
-write `(2 m)^2`. So `^` is the one way to raise a quantity that is not
-dimensionless to a power.
+write `(2 m)^2`. So `^` is the one way to raise a quantity with a
+dimension or a kind to a power.
 
 The operators act on dimensions as on paper:
 
@@ -164,15 +160,15 @@ quantities at all, not a failure of arithmetic.
 
 ## Primitives, dimensions and kinds
 
-The definitions file declares the primitives in their two roles
+The definitions file declares the primitives
 ([The primitives](units.md#the-primitives) lists them): the dimension
-primitives, `m`, `kg`, `s` and the rest, and the kind primitives. The
-radian, `radian`, is a kind primitive. The definitions file decides
+primitives, `m`, `kg`, `s` and the rest, and the kind primitives, the
+radian among them (`radian`, or `rad` for short). The file decides
 which kinds exist, and the calculator only keeps them apart. A
 quantity of the radian kind is an **angle**.
 
-A quantity with neither dimension nor kind is **dimensionless**. A
-**plain number** means the same. A quantity with a kind and no
+A **plain number** means the same thing as a dimensionless quantity,
+one with neither dimension nor kind. A quantity with a kind and no
 dimension is not dimensionless: `asin(0.5)` is an angle.
 
 A kind exists because a dimension alone cannot tell some quantities
@@ -204,7 +200,7 @@ sine is taken
 `asin(0.5)` lies outside the exact cases of `asin`, so it is inexact,
 and it is an angle whatever unit it is shown in: into `turn` it is
 `≈ 0.083333333 turn`, the same angle counted in turns, and only
-`asin(0.5) / radian` is dimensionless. The table gives the rest.
+`asin(0.5) / radian` is dimensionless.
 
 | You type             | Into    | Exucal shows                                               | Note                                                         |
 | -------------------- | ------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
@@ -233,7 +229,7 @@ is an error: nothing is converted by guess, and no unit is assumed.
 [GNU units](https://www.gnu.org/software/units/) calls two such
 quantities conformable.
 
-One check decides, at every call, where a quantity meets another:
+One check decides wherever a quantity meets another:
 
 - the have against the want, in a conversion;
 - the two operands of `+`, and the two operands of `-`;
@@ -247,8 +243,8 @@ One check decides, at every call, where a quantity meets another:
   function ([Conversion into a function](#conversion-into-a-function));
 - each unit of a unit list against the have ([Unit lists](#unit-lists)).
 
-The annotation check shows best on a function that computes with the
-number of some unit in its arguments: a body-mass index is computed
+The annotation check shows best on a function whose body needs its
+arguments as counts of particular units: a body-mass index is computed
 from how many kilograms a weight holds and how many metres a height
 holds. Say the definitions file defines one as follows
 ([Functions](definitions.md#functions) says how a function is
@@ -266,14 +262,14 @@ where a mass is needed, and `bmi(100 lb, 4 s)` is a dimension mismatch
 too, since `4 s` is a time where a length is needed.
 
 A defined function may also carry a condition, a comparison its
-argument must satisfy. `tempC`, which gives the temperature that a
-Celsius reading, a number on the Celsius scale, denotes, requires
-`x >= -273.15` of its argument `x`. The terms of a condition must
-conform to each other; their conformance is checked once, when the
-definitions file loads, and never at the call
+argument must satisfy. `tempC` gives the temperature that a reading
+on the Celsius scale denotes, and it requires `x >= -273.15` of its
+argument `x`. The terms of a condition must conform to each other.
+Their conformance is checked once, when the definitions file loads,
+and never at the call
 ([When the file does not load](definitions.md#when-the-file-does-not-load)).
-Whether an argument satisfies the condition is a question for the
-call, not for conformance.
+The call, not the conformance check, decides whether an argument
+satisfies the condition.
 
 The check comes before anything else. `1 m` into `0 s` is a dimension
 mismatch, and the zero is never looked at.
@@ -292,8 +288,8 @@ mismatch, and the zero is never looked at.
 
 ## No unit of its own
 
-A quantity carries no unit of its own. Its scalar is held in the
-primitives, so `100 lb` and `45.359237 kg` are the same quantity, and
+A quantity's scalar is held in the primitives, so `100 lb` and
+`45.359237 kg` are the same quantity, and
 nothing remembers which was typed: with a blank want, either shows as
 `= 45.359237 kg`. The units you type in the have are multiplied in as
 the expression is read, each standing for its value in the primitives,
@@ -377,12 +373,12 @@ In the predefined file, the only function a unit's definition calls is
 `pi()`, and it is inexact: `deg`, `grad`, `turn`, `parsec` and
 `oersted` are defined through it, so they are inexact units, and so is
 every unit built on one of them.
-[Which factors are exact](units.md#which-factors-are-exact) lists them
-by name. A conversion through an inexact unit is `≈`. `sr`, defined
-as `radian^2` with no factor but one, is exact, as the radian itself
-is. The file's level functions, `neper`, `bel` and `decibel`, call
-`exp()`, `ln()`, `pow()` and `log10()` in their bodies, but a function
-is not a unit.
+[Which factors are exact](units.md#which-factors-are-exact) lists the
+inexact units by name. A conversion through an inexact unit is `≈`.
+`sr`, defined as `radian^2` with no factor but one, is exact, as the
+radian itself is. The functions for logarithmic levels, `neper`, `bel`
+and `decibel`, call `exp()`, `ln()`, `pow()` and `log10()` in their
+bodies, but a function is not a unit.
 [Temperature and logarithmic levels as functions](#temperature-and-logarithmic-levels-as-functions)
 describes them.
 
@@ -424,7 +420,7 @@ blank want answers in the primitives: `1 in` with a blank want is
 `= 0.0254 m`.
 
 [The want field](expressions.md#the-want-field) says how the want is
-read, and each reading answers in its own way:
+read, and each form answers in its own way:
 
 - one unit, or any other expression, a call included, answers the
   ratio ([The ratio](#the-ratio));
@@ -432,9 +428,10 @@ read, and each reading answers in its own way:
   defines, answer a sum ([Unit lists](#unit-lists));
 - a defined function's name answers a call
   ([Conversion into a function](#conversion-into-a-function));
-- a built-in's name is an error, since only a defined function can
-  have an inverse written for it in the definitions file, and a
-  conversion into a function needs one.
+- a built-in's name is an error, since a conversion into a function
+  needs an inverse written in the definitions file, and a built-in has
+  none there; the message says to apply the function to a value
+  instead, `sin(value)`.
 
 | You type | Into      | Exucal shows                              | Note                               |
 | -------- | --------- | ----------------------------------------- | ---------------------------------- |
@@ -443,13 +440,13 @@ read, and each reading answers in its own way:
 | `1 mi`   | `1000 ft` | `= 5.28 × 1000 ft`                        | a want with a number               |
 | `1 m`    | `2 ft`    | `≈ 1.6404199 × 2 ft`                      |                                    |
 | `1 in`   |           | `= 0.0254 m`                              | a blank want: the primitives       |
-| `1`      | `sin`     | an error: `sin` is a function, not a unit | no inverse in the definitions file |
+| `1`      | `sin`     | an error: `sin` is a function, not a unit | a built-in as the want             |
 
 ### When a conversion fails
 
-Once the want reads as a quantity, six things can stop a conversion
-into one unit. Four are errors, and two are refusals, a value the size
-limits keep from being computed
+Six things can stop a conversion into one unit once the want has been
+read. Four are errors, and two are refusals, a value the size limits
+keep from being computed
 ([Values too big to hold](numbers.md#values-too-big-to-hold)):
 
 - a dimension mismatch or a kind mismatch
@@ -491,8 +488,8 @@ than are shown. There is no reciprocal line:
 - when the reciprocal line would itself be refused for its size; it is
   then left out, and no message says so. `5e1000000000000000000 m`
   into `m` shows one line, since the reciprocal is past the exponent
-  bound, while the have is a value, its exponent being at the bound and
-  not past it.
+  bound, while the have itself can be held, its exponent being at the
+  bound and not past it.
 
 In decimal mode the reciprocal line is computed from the ratio as
 shown, as [The two modes](numbers.md#the-two-modes) describes.
@@ -509,10 +506,10 @@ shown, as [The two modes](numbers.md#the-two-modes) describes.
 ### Lines that paste back
 
 Every line pastes back as a have
-([What the app writes back](expressions.md#what-the-app-writes-back)):
-the copy button writes the line's result with `*` where the screen
-shows `×`, and the text reads as the value shown, so that pasting it as
-a have and converting it into the same want writes the same result
+([What the app writes back](expressions.md#what-the-app-writes-back)).
+The copy button writes the line's result with `*` where the screen
+shows `×`, and the text reads as the value shown. So pasting it as a
+have and converting it into the same want writes the same result
 again. The result is written as a factor in front of the want, or in
 front of the have on the reciprocal line, by these rules:
 
@@ -639,10 +636,10 @@ fail only for not conforming to the have.
 A count comes from the ratio of what is left to the unit, and an
 inexact ratio is compared as the whole range within its error radius
 ([Comparison and equality](numbers.md#comparison-and-equality)). When
-that range reaches across a whole number, or ends exactly on one, so
-that the ratio cannot be told from it, the count takes that whole
-number, the one nearest the ratio, and the remainder is a value around
-zero, left out as a zero term: `approx(36) in` into `ft;in` is `≈ 3 ft`.
+that range reaches across the whole number nearest the ratio, or ends
+exactly on it, the ratio cannot be told from that whole number. The
+count then takes it, and the remainder is a value around zero, left
+out as a zero term: `approx(36) in` into `ft;in` is `≈ 3 ft`.
 This is the design, and it is not a guess: a count chooses how the
 quantity is written, not what it is. The doubt goes into the remainder,
 a value around zero that is left out, and into the `≈`, which a value
@@ -650,10 +647,10 @@ with an error radius always carries. Counting one less would write the
 same quantity as `2 ft + 12 in`, a whole of the unit, as if it were a
 different one.
 
-A failure of the rule that every unit of a list be positive ends the
-retry loop. A unit of a typed list that cannot be told from zero at a
-pass is therefore an error, and the calculator does not run it again at
-more digits, though it does for the same expression as a single want
+A unit of a typed list that cannot be told from zero at a pass fails
+the rule that every unit be positive, and that failure is an error:
+the calculator does not run the conversion again at more digits,
+though it does for the same expression as a single want
 ([Values at an edge](numbers.md#values-at-an-edge)): `1 m` into
 `(1e-30 + approx(1) - 1) m` is `≈ 1e+30 × (1e-30 + approx(1) - 1) m`,
 while `1 m` into `ft;(1e-30 + approx(1) - 1) m` is an error.
@@ -700,9 +697,9 @@ reading denotes, so `300 K` into `tempF` is `= tempF(80.33)`, since
    [Comparison and equality](numbers.md#comparison-and-equality)
    describes, exact values compared exactly and inexact ones as ranges,
    so a wrong inverse gives an error rather than a wrong answer.
-6. The answer is written as the call, with the recovered argument
+6. The answer is written as the call. The recovered argument is
    written as a count of the parameter's annotation unit, the number
-   of that unit the argument amounts to; where the parameter takes a
+   of that unit the argument amounts to. Where the parameter takes a
    dimensionless argument, that count is the number itself:
    `tempF(80.33)`. The predefined file's functions all take a
    dimensionless argument, so every example here does. There is no

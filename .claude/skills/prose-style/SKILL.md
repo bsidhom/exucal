@@ -48,6 +48,9 @@ it to the whole text, not only to the sentence that prompted it.
 - Bold a defined term once, where it is defined. Bold otherwise marks
   only the statement of a rule, as in a summary's lead phrases; it
   never marks emphasis.
+- A heading names its claim or its thing in words a reader can parse
+  on their own ("A quantity carries no unit"), never an allusion that
+  only the section explains ("No unit of its own").
 - Examples are set apart in a table: what the reader types or does,
   and what happens. The typed column must paste back and work; never
   put the system's own output there.

@@ -71,7 +71,7 @@ A quantity follows these rules:
   function does not change the underlying units of its declared
   parameters. A function that takes a dimensionless argument fails for
   an argument with a dimension or a kind
-  ([No unit of its own](#no-unit-of-its-own)).
+  ([A quantity carries no unit](#a-quantity-carries-no-unit)).
 - **Every factor is read exactly as written.** A unit is defined as a
   factor times other units. The factor is read the same way a typed
   number is, so a conversion is exact unless a unit's definition uses
@@ -295,7 +295,7 @@ mismatch, and the zero is never looked at.
 | `300 m`            | `tempF` | an error, a dimension mismatch: `m` against `K`                                                | the have against the result of `tempF`, which gives the temperature a Fahrenheit reading denotes |
 | `1 m`              | `ft;s`  | an error, a dimension mismatch: `m` against `s`                                                | a list's unit                                                                                    |
 
-## No unit of its own
+## A quantity carries no unit
 
 A quantity's scalar is held in the primitives, so `100 lb` and
 `45.359237 kg` are the same quantity, and
@@ -435,12 +435,11 @@ Each form answers in its own way.
 - A blank want answers in the primitives, as above.
 - Units separated by `;`, or the name of a list the definitions file
   defines, answer with a sum ([Unit lists](#unit-lists)).
-- A defined function's name answers with a call
+- The name of an invertible defined function answers with a call
   ([Conversion into a function](#conversion-into-a-function)).
-- A built-in's name is an error, since a conversion into a function
-  needs an inverse written in the definitions file, and a built-in has
-  none there. The message says to apply the function to a value
-  instead, `sin(value)`.
+- Converting into a built-in function is an error, since no built-in
+  function is invertible. The message says to apply the function to a
+  value instead, `sin(value)`.
 
 | You type | Into      | Exucal shows                              | Note                               |
 | -------- | --------- | ----------------------------------------- | ---------------------------------- |
@@ -490,7 +489,9 @@ which gives the want as a multiple of the have: `3 ft = 36 in` and,
 under it, `in ≈ 0.027777778 × 3 ft`. Each line's relation is decided
 from its own value: the first line here is `=`, since its value is
 exact and entire, and the second is `≈`, since `1/36` has more digits
-than are shown. There is no reciprocal line in three cases.
+than are shown.
+
+There is no reciprocal line in three cases:
 
 - A unit list, a blank want or a function want has none.
 - A have that is zero, or cannot be told from zero, has none: `0 ft`
@@ -744,7 +745,8 @@ A **reading** on a temperature scale, a number on that scale, is not a
 multiple of anything: zero degrees Celsius is not zero kelvin, so no
 factor turns the one into the other. Exucal has no unit with an offset.
 A unit is multiplied in as the expression is read
-([No unit of its own](#no-unit-of-its-own)), so no operation sees one.
+([A quantity carries no unit](#a-quantity-carries-no-unit)), so no
+operation sees one.
 An offset cannot be multiplied in, so every operation would need a rule
 for it: twice a reading is not the reading with twice the number, and
 the sum of two readings is not a reading of the sum. A function needs

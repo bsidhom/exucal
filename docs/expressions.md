@@ -1,27 +1,24 @@
 # The expression language
 
-Everything you type into Exucal is an expression in one small
-language. The have, the quantity you type, is an expression. So is the
-want, what you convert it into, and so is the body of each definition
-in the definitions file ([The definition language](definitions.md)).
-An expression is built from numbers, names, the operators `*`, `/`,
-`+`, `-` and `^`, parentheses, calls of functions, and factors written
-side by side, a factor being any one operand of a product. The
-calculator first reads a text into an expression, and then it
+Everything you type into Exucal is written in one small language. The
+have, the quantity you type, is a text in it. So is the want, what you
+convert it into, and so is the body of each definition in the
+definitions file ([The definition language](definitions.md)). The
+calculator first reads such a text into an expression, built from
+numbers, names, the operators `*`, `/`, `+`, `-` and `^`, parentheses,
+calls of functions, and factors written side by side, and then it
 evaluates the expression. A few rules fix the reading, and the reading
 decides what is computed. `1/2 in` is a quantity per inch and not half
 an inch. A space before `(` makes a product where no space makes a
 call. The exponent of `^` is read from the text as a number, so that a
-dimension is never computed. Text the grammar does not read is an
-error as it is typed: the reading of that text stops at the first
-character it cannot read, before anything in the text is computed, and
-the message names that character. The reading also refuses a number
-past a size limit, quoting it with its reason. Everything else that
-fails does so when the expression is evaluated, and the message quotes
-the part at fault. [Numbers](numbers.md) says what a value is, and
-[Quantities](quantities.md) says what a quantity is. The rules here say
-how a typed text becomes a quantity, and how the app writes a quantity
-back as text.
+dimension is never computed. A text the grammar does not read, or a
+number past a size limit, is stopped by the reading, as it is typed,
+before anything is computed: the first is an error, the second a
+refusal. Everything else that fails does so when the expression is
+evaluated ([Errors](#errors)). [Numbers](numbers.md) says what a value
+is, and [Quantities](quantities.md) says what a quantity is. The rules
+here say how a typed text becomes a quantity, and how the app writes an
+expression back as text.
 
 Each example gives what you type, what you convert it into where that
 matters, and what Exucal shows. The shown text is the result side of an
@@ -61,8 +58,8 @@ An expression follows these rules:
   quoting the part at fault
   ([Evaluation order and error locations](#evaluation-order-and-error-locations)).
 - **The app writes an expression back in one canonical text, which pastes back.**
-  The screen shows `×` where the copy button writes `*`
-  ([What the app writes back](#what-the-app-writes-back)).
+  The screen shows `×` for a product's `*`, and the copy button writes
+  `*` ([What the app writes back](#what-the-app-writes-back)).
 - **Some texts do not read as they look**, `1/2 in` and `-2^2` among
   them ([Pitfalls](#pitfalls)).
 - **Any character the grammar does not read is an error as it is typed.**
@@ -510,53 +507,27 @@ The have's error is reported before the want's
 
 ## What the app writes back
 
-Every output line writes the have back as text, and the want too where
-the line shows it. The text is **canonical**: one text for one
-expression. Two typings that differ only in spaces, or in parentheses
-the reading does not need, are written alike. Each number keeps the
-spelling you typed, since the text writes the expression and not its
-value: the value's own written form is the result's
-([How numbers are written](numbers.md#how-numbers-are-written)). These
-rules write it.
+Every output line writes both its sides as text: the have on the left,
+as it was read, and the result on the right. The result's value is
+written as [How numbers are written](numbers.md#how-numbers-are-written)
+says; the have, and the expression around the value, are written as
+here. The text is **canonical**: one text for one expression, whatever
+typing produced it. The spelling is the app's and not yours, with the
+fewest parentheses that keep the reading, so `((ft + in))` is written
+`ft + in` and `m^(2)` is written `m^2`. Of the text, one thing is
+promised: it pastes back as the same expression. On the screen, a
+product written with `*` is shown with `×`, which the fields do not
+accept. The copy button copies the result side with `*`, so what you
+copy pastes back, where text selected on the screen may not.
 
-- One space stands between juxtaposed factors and around `+`, `*`, `/`
-  and a `-` between two operands: `2m` is written `2 m`, and
-  `kg m/s^2` is written `kg m / s^2`. A negation's `-` is written
-  against its operand: `- 2 m` is written `-2 m`.
-- `^` and a quotient of two numbers are written tight: `m^2`,
-  `5000/127` and `-1/3`.
-- A call's arguments are separated by `, `.
-- Each number keeps its spelling: `1e3` stays `1e3`, and `.5` stays
-  `.5`.
-- An exponent's two numbers keep their spelling, so `m^(2/4)` stays
-  `m^(2/4)`. The parentheses around a single number are dropped, so
-  `m^(2)` becomes `m^2`.
-- Only the parentheses the reading needs are written: `((ft + in))` is
-  written `ft + in`, `1/(2 in)` is written `1 / 2 in`, and `2 (m / s)`
-  keeps its own.
-
-The copy button writes this text, and it pastes back as the same
-expression. On the screen, a product written with `*` is shown with
-`×`, which the fields do not accept, so text selected on the screen may
-not paste back. That every result pastes back is the principle the
-numbers page states, and every line of a conversion follows it
-([How numbers are written](numbers.md#how-numbers-are-written)).
-
-| You type      | Into      | The line Exucal writes            | Note                                                   |
-| ------------- | --------- | --------------------------------- | ------------------------------------------------------ |
-| `2m`          |           | `2 m = 2 m`                       | one space                                              |
-| `kg m/s^2`    |           | `kg m / s^2 = 1 m kg / s^2`       | spaces around `/`                                      |
-| `- 2 m`       |           | `-2 m = -2 m`                     | a negation against its operand                         |
-| `atan2(3,4)`  |           | `atan2(3, 4) ≈ 0.64350111 radian` | `, ` between arguments                                 |
-| `1e3`         |           | `1e3 = 1000`                      | the number's spelling kept                             |
-| `m^(2/4)`     |           | `m^(2/4) = 1 m^(1/2)`             | the exponent's spelling kept                           |
-| `m^(2)`       |           | `m^2 = 1 m^2`                     | the parentheses dropped                                |
-| `((ft + in))` |           | `ft + in = 0.3302 m`              | the fewest parentheses                                 |
-| `1/(2 in)`    |           | `1 / 2 in ≈ 19.685039 × (1 / m)`  | the parentheses dropped: juxtaposition binds first     |
-| `2 (m / s)`   |           | `2 (m / s) = 2 m / s`             | the parentheses kept                                   |
-| `2 * 3 m`     |           | `2 × 3 m = 6 m`                   | `×` on the screen                                      |
-| `1 mi`        | `1000 ft` | `1 mi = 5.28 × 1000 ft`           | copied as `5.28 * 1000 ft`                             |
-| `1 m`         | `in`      | `1 m = (5000/127) in`             | under the ratio notation at width 20: a fraction tight |
+| You type      | Into      | The line Exucal writes           | Note                                   |
+| ------------- | --------- | -------------------------------- | -------------------------------------- |
+| `2m`          |           | `2 m = 2 m`                      | the spacing is the app's               |
+| `((ft + in))` |           | `ft + in = 0.3302 m`             | the fewest parentheses                 |
+| `m^(2)`       |           | `m^2 = 1 m^2`                    | the fewest parentheses                 |
+| `1/(2 in)`    |           | `1 / 2 in ≈ 19.685039 × (1 / m)` | none needed: juxtaposition binds first |
+| `2 * 3 m`     |           | `2 × 3 m = 6 m`                  | `×` on the screen                      |
+| `1 mi`        | `1000 ft` | `1 mi = 5.28 × 1000 ft`          | the result copied as `5.28 * 1000 ft`  |
 
 ## Pitfalls
 

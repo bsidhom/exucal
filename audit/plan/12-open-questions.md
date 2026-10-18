@@ -1194,6 +1194,24 @@ decision, are listed after the answers.
   `lb / ft^2`, the pattern for any scale defined on fixed units, and the division is what
   keeps a scale on non-primitive units, pounds and feet, from giving the number in the
   primitives. The torque thread stays open as the owner's design question.
+- **The fourth review of the quantities page (2026-10-18).** Six threads: four applied, one
+  answered, one confirmed. The section "No unit of its own" is "A quantity carries no
+  unit", a title a reader can parse on its own (a new style rule; §7 and work order 02
+  follow, and no other page links the anchor yet). In the forms of the want, "the name of
+  an invertible defined function answers with a call", and "converting into a built-in
+  function is an error, since no built-in function is invertible". The lead-in "There is
+  no reciprocal line in three cases:" is a paragraph of its own. The owner asked whether
+  the exactness of factors and the conformance of a call's argument belong on this page,
+  or on the pages about units, definitions and built-ins, or in a holistic overview of the
+  calculator's two abstractions, the value and the quantity. Moving them would amend §5's
+  owners (C36 Conformance is the page's; C42 Annotations is already `definitions.md`'s),
+  §7's section lists for `quantities.md`, `units.md` and `definitions.md`, and work orders
+  02, 04, 05 and 07, so by the owner's own default they stay for now. **Deferred:** a docs
+  pass after the full rewrite, to rearrange material across pages and cut the long pages
+  down (`quantities.md` runs to about 830 lines and `numbers.md` to about 1100), where
+  this question is to be taken up; recorded here so that it is not dropped. The owner
+  confirmed that a reciprocal line refused for its size is left out with no user-visible
+  message (B-009), as the page says.
 
 ### The review's other corrections
 

@@ -135,7 +135,7 @@ written in messages".
   conversion into a function, a list's units; a condition's terms are
   checked when the file loads (`definitions.md#when-the-file-does-not-load`).
 
-### No unit of its own
+### A quantity carries no unit
 
 - Facts: §1 Q5. `100 lb` and `45.359237 kg` are one value; an
   annotation checks a dimension and changes no value; `floor`, `ceil`,

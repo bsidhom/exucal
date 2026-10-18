@@ -120,7 +120,8 @@ for its reader, with the substance principles.md fixes (§12.3,
   named by its kind; a kind primitive "a marker of a kind, with no
   dimension of its own", F-459; §12, question 20 and Q-019)
 - Conformance: what can be added, converted, passed
-- No unit of its own: consequences (floor, annotations)
+- A quantity carries no unit (the heading the review of 2026-10-18 set):
+  consequences (floor, annotations)
 - Units, prefixes and exactness of factors (which units are inexact;
   the rule, F-069: every factor is written exactly, so a conversion is
   exact unless a unit calls `pi()`; `units.md` lists the measured values)

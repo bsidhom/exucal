@@ -1,43 +1,36 @@
 # The expression language
 
-Everything you type into Exucal is written in one small language. The
-have, the quantity you type, is a text in it. So is the want, what you
-convert it into, and so is the body of each definition in the
-definitions file ([The definition language](definitions.md)). The
-calculator first reads such a text into an expression, built from
-numbers, names, the operators `*`, `/`, `+`, `-` and `^`, parentheses,
-calls of functions, and factors written side by side, and then it
-evaluates the expression. A few rules fix the reading, and the reading
-decides what is computed. `1/2 in` is a quantity per inch and not half
-an inch. A space before `(` makes a product where no space makes a
-call. The exponent of `^` is read from the text as a number, so that a
-dimension is never computed. A text the grammar does not read is
-stopped by the reading, as it is typed, and is an error. A number that
-no setting of the significand limit could hold, or that passes the
-exponent bound, is stopped by the reading too, and is a refusal.
-Everything else fails, if it fails, when the expression is evaluated. A
-number past the significand limit as it is set is one such failure
-([Errors](#errors)). [Numbers](numbers.md) says what a value
-is, and [Quantities](quantities.md) says what a quantity is. The rules
-here say how a typed text becomes a quantity, and how the app writes an
-expression back as text.
+Everything you type into Exucal is written in a small expression
+language. The have, the quantity you type, is written in it. So is the
+want, what you convert it into, which also takes a few forms of its own
+([The want field](#the-want-field)). So is the body of a definition in
+the definitions file, and only the body: the rest of a definition is
+the definition language's ([The definition language](definitions.md)).
+The calculator first parses a text into an expression, and then it
+evaluates the expression. An expression is built from numbers; names;
+the operators `*`, `/`, `+`, `-` and `^`; parentheses; calls of
+functions; and factors written side by side. A text that does not parse
+is an error as it is typed: parsing stops at the first character it
+cannot place, before anything is computed. A number too long for any
+setting of the significand limit, or past the exponent bound, is
+stopped the same way and refused. Everything else that fails does so
+when the expression is evaluated ([Errors](#errors)).
+[Numbers](numbers.md) says what a value is, and
+[Quantities](quantities.md) says what a quantity is.
 
 Each example gives what you type, what you convert it into where that
 matters, and what Exucal shows. The shown text is the result side of an
-output line, with the relation, `=` or `≈`, in front of the value.
-Where a line's left side is the point, the example quotes the whole
-line. The typed forms paste straight into the have and want fields.
-Where the calculator reports an error, the table says so and describes
-the message in a few words; [Errors](#errors) says how a message is
-worded.
+output line, with the relation, `=` or `≈`, in front of the value. Each
+entry under "You type" goes into the have field as it stands, and each
+entry under "Into" goes into the want field. Where the calculator
+reports an error, the table says so and describes the message in a few
+words. [Errors](#errors) says how a message is worded.
 
 An expression follows these rules:
 
-- **A text groups by six levels of binding**, loosest first: `+` and
-  `-`; `*` and `/`; negation; juxtaposition; `^`; and the atoms, a
-  number, a name, a call or a parenthesized expression. The two-sided
-  operators of one level are read left to right
-  ([Grammar and precedence](#grammar-and-precedence)).
+- **A text groups by six levels of binding**, which the table under
+  [Grammar and precedence](#grammar-and-precedence) gives, loosest
+  first.
 - **A number is an unsigned decimal with an optional exponent, read exactly.**
   A number past a size limit is refused ([Numbers](#numbers)).
 - **A name takes every letter, digit and underscore that follows its first character**,
@@ -53,31 +46,32 @@ An expression follows these rules:
   ([Calls and arity](#calls-and-arity)).
 - **The have is one expression**, and its error is reported before the
   want's ([The have field](#the-have-field)).
-- **The want is read by its shape**: blank, a list's name, a function's
+- **The want parses by its shape**: blank, a list's name, a function's
   name, one expression, or items separated by `;`
   ([The want field](#the-want-field)).
 - **Operands are computed left to right, and the first failure ends the computation**,
   quoting the part at fault
   ([Evaluation order and error locations](#evaluation-order-and-error-locations)).
-- **The app writes an expression back in one canonical text, which pastes back.**
-  The screen shows `×` for a product's `*`, and the copy button writes
-  `*` ([What the app writes back](#what-the-app-writes-back)).
-- **Some texts do not read as they look**, `1/2 in` and `-2^2` among
+- **The app writes an expression back in one canonical form.** What the
+  copy button copies pastes back as the same expression, and the screen
+  shows `×` for a product's `*`
+  ([What the app writes back](#what-the-app-writes-back)).
+- **Some texts do not parse as they look**, `1/2 in` and `-2^2` among
   them ([Pitfalls](#pitfalls)).
-- **Any character the grammar does not read is an error as it is typed.**
+- **Any character that cannot be parsed where it stands is an error as it is typed.**
   The typographic characters people type, `×`, `÷` and `²` among them,
   each have a plain form to type instead
   ([What is not accepted](#what-is-not-accepted)).
-- **An error names the first character that could not be read, or quotes the part at fault**
+- **An error names the first character that could not be parsed, or quotes the part at fault**
   ([Errors](#errors)).
 
 ## Grammar and precedence
 
 A text groups by six levels of binding. Each construct binds as the
 table says, loosest first, and the two-sided operators of one level
-are read left to right.
+parse left to right.
 
-| Level       | Construct                                                                | Grouping                                         | Example, and how it reads                                                                |
+| Level       | Construct                                                                | Grouping                                         | Example, and how it parses                                                               |
 | ----------- | ------------------------------------------------------------------------ | ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
 | 1, loosest  | sum and difference: `+`, `-`                                             | left to right                                    | `5 ft - 2 in + 1 in` is `(5 ft - 2 in) + 1 in`                                           |
 | 2           | product and quotient: `*`, `/`                                           | left to right                                    | `m/s*s` is `(m/s)*s`                                                                     |
@@ -86,7 +80,7 @@ are read left to right.
 | 5           | power: one `^` and an exponent written as a number                       | one exponent per factor                          | `-2^2` is `-(2^2)`; `m^2^3` is an error                                                  |
 | 6, tightest | an atom: a number, a name, a call or an expression in parentheses        | none                                             | `2.54`, `ft`, `tempC(100)`, `(1/12)`; `kg(m/s)` is a call and `kg (m/s)` a juxtaposition |
 
-So `2 kg * 3 m/s^2` is read as `((2 kg) * (3 m)) / (s^2)`: the power
+So `2 kg * 3 m/s^2` parses as `((2 kg) * (3 m)) / (s^2)`: the power
 first, then each juxtaposition, then the product and the quotient from
 the left. In the want, `;` separates the items of a unit list and binds
 looser than all of these ([The want field](#the-want-field)).
@@ -94,7 +88,7 @@ looser than all of these ([The want field](#the-want-field)).
 
 Whitespace is spaces and tabs, any amount. It may stand before and
 after the text, between any two of its parts, around every operator and
-inside parentheses: `m ^ 2` and `atan2( 1 , 2 )` are read as `m^2` and
+inside parentheses: `m ^ 2` and `atan2( 1 , 2 )` parse as `m^2` and
 `atan2(1, 2)`. It never stands inside a number or a name. A space
 between a name and `(` is allowed, and it makes a juxtaposition of the
 two where no space makes a call ([Calls and arity](#calls-and-arity)).
@@ -146,8 +140,7 @@ it is typed: `0.001e1000000000000000003` is a value, and
 significand limit holds is refused when the expression is computed, in
 exact mode and in decimal mode alike, and inside `approx`. The limit
 refuses the number rather than cutting it to fit. A number longer than
-any setting of the limit could hold is stopped by the reading instead,
-as it is typed. In decimal mode a number within the limit is rounded to
+any setting of the limit could hold is stopped as it is typed instead. In decimal mode a number within the limit is rounded to
 the working digits as it is read
 ([The two modes](numbers.md#the-two-modes)).
 
@@ -176,12 +169,12 @@ start with a digit.
 A name that does not name a function or a list means the unit of that
 name if there is one, and otherwise one prefix followed by a unit:
 `km` is `k` + `m`, and `kilometre` is `kilo` + `metre`. Six rules
-govern that reading.
+govern what a name means.
 
 - A unit's own name wins over a prefix and a unit, so `min` is the
   minute and not `m` + `in`.
-- The reading is never a choice: the definitions file is checked as it
-  loads so that no name reads as two different prefix-and-unit pairs
+- The pairing is never a choice: the definitions file is checked as it
+  loads so that no name can be two different prefix-and-unit pairs
   ([Names](definitions.md#names)).
 - Prefixes do not stack: `kkm` is an unknown unit.
 - There is no plural handling: `inches` is an unknown unit unless the
@@ -306,8 +299,8 @@ parentheses, `2 * 3` or `2 (3)`, and five feet three inches is
 ### `^`
 
 `^` raises a factor to an exponent written as a number, never as an
-expression, so that the dimension of a power is fixed by the reading
-and never computed ([A quantity](quantities.md#a-quantity)). The
+expression, so that the dimension of a power is fixed when the text
+is parsed and never computed ([A quantity](quantities.md#a-quantity)). The
 exponent takes one of two forms.
 
 - A number with an optional sign, bare or in parentheses: `m^2`,
@@ -408,9 +401,9 @@ arguments.
 
 The have is one expression and nothing more: a `;` in the have is an
 error as it is typed. While the have is blank, nothing is computed,
-whatever the want holds. The have is read and computed before the want,
+whatever the want holds. The have is parsed and computed before the want,
 so a failure of the have is reported before one of the want, even
-before a want that cannot be read. `bogus` into `ft;` reports the
+before a want that cannot be parsed. `bogus` into `ft;` reports the
 unknown unit `bogus`. [The two fields](app.md#the-two-fields) says
 which field an error marks on the screen.
 
@@ -422,10 +415,10 @@ which field an error marks on the screen.
 
 ## The want field
 
-The want is read by its shape, and each shape answers in its own way
+The want parses by its shape, and each shape answers in its own way
 ([How a conversion is answered](quantities.md#how-a-conversion-is-answered)).
 
-| The want holds                           | It is read as                                                                                                                                                                                       | Example                        |
+| The want holds                           | It parses as                                                                                                                                                                                        | Example                        |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
 | nothing                                  | the have alone, in the primitives                                                                                                                                                                   |                                |
 | the name of a unit list, alone           | that list ([Unit lists](quantities.md#unit-lists))                                                                                                                                                  | `time`                         |
@@ -436,8 +429,8 @@ The want is read by its shape, and each shape answers in its own way
 A `;` stands only between the items of the want: never in the have,
 never inside parentheses, and never with an item missing. `ft;`, `;in`,
 `ft;;in` and `(ft;in)` are errors as they are typed. A list's name or
-a function's name is read as the list or the function only when it
-stands alone ([Names](#names)). Words are names, not instructions:
+a function's name means the list or the function only when it stands
+alone ([Names](#names)). Words are names, not instructions:
 `1 m in ft` typed as the have is a volume, since `in` is the inch, and
 `to` and `per` are unknown units. The unit to convert into goes in the
 want.
@@ -459,7 +452,7 @@ want.
 
 ## Evaluation order and error locations
 
-Once a text has been read, its parts are computed from the left, and
+Once a text has been parsed, its parts are computed from the left, and
 the first failure is reported: `bogus / 0` reports the unknown unit
 and never reaches the division. The message quotes the part at fault.
 
@@ -494,32 +487,23 @@ The have's error is reported before the want's
 
 ## What the app writes back
 
-Every output line writes both its sides as text: the have on the left,
-as it was read, and the result on the right. The result's value is
-written as [How numbers are written](numbers.md#how-numbers-are-written)
-says; the have, and the expression around the value, are written as
-here. The text is **canonical**: one text for one expression, whatever
-typing produced it. The spelling is the app's and not yours, with the
-fewest parentheses that keep the reading, so `((ft + in))` is written
-`ft + in` and `m^(2)` is written `m^2`. Of the text, one thing is
-promised: it pastes back as the same expression. On the screen, a
-product written with `*` is shown with `×`, which the fields do not
-accept. The copy button copies the result side with `*`, so what you
-copy pastes back, where text selected on the screen may not.
-
-| You type      | Into      | The line Exucal writes           | Note                                   |
-| ------------- | --------- | -------------------------------- | -------------------------------------- |
-| `2m`          |           | `2 m = 2 m`                      | the spacing is the app's               |
-| `((ft + in))` |           | `ft + in = 0.3302 m`             | the fewest parentheses                 |
-| `m^(2)`       |           | `m^2 = 1 m^2`                    | the fewest parentheses                 |
-| `1/(2 in)`    |           | `1 / 2 in ≈ 19.685039 × (1 / m)` | none needed: juxtaposition binds first |
-| `2 * 3 m`     |           | `2 × 3 m = 6 m`                  | `×` on the screen                      |
-| `1 mi`        | `1000 ft` | `1 mi = 5.28 × 1000 ft`          | the result copied as `5.28 * 1000 ft`  |
+The output line does not echo your text. The app puts the parsed
+expression into one **canonical** form, the one way it writes that
+expression whatever text produced it, and writes that form back: the
+have on the left, and on the right the result, with the want in it
+where there is one. The canonical form uses the fewest parentheses that
+keep the grouping, so `((ft + in))` is written `ft + in`. The text you
+see is the app's spelling of what you typed, not your typing. On the
+screen a product written with `*` is shown with `×`, which the fields
+do not accept. The copy button copies the result side with `*`, and
+that text pastes back as the same expression, where text selected on
+the screen may not. The result's value is written as
+[How numbers are written](numbers.md#how-numbers-are-written) says.
 
 ## Pitfalls
 
-Some texts do not read as they look. The commonest is a fraction
-before a unit, which is read with the juxtaposition first: `1/12 year`
+Some texts do not parse as they look. The commonest is a fraction
+before a unit, which parses with the juxtaposition first: `1/12 year`
 is `1 / (12 year)`, a frequency. Write `year / 12` or `(1/12) year`.
 For the same reason `1/2 in` is `1/(2 in)`, a quantity per inch, where
 `(1/2) in` and `0.5 in` are half an inch, and `1 m + 1/2 m` is an
@@ -533,8 +517,7 @@ error, `1 m` plus `1 / (2 m)`. Write `1 m + m/2`.
 | `1 m + 1/2 m` |      | an error, a dimension mismatch | `1 m` plus `1 / (2 m)`          |
 | `1 m + m/2`   |      | `= 1.5 m`                      |                                 |
 
-The other readings to watch each have their rule in the section
-linked:
+The other texts to watch each have their rule in the section linked:
 
 - `m^1/2` is half a metre, and `-2^2` is `-4`
   ([Operators](#operators)).
@@ -557,7 +540,7 @@ linked:
 
 ## What is not accepted
 
-Any character the grammar cannot read where it stands is an error as it
+Any character that cannot be parsed where it stands is an error as it
 is typed. A line break is one, and so is any whitespace other than a
 space or a tab. The table shows some of the characters people type from
 other notations, each with the plain form to type instead.
@@ -584,14 +567,14 @@ nothing: the foot and the inch are `ft` and `in`.
 
 ## Errors
 
-Where the text cannot be read, the message names the first character
-the calculator could not read, and then what could have come there
+Where the text cannot be parsed, the message names the first character
+that could not be parsed, and then what could have come there
 instead, such as a number, a name, an operator, a parenthesis or the end
-of the text. The message reads
+of the text. The message says
 `Unexpected end of input: expected …` where the text ends too soon, and
 `Unexpected "c": expected …` where a character `c` cannot follow what
 came before. A number refused as it is typed is quoted with its reason.
-Where the text has been read but cannot be computed, the message quotes
+Where the text has been parsed but cannot be computed, the message quotes
 the part at fault and says what failed
 ([Evaluation order and error locations](#evaluation-order-and-error-locations)).
 The three messages below are examples of the shapes a message takes,

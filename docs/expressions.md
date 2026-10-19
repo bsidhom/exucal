@@ -11,11 +11,13 @@ evaluates the expression. A few rules fix the reading, and the reading
 decides what is computed. `1/2 in` is a quantity per inch and not half
 an inch. A space before `(` makes a product where no space makes a
 call. The exponent of `^` is read from the text as a number, so that a
-dimension is never computed. A text the grammar does not read, or a
-number past a size limit, is stopped by the reading, as it is typed,
-before anything is computed: the first is an error, the second a
-refusal. Everything else that fails does so when the expression is
-evaluated ([Errors](#errors)). [Numbers](numbers.md) says what a value
+dimension is never computed. A text the grammar does not read is
+stopped by the reading, as it is typed, and is an error. A number that
+no setting of the significand limit could hold, or that passes the
+exponent bound, is stopped by the reading too, and is a refusal.
+Everything else fails, if it fails, when the expression is evaluated. A
+number past the significand limit as it is set is one such failure
+([Errors](#errors)). [Numbers](numbers.md) says what a value
 is, and [Quantities](quantities.md) says what a quantity is. The rules
 here say how a typed text becomes a quantity, and how the app writes an
 expression back as text.
@@ -100,71 +102,61 @@ two where no space makes a call ([Calls and arity](#calls-and-arity)).
 ## Numbers
 
 A **number** is an unsigned decimal with an optional exponent: `2`,
-`2.54`, `.5`, `5.`, `1e-3`, `1E3` and `2E+2` are numbers. The developer
-docs call a typed number a literal. A number is read exactly, as the
-fraction it denotes, so `0.1 + 0.2` is exactly `0.3` and a unit defined
-by a decimal converts exactly
+`2.54`, `.5`, `5.`, `1e-3`, `1E3` and `2E+2` are numbers. Exucal's own
+term for a typed number is a literal, and the word has that one meaning
+throughout. A number is read exactly, as the fraction it denotes, so
+`0.1 + 0.2` is exactly `0.3` and a unit defined by a decimal converts
+exactly
 ([Exact and inexact values](numbers.md#exact-and-inexact-values)). A
 sign is part of a number only in its exponent: `1e-3` is a thousandth,
-`1 - 3` is a difference, and `-2` is the negation of `2`. The exponent
-belongs to the number only when it is written without a space and has
-digits. So `2e-19 C` is a number of coulombs, `2e -19 C` is
-`2 e - 19 C`, and `2e` is `2 e`, a number and a name, since an exponent
-needs digits. The name `e` is the elementary charge. No space stands
-inside a number, and no comma: `1 000` and `1,000` are errors as they
-are typed, and so is the decimal comma of `2,54`. Write `1000` and
-`2.54`.
+`2 -3` is the difference `2 - 3`, and `-2` is the negation of `2`. The
+exponent belongs to the number only when it is written without a space
+and has digits. The predefined definitions file names the elementary
+charge `e`, so `2e-19 C` is one number followed by a unit, `2e -19 C`
+is `2 e - 19 C`, and `2e` is `2 e`, a number and a name, since an
+exponent needs digits. No space and no comma stands inside a number:
+`1 000`, `1,000` and `2,54` are errors as they are typed
+([What is not accepted](#what-is-not-accepted)).
+
+| You type    | Into | Exucal shows            | Note                                                  |
+| ----------- | ---- | ----------------------- | ----------------------------------------------------- |
+| `2.54`      |      | `= 2.54`                |                                                       |
+| `.5`        |      | `= 0.5`                 |                                                       |
+| `5.`        |      | `= 5`                   |                                                       |
+| `1E3`       |      | `= 1000`                |                                                       |
+| `2E+2`      |      | `= 200`                 | a `+` sign in an exponent                             |
+| `0.1 + 0.2` |      | `= 0.3`                 | read exactly                                          |
+| `2 -3`      |      | `= -1`                  | a difference, not a signed number                     |
+| `2e-19 C`   | `C`  | `= 2e-19 C`             | one number                                            |
+| `2e -19 C`  | `C`  | `≈ -19 C`               | `2 e - 19 C`: two elementary charges less 19 coulombs |
+| `2e`        | `C`  | `≈ 3.2043533e-19 C`     | `2 e`                                                 |
+| `1 000`     |      | an error as it is typed | write `1000`                                          |
 
 ### The limits on a number
 
-Two size limits bound a number, as they bound every value: the
-significand limit and the exponent bound
-([Values too big to hold](numbers.md#values-too-big-to-hold)). Each
-stops a number with a refusal, the one failure that page calls by that
-name. The exponent bound is checked by the reading. The significand
-limit is checked twice: by the reading, against its maximum, the most
-the limit can be set to, and by evaluation, against the limit as it is
-set.
+A typed number is checked against the two size limits every value is
+checked against, the exponent bound and the significand limit, and each
+refuses what it cannot hold
+([Values too big to hold](numbers.md#values-too-big-to-hold)). The
+exponent bound is a bound on the value's power of ten as scientific
+notation writes it, and not on the exponent as typed. A number whose
+value has a power of ten past `10^18`, or below `-10^18`, is refused as
+it is typed: `0.001e1000000000000000003` is a value, and
+`12e1000000000000000000` is refused. A number with more digits than the
+significand limit holds is refused when the expression is computed, in
+exact mode and in decimal mode alike, and inside `approx`. The limit
+refuses the number rather than cutting it to fit. A number longer than
+any setting of the limit could hold is stopped by the reading instead,
+as it is typed. In decimal mode a number within the limit is rounded to
+the working digits as it is read
+([The two modes](numbers.md#the-two-modes)).
 
-- A number with more digits than the significand limit's maximum is
-  refused as it is typed. Its message says that the number is too
-  large to represent.
-- A number whose power of ten passes `10^18`, or falls below `-10^18`,
-  is refused as it is typed, with the same refusal a computed value
-  past the exponent bound meets. Its message says that the number's
-  exponent passes `10^18`, or falls below `-10^18`. The power of ten
-  is the value's, as scientific notation writes it, and not the
-  exponent as typed: `0.001e1000000000000000003` is a value, and
-  `12e1000000000000000000` is refused.
-- A number within the maximum, but with more digits than the
-  significand limit holds as it is set, is refused when the expression
-  is evaluated, and the message quotes it. The refusal holds in exact
-  mode and in decimal mode alike, and inside `approx`. The message says
-  that the number would need a significand past the significand limit,
-  however it is computed. The limit refuses the number before anything
-  rounds it, so that no digit you typed is lost without a message. At
-  the default limit, which holds fewer than twenty thousand digits, a
-  number of thirty thousand digits is refused. In decimal mode a number
-  within the limit is rounded to the working digits as it is read
-  ([The two modes](numbers.md#the-two-modes)).
-
-| You type                    | Into | Exucal shows                                                 | Note                                                  |
-| --------------------------- | ---- | ------------------------------------------------------------ | ----------------------------------------------------- |
-| `2.54`                      |      | `= 2.54`                                                     |                                                       |
-| `.5`                        |      | `= 0.5`                                                      |                                                       |
-| `5.`                        |      | `= 5`                                                        |                                                       |
-| `1E3`                       |      | `= 1000`                                                     |                                                       |
-| `2E+2`                      |      | `= 200`                                                      | a `+` sign in an exponent                             |
-| `0.1 + 0.2`                 |      | `= 0.3`                                                      | read exactly                                          |
-| `1 - 3`                     |      | `= -2`                                                       | a difference, not a signed number                     |
-| `2e-19 C`                   | `C`  | `= 2e-19 C`                                                  | one number                                            |
-| `2e -19 C`                  | `C`  | `≈ -19 C`                                                    | `2 e - 19 C`: two elementary charges less 19 coulombs |
-| `2e`                        | `C`  | `≈ 3.2043533e-19 C`                                          | `2 e`                                                 |
-| `0.001e1000000000000000003` |      | `= 1e+1000000000000000000`                                   | within the exponent bound                             |
-| `12e1000000000000000000`    |      | refused as it is typed: the number's exponent passes `10^18` |                                                       |
-| `1e-1000000000000000001`    |      | refused as it is typed: the exponent falls below `-10^18`    |                                                       |
-| `1 000`                     |      | an error as it is typed                                      | write `1000`                                          |
-| `1.23456789012`             |      | `= 1.2345679`                                                | decimal mode: rounded as it is read, within the limit |
+| You type                    | Into | Exucal shows                                                          | Note                                                        |
+| --------------------------- | ---- | --------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `0.001e1000000000000000003` |      | `= 1e+1000000000000000000`                                            | within the exponent bound                                   |
+| `12e1000000000000000000`    |      | refused as it is typed: the value's power of ten passes `10^18`       |                                                             |
+| `1e-1000000000000000001`    |      | refused as it is typed: the value's power of ten falls below `-10^18` |                                                             |
+| `1.23456789012`             |      | `= 1.2345679`                                                         | decimal mode at eight working digits: rounded as it is read |
 
 ## Names
 
@@ -331,36 +323,33 @@ factor takes one exponent: `2^3^2` is an error as it is typed. Write
 `(m^1) / 2`, half a metre. The sign of an exponent is written against
 its digits: `m^-1` is a power, and `m^- 1` is an error as it is typed.
 
-An exponent is a fraction, and it meets the significand limit's two
-checks as a number does ([Numbers](#numbers)).
+An exponent is held as a fraction of two whole numbers, with no power
+of ten of its own, so a power of ten written in an exponent costs its
+digits: `1e-30000` as an exponent is held as one over `10^30000`, while
+the same text as a value has a power of ten that costs nothing
+([How a value is held](numbers.md#how-a-value-is-held)). The fraction
+is reduced, so `m^(2/4)` is `m^(1/2)`. Its numerator and denominator
+must fit the significand limit as it is set: `2^(1e30/1e30)` is `2`,
+its fraction being `1`, while `2^1e-30000` is refused. An exponent that
+no setting of the limit could hold, `m^1e999999999`, is refused as it
+is typed, as such a number is. `pow` differs here. It raises a plain
+number to a computed exponent, so `pow(2, 1e-30000)` is `≈ 1`
+([Built-in functions](builtins.md)).
 
-- The reading checks that each of its numbers can be written as a
-  fraction within the significand limit's maximum. `m^1e999999999`,
-  whose exponent as a fraction would have a billion digits, is refused
-  as it is typed.
-- Evaluation reduces the exponent to one fraction, so `m^(2/4)` is
-  `m^(1/2)` and `(m^2)^(1/2)` is `m`, and holds the fraction's
-  numerator and denominator to the limit as it is set. `2^(1e30/1e30)`
-  is `2`, while `2^1e-30000`, whose denominator is `10^30000`, is
-  refused.
-
-`pow` differs here. It raises a plain number to a computed exponent, so
-`pow(2, 1e-30000)` is `≈ 1` ([Built-in functions](builtins.md)).
-
-| You type           | Into | Exucal shows                                                   | Note                                     |
-| ------------------ | ---- | -------------------------------------------------------------- | ---------------------------------------- |
-| `m^0.5`            |      | `= 1 m^(1/2)`                                                  | a decimal exponent                       |
-| `m^(-3/2)`         |      | `= 1 × (1 / m^(3/2))`                                          | a fraction as the exponent               |
-| `m^x`              |      | an error as it is typed                                        | the exponent must be a number            |
-| `m^(1/0)`          |      | an error as it is typed: the exponent divides by zero          |                                          |
-| `m^1e999999999`    |      | refused as it is typed: the exponent is too large to represent |                                          |
-| `2^2 - 1`          |      | `= 3`                                                          | `^` binds tightest                       |
-| `m^1/2`            |      | `= 0.5 m`                                                      | `(m^1) / 2`                              |
-| `2^3^2`            |      | an error as it is typed                                        | write `(2^3)^2`, which is `= 64`         |
-| `m^(2/4)`          |      | `= 1 m^(1/2)`                                                  | the fraction formed when evaluated       |
-| `2^(1e30/1e30)`    |      | `= 2`                                                          | the fraction fits the limit              |
-| `2^1e-30000`       |      | refused: past the significand limit                            | the exponent's denominator is `10^30000` |
-| `pow(2, 1e-30000)` |      | `≈ 1`                                                          | a computed exponent                      |
+| You type           | Into | Exucal shows                                          | Note                                     |
+| ------------------ | ---- | ----------------------------------------------------- | ---------------------------------------- |
+| `m^0.5`            |      | `= 1 m^(1/2)`                                         | a decimal exponent                       |
+| `m^(3/2)`          |      | `= 1 m^(3/2)`                                         | a fraction as the exponent               |
+| `m^x`              |      | an error as it is typed                               | the exponent must be a number            |
+| `m^(1/0)`          |      | an error as it is typed: the exponent divides by zero |                                          |
+| `m^1e999999999`    |      | refused as it is typed, at any setting of the limit   |                                          |
+| `2^2 - 1`          |      | `= 3`                                                 | `^` binds tightest                       |
+| `m^1/2`            |      | `= 0.5 m`                                             | `(m^1) / 2`                              |
+| `2^3^2`            |      | an error as it is typed                               | write `(2^3)^2`, which is `= 64`         |
+| `m^(2/4)`          |      | `= 1 m^(1/2)`                                         | the fraction reduced                     |
+| `2^(1e30/1e30)`    |      | `= 2`                                                 | the fraction fits the limit              |
+| `2^1e-30000`       |      | refused: past the significand limit                   | the exponent's denominator is `10^30000` |
+| `pow(2, 1e-30000)` |      | `≈ 1`                                                 | a computed exponent                      |
 
 ### Parentheses
 
@@ -472,12 +461,10 @@ want.
 
 Once a text has been read, its parts are computed from the left, and
 the first failure is reported: `bogus / 0` reports the unknown unit
-and never reaches the division. Each failure quotes the part at fault
-verbatim.
+and never reaches the division. The message quotes the part at fault.
 
 - A division by zero, or by a value that cannot be told from zero,
-  quotes the divisor: `1 / (2 - 2)` quotes `(2 - 2)`, parentheses
-  included.
+  quotes the divisor: `1 / (2 - 2)` quotes `(2 - 2)`.
 - A power whose base cannot be told from zero, when the result depends
   on which side of zero the base lies, quotes the base:
   `((2^(1/2))^2 - 2)^(1/2)` quotes `((2^(1/2))^2 - 2)`. A power that
@@ -498,7 +485,7 @@ The have's error is reported before the want's
 | ------------------------- | ---- | ----------------------------------------------------------- | ---------------------------------- |
 | `bogus / 0`               |      | an error: unknown unit `bogus`                              | the division is never reached      |
 | `1 / 0 + bogus`           |      | an error: division by zero in `0`                           | `bogus` is never looked up         |
-| `1 / (2 - 2)`             |      | an error: division by zero in `(2 - 2)`                     | the divisor, parentheses included  |
+| `1 / (2 - 2)`             |      | an error: division by zero in `(2 - 2)`                     | the divisor                        |
 | `((2^(1/2))^2 - 2)^(1/2)` |      | an error: the base cannot be told from zero                 | the base alone is quoted           |
 | `(-8)^(1/2)`              |      | an error: an even root of a negative value                  | the whole power is quoted          |
 | `2 m * 3^100000`          |      | refused: `3^100000` would need a significand past the limit | the power alone is quoted          |
@@ -570,13 +557,10 @@ linked:
 
 ## What is not accepted
 
-Any character the grammar does not read is an error as it is typed,
-where it stands. A line break is one, and so is any space character
-other than the space and the tab: a non-breaking space pasted from
-elsewhere is an error as it is typed, and its message quotes the
-character, which looks like a space between the quotation marks. The
-table lists the characters people type from other notations, each with
-the plain form to type instead.
+Any character the grammar cannot read where it stands is an error as it
+is typed. A line break is one, and so is any whitespace other than a
+space or a tab. The table shows some of the characters people type from
+other notations, each with the plain form to type instead.
 
 | You type | Instead write                  |
 | -------- | ------------------------------ |
@@ -600,16 +584,15 @@ nothing: the foot and the inch are `ft` and `in`.
 
 ## Errors
 
-An error marks its field. Where the text cannot be read, the message
-names the first character the calculator could not read, and then what
-could have come there instead: a number, a name, an operator, a
-parenthesis or the end of the text. The message reads
+Where the text cannot be read, the message names the first character
+the calculator could not read, and then what could have come there
+instead, such as a number, a name, an operator, a parenthesis or the end
+of the text. The message reads
 `Unexpected end of input: expected …` where the text ends too soon, and
 `Unexpected "c": expected …` where a character `c` cannot follow what
 came before. A number refused as it is typed is quoted with its reason.
 Where the text has been read but cannot be computed, the message quotes
-the part at fault verbatim, trimmed of the blanks around it, so that
-you can find it without a highlight, and says what failed
+the part at fault and says what failed
 ([Evaluation order and error locations](#evaluation-order-and-error-locations)).
 The three messages below are examples of the shapes a message takes,
 not a list of the messages.

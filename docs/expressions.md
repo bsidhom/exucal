@@ -24,15 +24,16 @@ An expression follows these rules:
 - **A number is an unsigned decimal with an optional exponent**, read
   exactly in exact mode, and a number past a size limit is refused
   ([Numbers](#numbers)).
-- **A name takes every letter, digit and underscore that follows its first character**,
-  and it means a unit, a prefixed unit, a function, a list or a
-  parameter ([Names](#names)).
+- **A name starts with a letter or an underscore and takes every letter, digit and underscore after it**,
+  and it means a unit, a prefixed unit, a function, a list or, in a
+  function's body, a parameter ([Names](#names)).
 - **Factors written side by side multiply and bind tighter than `*` and `/`**
   ([Operators](#operators)).
-- **`^` takes an exponent written as a number, one per factor**
+- **`^` takes one exponent per factor, typed as a number or a fraction and never computed**
   ([Operators](#operators)).
-- **A call is a name directly followed by `(`**, and a call with the
-  wrong count of arguments is an error before any argument is computed
+- **A call is a name followed by its arguments in parentheses, with no space before the `(`**,
+  and a call with the wrong count of arguments is an error before any
+  argument is computed
   ([Calls and arity](#calls-and-arity)).
 - **The have is one expression**, and its error is reported before the
   want's ([The have field](#the-have-field)).
@@ -63,7 +64,7 @@ left to right.
 | 2           | product and quotient: `*`, `/`                                           | left to right                                    | `m/s*s` is `(m/s)*s`                                                                     |
 | 3           | **negation**: one `-` before a product of factors written side by side   | once; it does not stack                          | `-2 m / s` is `(-(2 m)) / s`; `--2` is an error                                          |
 | 4           | **juxtaposition**: factors written side by side, with a space or without | left to right; a number only as the first factor | `kg m / s^2` is `(kg m) / (s^2)`; `1/12 year` is `1 / (12 year)`                         |
-| 5           | power: one `^` and an exponent written as a number                       | one exponent per factor                          | `-2^2` is `-(2^2)`; `m^2^3` is an error                                                  |
+| 5           | power: one `^` and an exponent typed as a number or a fraction           | one exponent per factor                          | `-2^2` is `-(2^2)`; `m^2^3` is an error                                                  |
 | 6, tightest | an atom: a number, a name, a call or an expression in parentheses        | none                                             | `2.54`, `ft`, `tempC(100)`, `(1/12)`; `kg(m/s)` is a call and `kg (m/s)` a juxtaposition |
 
 So `2 kg * 3 m/s^2` parses as `((2 kg) * (3 m)) / (s^2)`: the power
@@ -71,12 +72,12 @@ first, then each juxtaposition, then the product and the quotient from
 the left. In the want, `;` separates the items of a unit list and binds
 looser than all of these ([The want field](#the-want-field)). Spaces
 and tabs, in any amount, may stand before and after the text and around
-every operator: `m ^ 2` and `atan2( 1 , 2 )` parse as `m^2` and
-`atan2(1, 2)`. A space changes the parse in two places: between a name
-and `(`, where it makes a juxtaposition of what would be a call
-([Calls and arity](#calls-and-arity)), and inside a number or an
-exponent, where `2e -19` is three parts and `m^- 1` is an error
-([Numbers](#numbers)).
+every operator except function application, where the `(` of a call
+takes no space before it ([Calls and arity](#calls-and-arity)). So
+`m ^ 2` and `atan2( 1 , 2 )` parse as `m^2` and `atan2(1, 2)`. A space
+changes the parse in one other place, inside a number: `2e -19` is not
+the number `2e-19`, and `m^- 1` is not the power `m^-1`
+([Numbers](#numbers), [Operators](#operators)).
 
 ## Numbers
 
@@ -111,8 +112,8 @@ and `2e` is `2 e`. No space and no comma stands inside a number:
 
 ### The limits on a number
 
-A typed number is checked against the two size limits every value is
-checked against, the exponent bound and the significand limit
+A typed number is checked against the two size limits that bound every
+value: the exponent bound and the significand limit
 ([Values too big to hold](numbers.md#values-too-big-to-hold)). The
 exponent bound applies to the value's power of ten as scientific
 notation writes it, which the message calls the number's exponent, and
@@ -266,10 +267,12 @@ inches is `5 ft + 3 in`.
 
 ### `^`
 
-`^` raises a factor to an exponent written as a number, never as an
-expression, so that the dimension of a power is fixed when the text is
-parsed ([A quantity](quantities.md#a-quantity)). The exponent takes one
-of two forms.
+`^` raises a factor to an exponent typed as a number or a fraction,
+never computed from an expression. The dimension of a power depends on
+its exponent, so the exponent must be known when the text is parsed and
+the dimension is never computed
+([A quantity](quantities.md#a-quantity)). The exponent takes one of two
+forms.
 
 - A number with an optional sign, bare or in parentheses: `m^2`,
   `s^-1`, `m^+2`, `m^0.5` and `m^(2)`.
@@ -316,11 +319,11 @@ year.
 
 ## Calls and arity
 
-A call is a name directly followed by `(`, zero or more expressions
-separated by commas, and `)`: `tempC(100)`, `pi()` and
-`atan2(3 m, 4 m)` are calls. A call applies the function of that name
-to the expressions inside, its arguments, and it stands where a name
-may, as a factor in `2 tempC(100)` and negated in `-tempC(100)`.
+A call is a name, `(`, zero or more expressions separated by commas,
+and `)`, with no space between the name and the `(`: `tempC(100)`,
+`pi()` and `atan2(3 m, 4 m)` are calls. A call applies the function of
+that name to the expressions inside, its arguments, and it stands where
+a name may, as a factor in `2 tempC(100)` and negated in `-tempC(100)`.
 
 A function's arity is the count of arguments it takes, a fixed count
 or, for some built-in functions, a range: `round(x)` and

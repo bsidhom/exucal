@@ -214,6 +214,8 @@ it to the whole text, not only to the sentence that prompted it.
 - Links between pages are repo-relative paths; an absolute URL is for
   an external reference only.
 - Headings are the anchors other pages link; keep them stable.
+- American English spellings: "modeled", "color", "center", never
+  "modelled", "colour", "centre".
 
 ## 6. Working under review
 

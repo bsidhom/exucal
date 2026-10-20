@@ -300,7 +300,9 @@ reason, as the body-mass index carries why a scale fitted to fixed
 units gives a dimensionless result. From the page's fourth review
 (2026-10-18): a heading names its claim or its thing in words a reader
 can parse on their own ("A quantity carries no unit"), never an
-allusion that only the section explains. The style
+allusion that only the section explains. From the review of the
+definitions page (2026-10-20): American English spellings ("modeled",
+never "modelled"). The style
 rules of this paragraph are collected, as the house style every run of
 the rewrite reads, in `.claude/skills/prose-style/SKILL.md`; this
 paragraph records where each came from, and a rule set later is added

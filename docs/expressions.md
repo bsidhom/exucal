@@ -115,15 +115,19 @@ and `2e` is `2 e`. No space and no comma stands inside a number:
 A typed number is checked against the two size limits that bound every
 value: the exponent bound and the significand limit
 ([Values too big to hold](numbers.md#values-too-big-to-hold)). The
-exponent bound applies to the value's power of ten as scientific
-notation writes it, which the message calls the number's exponent, and
-not to the exponent as typed: `0.001e1000000000000000003` is within the
-bound, and `12e1000000000000000000` is refused as it is typed. A number
-with more digits than the significand limit holds is refused rather
-than cut to fit. The refusal comes when the expression is computed, in
-either mode and inside `approx` ([`approx`](numbers.md#approx)). A
-number longer than the limit's largest setting could hold is refused as
-it is typed instead, since no setting would admit it.
+exponent bound, `10^18` either way, is checked as the number is typed.
+It applies to the value's power of ten as scientific notation writes
+it, not to the exponent written in the text: `0.001e1000000000000000003`
+is `1 × 10^(10^18)`, within the bound, and `12e1000000000000000000` is
+`1.2 × 10^(10^18 + 1)`, refused as it is typed. The message of that
+refusal calls the value's power of ten the number's exponent. The
+significand limit is checked when the expression is computed, against
+its current setting: a number with more digits than the setting allows
+is refused then, in either mode
+([The significand limit](numbers.md#the-significand-limit)). The
+significand limit has one check as the number is typed: a number with
+more digits than the largest setting allows is refused there, since no
+setting admits it.
 
 | You type                    | Into | Exucal shows                                                          | Note                      |
 | --------------------------- | ---- | --------------------------------------------------------------------- | ------------------------- |
@@ -133,14 +137,20 @@ it is typed instead, since no setting would admit it.
 
 ## Names
 
-A **name** is a letter or an underscore, alone or followed by letters,
-the digits `0` to `9` and underscores, and a letter is a letter of any
-script: `µm`, `Ω`, `Å`, `degF` and `N_A` are names. Nothing else is
-part of a name, so `m²` is an error as it is typed, and the square is
-written `m^2`. Names are case-sensitive: `mm` and `Mm` are two names,
-and so are `S` and `s`. A name takes every letter, digit and underscore
-that follows its first character: `m2` is the name `m2`, not `m`
-squared, and `2m` is `2 m`, since a name cannot start with a digit.
+A **name** is a letter or an underscore, optionally followed by
+letters, the digits `0` to `9` and underscores, and it takes every such
+character that follows: `m2` is the name `m2`, not `m` squared, and
+`2m` is `2 m`, a number and a name. Names are case-sensitive: `mm` and
+`Mm` are two names, and so are `S` and `s`. Any other character ends
+the name or is an error as it is typed: `m²` is an error as it is
+typed, and the square is written `m^2`. So is `m٢`, with a digit of
+another script. A letter is any character of Unicode's general category
+Letter, `L`, in any script: `µm`, `Ω`, `Å`, `degF` and `N_A` are names.
+An accent typed as a separate mark after its letter, a combining mark,
+is not a letter, and it is an error as it is typed. `é` typed as one
+character is a letter. Two characters that look alike are distinct
+letters, the micro sign `µ` and the Greek `μ` among them. The
+predefined definitions file defines both as the prefix micro.
 
 ### What a name means
 
@@ -191,6 +201,7 @@ alone as the want ([The want field](#the-want-field)).
 | `1 h`       | `s`  | `= 3600 s`                                                                    | the unit `h`                           |
 | `m2`        |      | an error: unknown unit `m2`                                                   | one name                               |
 | `Ft`        |      | an error: unknown unit `Ft`                                                   | case-sensitive                         |
+| `m٢`        |      | an error as it is typed                                                       | a digit of another script              |
 | `1 kkm`     |      | an error: unknown unit `kkm`                                                  | prefixes do not stack                  |
 | `1 dB`      |      | `= 0.8 bit`                                                                   | `d` + `B`                              |
 | `1 at`      | `kg` | `= 1e-15 kg`                                                                  | `a` + `t`                              |

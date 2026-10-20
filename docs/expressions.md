@@ -58,14 +58,14 @@ An expression binds at six levels. Each construct binds as the table
 says, loosest first, and where two operators share a level they parse
 left to right.
 
-| Level       | Construct                                                                | Grouping                                         | Example, and how it parses                                                               |
-| ----------- | ------------------------------------------------------------------------ | ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| 1, loosest  | sum and difference: `+`, `-`                                             | left to right                                    | `5 ft - 2 in + 1 in` is `(5 ft - 2 in) + 1 in`                                           |
-| 2           | product and quotient: `*`, `/`                                           | left to right                                    | `m/s*s` is `(m/s)*s`                                                                     |
-| 3           | **negation**: one `-` before a product of factors written side by side   | once; it does not stack                          | `-2 m / s` is `(-(2 m)) / s`; `--2` is an error                                          |
-| 4           | **juxtaposition**: factors written side by side, with a space or without | left to right; a number only as the first factor | `kg m / s^2` is `(kg m) / (s^2)`; `1/12 year` is `1 / (12 year)`                         |
-| 5           | power: one `^` and an exponent typed as a number or a fraction           | one exponent per factor                          | `-2^2` is `-(2^2)`; `m^2^3` is an error                                                  |
-| 6, tightest | a factor: a number, a name, a call or an expression in parentheses       | none                                             | `2.54`, `ft`, `tempC(100)`, `(1/12)`; `kg(m/s)` is a call and `kg (m/s)` a juxtaposition |
+| Level       | Construct                                                                | Grouping                                                     | Example, and how it parses                                                               |
+| ----------- | ------------------------------------------------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| 1, loosest  | sum and difference: `+`, `-`                                             | left to right                                                | `5 ft - 2 in + 1 in` is `(5 ft - 2 in) + 1 in`                                           |
+| 2           | product and quotient: `*`, `/`                                           | left to right                                                | `m/s*s` is `(m/s)*s`                                                                     |
+| 3           | **negation**: one `-` before a product of factors written side by side   | over all the factors after it, exponents included; once only | `-2 m / s` is `(-(2 m)) / s`; `--2` is an error                                          |
+| 4           | **juxtaposition**: factors written side by side, with a space or without | left to right; a number only as the first factor             | `kg m / s^2` is `(kg m) / (s^2)`; `1/12 year` is `1 / (12 year)`                         |
+| 5           | power: one `^` and an exponent typed as a number or a fraction           | one exponent per factor                                      | `-2^2` is `-(2^2)`; `m^2^3` is an error                                                  |
+| 6, tightest | a factor: a number, a name, a call or an expression in parentheses       | none                                                         | `2.54`, `ft`, `tempC(100)`, `(1/12)`; `kg(m/s)` is a call and `kg (m/s)` a juxtaposition |
 
 So `2 kg * 3 m/s^2` parses as `((2 kg) * (3 m)) / (s^2)`: the power
 first, then each juxtaposition, then the product and the quotient from
@@ -239,15 +239,18 @@ juxtaposition binds tighter than either.
 
 ### Negation
 
-A negation, one `-` before a product, negates the factors written side
-by side after it and nothing more: `-2 m` is minus two metres, and
-`-2^2` is `-(2^2)`, since `^` binds tighter. Write `(-2)^2` for the
-square of minus two. A negation does not stack: `--2` is an error as it
-is typed, and `-(-2)` is `2`. It may follow an operator or `(`, so
-`2 * -3` is minus six and `2 - -3` is `5`. The grammar has no unary
-`+`: `+2` and `2 * +3` are errors as they are typed. A `+` sign is
-accepted only in a number's exponent, `2E+2`, and on a `^` exponent,
-`m^+2`.
+A negation is one `-` before factors written side by side. It binds
+tighter than `*` and `/` and looser than juxtaposition and `^`, so it
+applies to every factor written side by side after it, exponents
+included: `-2 m` is `-(2 m)` and not `(-2) m`, `-2^2` is `-(2^2)`, and
+`-2 m / s` is `(-(2 m)) / s`. Write `(-2)^2` for the square of minus
+two. A negation does not stack: `--2` is an error as it is typed, and
+`-(-2)` is `2`. It may stand wherever a factor may begin, after another
+operator among them: `2 * -3` is `-6`, and `2 - -3` is `5`. There is no
+`+` before a factor as there is a `-`: `+2` and `2 * +3` are errors as
+they are typed. Besides the addition operator, a `+` is accepted only
+as a sign, in two places: in a number's exponent, as `2E+2`; and on a
+`^` exponent, as `m^+2`.
 
 | You type   | Into | Exucal shows            | Note                      |
 | ---------- | ---- | ----------------------- | ------------------------- |
@@ -286,21 +289,22 @@ the dimension is never computed
 forms.
 
 - A number with an optional sign, bare or in parentheses: `m^2`,
-  `s^-1`, `m^+2`, `m^0.5` and `m^(2)`.
+  `s^-1`, `m^0.5` and `m^(2)`.
 - In parentheses, such a number over an unsigned one: `m^(1/2)` and
   `m^(-3/2)`.
 
-Any other exponent is an error as it is typed: `m^x`, `m^(1/2 + 1)`
-and `m^(1/-2)` are errors, and so is a zero divisor, `m^(1/0)`. A
-factor takes one exponent: in `2^3^2` the second `^` has no factor to
-raise, since `2^3` is not one, so the text is an error as it is typed.
-Write `(2^3)^2` for two cubed and then squared: the parentheses make
-`2^3` a factor, which takes an exponent of its own. `2^(3^2)` is an
-error as it is typed too, since an exponent is a number or a fraction:
-write `2^9`. `^` binds tightest of the operators, so `m^1/2` is
-`(m^1) / 2`, half a metre. An exponent's sign is written without a
-space before its digits: `m^-1` is a power, and `m^- 1` is an error as
-it is typed.
+Any other exponent is an error as it is typed. `m^x` and `m^(1/2 + 1)`
+are errors, since an exponent is never computed. `m^(1/-2)` is an
+error, since the denominator is unsigned: write `m^(-1/2)`. `m^(1/0)`
+has the fraction's form and is an error all the same, since it divides
+by zero. A factor takes one exponent, so `2^3^2` is an error as it is
+typed: the second `^` has no factor to raise, since `2^3` is not a
+factor. Write `(2^3)^2` for two cubed and then squared. The parentheses
+make `2^3` a factor with an exponent of its own. For two to the ninth
+write `2^9`, since `3^2` as an exponent would be computed. `^` binds
+tightest of the operators, so `m^1/2` is `(m^1) / 2`, half a metre. An
+exponent's sign is written without a space before its digits: `m^-1` is
+a power, and `m^- 1` is an error as it is typed.
 
 The exponent is held as a fraction of two whole numbers, reduced, and
 its numerator and denominator must each fit the significand limit:
@@ -479,25 +483,27 @@ half per inch, while `(1/2) in` and `0.5 in` are half an inch. For
 half an inch, a twelfth of a year and a metre and a half, write
 `(1/2) in`, `year / 12` and `1 m + m/2`.
 
-| You type      | Into | It parses as                                      | Exucal shows                                | Rule                                |
-| ------------- | ---- | ------------------------------------------------- | ------------------------------------------- | ----------------------------------- |
-| `1/12 year`   |      | `1 / (12 year)`, a frequency                      | `≈ 2.640674e-9 × (1 / s)`                   | [Operators](#operators)             |
-| `1/2 in`      |      | `1/(2 in)`, half per inch                         | `≈ 19.685039 × (1 / m)`                     | [Operators](#operators)             |
-| `(1/2) in`    |      | half an inch                                      | `= 0.0127 m`                                | [Operators](#operators)             |
-| `1 m + 1/2 m` |      | `1 m` plus `1 / (2 m)`                            | an error, a dimension mismatch              | [Operators](#operators)             |
-| `m^1/2`       |      | `(m^1) / 2`, half a metre                         | `= 0.5 m`                                   | [Operators](#operators)             |
-| `-2^2`        |      | `-(2^2)`                                          | `= -4`                                      | [Operators](#operators)             |
-| `2^3^2`       |      | does not parse: one exponent per factor           | an error as it is typed                     | [Operators](#operators)             |
-| `5 ft 3 in`   |      | does not parse: a number only as the first factor | an error as it is typed                     | [Operators](#operators)             |
-| `2 -3`        |      | the difference `2 - 3`                            | `= -1`                                      | [Numbers](#numbers)                 |
-| `2e -19 C`    | `C`  | `2 e - 19 C`                                      | `≈ -19 C`                                   | [Numbers](#numbers)                 |
-| `m2`          |      | the name `m2`                                     | an error: unknown unit `m2`                 | [Names](#names)                     |
-| `1 dB`        |      | `d` + `B`, a tenth of a byte                      | `= 0.8 bit`                                 | [Names](#names)                     |
-| `1 at`        | `kg` | `a` + `t`, an attotonne                           | `= 1e-15 kg`                                | [Names](#names)                     |
-| `kg(m/s)`     |      | a call of `kg`                                    | an error: `kg` is a unit, not a function    | [Calls and arity](#calls-and-arity) |
-| `tempC (1)`   |      | a juxtaposition of `tempC` and `(1)`              | an error: `tempC` is a function, not a unit | [Calls and arity](#calls-and-arity) |
-| `pi ()`       |      | does not parse: `()` is not a list of arguments   | an error as it is typed                     | [Calls and arity](#calls-and-arity) |
-| `1 m in ft`   |      | a product of three units                          | `= 0.00774192 m^3`                          | [The want field](#the-want-field)   |
+| You type      | Into | It parses as                                         | Exucal shows                                | Rule                                |
+| ------------- | ---- | ---------------------------------------------------- | ------------------------------------------- | ----------------------------------- |
+| `1/12 year`   |      | `1 / (12 year)`, a frequency                         | `≈ 2.640674e-9 × (1 / s)`                   | [Operators](#operators)             |
+| `1/2 in`      |      | `1/(2 in)`, half per inch                            | `≈ 19.685039 × (1 / m)`                     | [Operators](#operators)             |
+| `(1/2) in`    |      | half an inch                                         | `= 0.0127 m`                                | [Operators](#operators)             |
+| `1 m + 1/2 m` |      | `1 m` plus `1 / (2 m)`                               | an error, a dimension mismatch              | [Operators](#operators)             |
+| `m^1/2`       |      | `(m^1) / 2`, half a metre                            | `= 0.5 m`                                   | [Operators](#operators)             |
+| `-2^2`        |      | `-(2^2)`                                             | `= -4`                                      | [Operators](#operators)             |
+| `2^3^2`       |      | does not parse: one exponent per factor              | an error as it is typed                     | [Operators](#operators)             |
+| `m^(1/2 + 1)` |      | does not parse: an exponent is never computed        | an error as it is typed                     | [Operators](#operators)             |
+| `m^(1/-2)`    |      | does not parse: a fraction's denominator is unsigned | an error as it is typed                     | [Operators](#operators)             |
+| `5 ft 3 in`   |      | does not parse: a number only as the first factor    | an error as it is typed                     | [Operators](#operators)             |
+| `2 -3`        |      | the difference `2 - 3`                               | `= -1`                                      | [Numbers](#numbers)                 |
+| `2e -19 C`    | `C`  | `2 e - 19 C`                                         | `≈ -19 C`                                   | [Numbers](#numbers)                 |
+| `m2`          |      | the name `m2`                                        | an error: unknown unit `m2`                 | [Names](#names)                     |
+| `1 dB`        |      | `d` + `B`, a tenth of a byte                         | `= 0.8 bit`                                 | [Names](#names)                     |
+| `1 at`        | `kg` | `a` + `t`, an attotonne                              | `= 1e-15 kg`                                | [Names](#names)                     |
+| `kg(m/s)`     |      | a call of `kg`                                       | an error: `kg` is a unit, not a function    | [Calls and arity](#calls-and-arity) |
+| `tempC (1)`   |      | a juxtaposition of `tempC` and `(1)`                 | an error: `tempC` is a function, not a unit | [Calls and arity](#calls-and-arity) |
+| `pi ()`       |      | does not parse: `()` is not a list of arguments      | an error as it is typed                     | [Calls and arity](#calls-and-arity) |
+| `1 m in ft`   |      | a product of three units                             | `= 0.00774192 m^3`                          | [The want field](#the-want-field)   |
 
 ## What is not accepted
 

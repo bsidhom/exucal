@@ -4,17 +4,17 @@ Exucal has one small expression language, and everything you type is
 written in it: the have, the want you convert it into, and the body of
 each definition in the definitions file
 ([The definition language](definitions.md)). An expression is built
-from numbers, names, operators, parentheses and calls, and from factors
-written side by side, as in `2 kg * 3 m/s^2`. Two rules decide most of
-what a text means: factors written side by side multiply and bind
-tighter than `*` and `/`, and every word is a name, never an
-instruction. So `1/2 in` is half per inch, and `1 m in ft` is a volume.
-The calculator parses the text you type into an expression and then
-computes it. A text that does not parse is an **error as it is typed**,
-reported as you type and before the text is computed. A text that
-parses may still fail when it is computed. [Numbers](numbers.md) says
-what a value is, and [Quantities](quantities.md) says what a quantity
-is.
+from factors joined by operators or written side by side, as in
+`2 kg * 3 m/s^2`. A **factor** is a number, a name, a call or an
+expression in parentheses. Two rules decide most of what a text means:
+factors written side by side multiply and bind tighter than `*` and
+`/`, and every word is a name, never an instruction. So `1/2 in` is
+half per inch, and `1 m in ft` is a volume. The calculator parses the
+text you type into an expression and then computes it. A text that does
+not parse is an **error as it is typed**, reported as you type and
+before the text is computed. A text that parses may still fail when it
+is computed. [Numbers](numbers.md) says what a value is, and
+[Quantities](quantities.md) says what a quantity is.
 
 An expression follows these rules:
 
@@ -65,7 +65,7 @@ left to right.
 | 3           | **negation**: one `-` before a product of factors written side by side   | once; it does not stack                          | `-2 m / s` is `(-(2 m)) / s`; `--2` is an error                                          |
 | 4           | **juxtaposition**: factors written side by side, with a space or without | left to right; a number only as the first factor | `kg m / s^2` is `(kg m) / (s^2)`; `1/12 year` is `1 / (12 year)`                         |
 | 5           | power: one `^` and an exponent typed as a number or a fraction           | one exponent per factor                          | `-2^2` is `-(2^2)`; `m^2^3` is an error                                                  |
-| 6, tightest | an atom: a number, a name, a call or an expression in parentheses        | none                                             | `2.54`, `ft`, `tempC(100)`, `(1/12)`; `kg(m/s)` is a call and `kg (m/s)` a juxtaposition |
+| 6, tightest | a factor: a number, a name, a call or an expression in parentheses       | none                                             | `2.54`, `ft`, `tempC(100)`, `(1/12)`; `kg(m/s)` is a call and `kg (m/s)` a juxtaposition |
 
 So `2 kg * 3 m/s^2` parses as `((2 kg) * (3 m)) / (s^2)`: the power
 first, then each juxtaposition, then the product and the quotient from
@@ -292,8 +292,12 @@ forms.
 
 Any other exponent is an error as it is typed: `m^x`, `m^(1/2 + 1)`
 and `m^(1/-2)` are errors, and so is a zero divisor, `m^(1/0)`. A
-factor takes one exponent, so `2^3^2` is an error as it is typed.
-Write `(2^3)^2`. `^` binds tightest of the operators, so `m^1/2` is
+factor takes one exponent: in `2^3^2` the second `^` has no factor to
+raise, since `2^3` is not one, so the text is an error as it is typed.
+Write `(2^3)^2` for two cubed and then squared: the parentheses make
+`2^3` a factor, which takes an exponent of its own. `2^(3^2)` is an
+error as it is typed too, since an exponent is a number or a fraction:
+write `2^9`. `^` binds tightest of the operators, so `m^1/2` is
 `(m^1) / 2`, half a metre. An exponent's sign is written without a
 space before its digits: `m^-1` is a power, and `m^- 1` is an error as
 it is typed.

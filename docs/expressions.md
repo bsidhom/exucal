@@ -509,8 +509,8 @@ half an inch, a twelfth of a year and a metre and a half, write
 
 Any character that cannot be parsed where it stands is an error as it
 is typed. A line break is one, and so is any whitespace other than a
-space or a tab. People bring some characters from other notations, and
-each has a plain form to type instead:
+space or a tab. Common notations from elsewhere, each with its spelling
+in the app:
 
 | You type | Instead write                  |
 | -------- | ------------------------------ |

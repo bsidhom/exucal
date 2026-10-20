@@ -1,69 +1,54 @@
 # The definition language
 
-Every unit, prefix and unit list the calculator knows, and every
-function but the built-in ones, comes from the **definitions file**, a
-text file that the app loads as it starts. The file defines the units,
-the prefixes, the unit lists, the functions and their inverses, and it
-declares the primitives that every unit is defined from. It is written
-in the **definition language**: one definition per line, a name and a
-body, most bodies being expressions of the expression language
-([The expression language](expressions.md)). A definition takes one of
-six forms: primitive, prefix, unit, unit list, function or inverse. The
-shape of its line tells them apart. The format is modelled on the
-definitions file of [GNU units](https://www.gnu.org/software/units/).
-The rules and examples here assume the predefined definitions file, the
-one that ships with the app, and no definition can be typed into the
-app. [Units](units.md) lists what the predefined file defines.
+The **definitions file** is a text file that the app loads as it
+starts. It defines every unit, prefix and unit list the calculator
+knows, and every function but the built-in ones. The file is written
+in the **definition language**. A definition occupies one line, as a
+name and a body, in one of six forms: primitive, prefix, unit, unit
+list, function or inverse. A unit's body is an expression over other
+units, and a function's body is an expression over its parameters,
+both in [The expression language](expressions.md). The format is
+inspired by the definitions file of
+[GNU units](https://www.gnu.org/software/units/). The rules and
+examples here assume the predefined definitions file, the one that
+ships with the app. [Units](units.md) lists what that file defines.
 
-The file stands behind every result, and its semantics say what a result
-can be trusted for. A unit's factor is read exactly, so an inexact
-conversion can come only from an inexact definition, never from the
-arithmetic. A defined function, one the file defines, is under the same
-guarantee as a built-in: its digits can be trusted as far as any
-result's, and a call costs what its body typed out in its place would
-cost. And the rules on names make every typed name mean one thing. The
-predefined file leaves out a few familiar symbols, `dB` among them, to
-keep it so.
+An example gives what you type, what you convert it into, and what
+Exucal shows: the result side of an output line, with its relation,
+`=` or `≈`. An error is described in a few words, not quoted. A
+definition an example adds to the file stands above its table.
 
-Each example gives what you type, what you convert it into where there
-is a want, and what Exucal shows. The shown text is the result side of
-an output line, with the relation, `=` or `≈`, in front of the value.
-Where an example fails, the table says so and describes the error in a
-few words. Some examples use a definition the predefined file does not
-hold, to show a rule the file's own lines do not exercise. That
-definition then stands above the table that uses it, and the result is
-what the calculator would show with that line in the file.
+The definitions file follows these rules:
 
-A definition follows these rules:
-
-- **One definition per line: a name and a body.** A `#` starts a
-  comment, blank lines are skipped, and definitions may stand in any
-  order, though never in a circle ([The file](#the-file)).
+- **A definition occupies one line, as a name and a body**
+  ([The file](#the-file)).
 - **The shape of a line says which of the six forms it takes**
   ([Grammar](#grammar)).
-- **A primitive is a base quantity that everything else is defined from**,
-  declared with `!`, or with `!kind` for a marker of a kind
+- **A primitive is a base quantity that everything else is defined from**
   ([Primitives](#primitives)).
-- **A prefix's body is a plain number**, and prefixes have a set of
-  names of their own ([Prefixes](#prefixes)).
-- **A unit's body is evaluated once, when the file loads**, at the
-  ceiling and in exact mode, so a conversion is exact wherever the
-  factors are exact ([Units](#units)).
-- **A unit list is checked when the file loads**, and its name means
-  the list only as the want ([Unit lists](#unit-lists)).
-- **A parameter's argument must conform to the unit its annotation names, and a condition is a comparison the arguments must meet**
+- **A prefix's body is a plain number** ([Prefixes](#prefixes)).
+- **A unit's body is evaluated once, when the file loads**
+  ([Units](#units)).
+- **A unit list's units must conform, be positive and decrease**, and
+  its name stands for the list only as the want
+  ([Unit lists](#unit-lists)).
+- **A defined function computes a value from its arguments by its body**
   ([Functions](#functions)).
-- **A function's body is checked for its dimension when the file loads and computed only at a call**,
-  as the body typed out in its place would be
-  ([Functions](#functions)).
+  - A parameter may carry an annotation, a unit its argument must
+    conform to ([Annotations](#annotations)).
+  - A condition is a comparison the arguments must meet, checked at
+    every call ([Conditions](#conditions)).
+  - The body is checked for its dimension when the file loads and
+    computed only at a call
+    ([The check at load, and the check at a call](#the-check-at-load-and-the-check-at-a-call)).
+  - A call is computed as its body typed out in its place, afresh at
+    every pass ([Exactness and cost](#exactness-and-cost)).
 - **An inverse gives back the argument that produces a value**, and
   lets the function be a want ([Inverses](#inverses)).
-- **Units, lists, functions and built-ins share one set of names**, each
-  name defined once, and a list's or a function's name may not read as
-  a prefix followed by a unit ([Names](#names)).
-- **The first fault the app finds keeps the whole file from loading**,
-  a fault being anything in the file it cannot accept, and each fault
-  has a fix ([When the file does not load](#when-the-file-does-not-load)).
+- **Units, lists, functions and built-ins share one set of names, each defined once**
+  ([Names](#names)).
+- **Anything in the file the app cannot accept is a fault, and the first fault found keeps the whole file from loading**
+  ([When the file does not load](#when-the-file-does-not-load)).
 - **Only the predefined definitions file is loaded**
   ([What the app loads](#what-the-app-loads)).
 

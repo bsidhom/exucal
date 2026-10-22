@@ -46,7 +46,7 @@ The definitions file follows these rules:
     every pass ([Exactness and cost](#exactness-and-cost)).
 - **An inverse gives back the argument that produces a value**, and
   lets the function be a want ([Inverses](#inverses)).
-- **Units, lists, functions and built-ins share one set of names, each defined once**
+- **Units, lists, functions and built-ins share one namespace, each name defined once**
   ([Names](#names)).
 - **Anything in the file the app cannot accept is a fault, and the first fault found keeps the whole file from loading**
   ([When the file does not load](#when-the-file-does-not-load)).
@@ -79,8 +79,9 @@ inch      2.54 cm           # a comment after a body
 
 ## Grammar
 
-One line of each form, as the predefined file writes them, each with a
-comment added:
+These seven lines come from the predefined definitions file, one of each
+form, with the primitive form shown twice, as a dimension and as a kind.
+The comments are added here to say which form each line shows:
 
 ```
 m         !                                # a dimension primitive
@@ -159,8 +160,8 @@ second name for a prefix is a second definition, so the predefined file
 defines a prefix by name and by symbol, `kilo-` and `k-` among them, and
 both `km` and `kilometre` name a thousand metres. The body may be
 neither `!` nor a list, and it may have neither a dimension nor a kind:
-`weird- 2 m` keeps the file from loading. Prefixes have a set of names
-of their own, apart from the units, so `m-` (milli) coexists with `m`
+`weird- 2 m` keeps the file from loading. Prefixes have a namespace of
+their own, separate from the units. So `m-` (milli) coexists with `m`
 (the metre), and `h-` (hecto) coexists with `h` (the hour). The
 expression language settles how a typed name divides into a prefix and a
 unit ([Names](expressions.md#names)). The file adds two rules of its
@@ -539,21 +540,21 @@ dbl(x) = 2 x
 The file's names follow four rules of their own, checked as the file
 loads, beyond how a typed name is read ([Names](expressions.md#names)).
 
-Units, unit lists, functions and the built-in functions share one set of
-names, and a name is defined once in it. A bare name typed as the want
-may mean a unit, a list or a conversion into a function, with nothing in
-the text to tell which, so those three share a set. The predefined file
-defines the unit `dozen`, so a function `dozen(n: in) = 12 n` makes
-`dozen` as the want mean either, and the line is a fault. The built-in
-functions are in the set too: a call looks its name up in one place, and
-a definition that took a built-in's name would need a rule for which of
-the two wins, so it is a fault instead, and no definition can stand in
-for a built-in. A unit and a function of one name are a duplicate, a
-name defined twice in one set, and so is a function named like a
-built-in: `sqrt(x) = x` keeps the file from loading. Prefixes have a set
-of names of their own ([Prefixes](#prefixes)). An inverse adds no name:
-it is attached to its function's name, and a second inverse for one
-function is a duplicate.
+Units, unit lists, functions and the built-in functions share one
+namespace, and a name is defined once in it. A bare name typed as the
+want may mean a unit, a list or a conversion into a function, with
+nothing in the text to tell which. So those three share a namespace. The
+predefined file defines the unit `dozen`, so a function
+`dozen(n: in) = 12 n` makes `dozen` as the want mean either, and the
+line is a fault. The built-in functions are in the namespace too: a call
+looks its name up in one place. A definition that takes a built-in's
+name needs a rule for which of the two wins, so it is a fault instead.
+No definition can stand in for a built-in. A duplicate is a name defined
+twice in one namespace. A unit and a function of one name are a
+duplicate, and so is a function named like a built-in: `sqrt(x) = x`
+keeps the file from loading. Prefixes have a namespace of their own
+([Prefixes](#prefixes)). An inverse adds no name: it is attached to its
+function's name, and a second inverse for one function is a duplicate.
 
 A list's or a function's name may not read as a prefix followed by a
 unit. `ms hr;min;s` and `ms(x) = x` keep the file from loading: typed as
@@ -612,7 +613,7 @@ instead:
 | a parameter is named like a unit that an annotation on the same line uses                                                           | `kinetic(m: kg, v: m/s)`                                          | another name for the parameter (`mass`); a unit the line's annotations do not name is fine (`f(t) = t s`) |
 | a condition's comparisons do not all point one way                                                                                  | `\| 0 < x > 1`                                                    | a chain that bounds a range, `0 < x < 1`                                                                  |
 | a function's name is directly followed by `[`                                                                                       | `f[n](x) = x`                                                     | reserved; no form of it is accepted today                                                                 |
-| a name is defined twice in its set, a built-in function's name included                                                             | `foo 1 m` and `foo(x) = x`; `sqrt(x) = x`; a second `~tempC` line | one definition per name                                                                                   |
+| a name is defined twice in its namespace, a built-in function's name included                                                       | `foo 1 m` and `foo(x) = x`; `sqrt(x) = x`; a second `~tempC` line | one definition per name                                                                                   |
 | an inverse names no function                                                                                                        | `~nothing(y) = y`                                                 | the function's own name after the `~`                                                                     |
 | a name could be read as two prefix-unit pairs                                                                                       | `dau` as `d` + `au` and `da` + `u`                                | one of the two units under another name ([Names](#names))                                                 |
 | a list's, a function's or a built-in's name reads as a prefix followed by a unit                                                    | `ms hr;min;s`, `ms(x) = x`                                        | a name that is not a prefixed unit; for a built-in's name, no unit and prefix that spell it               |

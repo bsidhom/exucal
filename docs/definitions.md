@@ -129,7 +129,7 @@ A **primitive** is a base quantity that everything else is defined in
 terms of. The calculator takes its primitives from the file alone, and a
 dimension is a list of exponents over them
 ([A quantity](quantities.md#a-quantity)). A **dimension primitive**,
-declared with a body of `!`, is a base quantity such as the metre. A
+declared with a body of `!`, is a base quantity such as the meter. A
 **kind primitive**, declared with `!kind`, is a marker of a kind with no
 dimension of its own. It keeps apart quantities that would otherwise
 look alike. The file, not the calculator, chooses which kinds exist: a
@@ -158,11 +158,11 @@ expression whose value is a plain number, such as `1e3` or `1024^2`. The
 body is evaluated once, when the file loads, as a unit's body is. A
 second name for a prefix is a second definition, so the predefined file
 defines a prefix by name and by symbol, `kilo-` and `k-` among them, and
-both `km` and `kilometre` name a thousand metres. The body may be
+both `km` and `kilometer` name a thousand meters. The body may be
 neither `!` nor a list, and it may have neither a dimension nor a kind:
 `weird- 2 m` keeps the file from loading. Prefixes have a namespace of
 their own, separate from the units. So `m-` (milli) coexists with `m`
-(the metre), and `h-` (hecto) coexists with `h` (the hour). The
+(the meter), and `h-` (hecto) coexists with `h` (the hour). The
 expression language settles how a typed name divides into a prefix and a
 unit ([Names](expressions.md#names)). The file adds two rules of its
 own: no name divides two ways, and no list's or function's name reads as
@@ -172,7 +172,7 @@ prefix applies to a function's or a list's name.
 | You type      | Into   | Exucal shows                              | Note                                        |
 | ------------- | ------ | ----------------------------------------- | ------------------------------------------- |
 | `1 km`        | `m`    | `= 1000 m`                                | `k` + `m`                                   |
-| `1 kilometre` | `m`    | `= 1000 m`                                | `kilo` + `metre`                            |
+| `1 kilometer` | `m`    | `= 1000 m`                                | `kilo` + `meter`                            |
 | `1 mebibyte`  | `byte` | `= 1048576 byte`                          | a prefix defined by an expression, `1024^2` |
 | `ktempC(1)`   |        | an error: `ktempC` is an unknown function | no prefix applies to a function             |
 
@@ -182,7 +182,7 @@ A **unit** is a name the file gives to a quantity, so that other
 quantities can be written as multiples of it. It is defined by a body of
 one expression over numbers, units and calls: `in 2.54 cm`,
 `N kg m / s^2`, `Hz 1 / s`. A body that is a name alone makes an alias,
-as `metre m` does. Every unit is evaluated once, when the file loads.
+as `meter m` does. Every unit is evaluated once, when the file loads.
 The evaluation runs at the ceiling, the highest precision any pass
 computes at ([Digits you can trust](numbers.md#digits-you-can-trust)
 says what sets it). It runs in exact mode, whatever mode you compute in
@@ -576,7 +576,7 @@ In a function's body and in its conditions, a parameter's name wins over
 a unit of that name: `f(t) = t s` uses the parameter `t`, not the tonne.
 An annotation names units only. So a parameter may not be named like a
 unit that its own line's annotations use: in `kinetic(m: kg, v: m/s)`
-the one name `m` would mean the metre in the annotation and the
+the one name `m` would mean the meter in the annotation and the
 parameter in the body. The two rules settle which is which, but a person
 reading the line sees one name mean two things, so the line is a fault
 by design, and the parameter is named `mass` instead.
@@ -589,7 +589,7 @@ by design, and the parameter is named `mass` instead.
 | `ms hr;min;s`                        | does not load: `ms` reads as `m` + `s`                     |
 | `u 1 kg`                             | does not load: `dau` reads as `d` + `au` and as `da` + `u` |
 | `f(t) = t s`                         | loads: `t` in the body is the parameter                    |
-| `kinetic(m: kg, v: m/s) = m v^2 / 2` | does not load: `m` is the parameter and the metre of `m/s` |
+| `kinetic(m: kg, v: m/s) = m v^2 / 2` | does not load: `m` is the parameter and the meter of `m/s` |
 
 ## When the file does not load
 

@@ -619,13 +619,12 @@ inexact value ([Units](definitions.md#units),
 
 ### The measured factors
 
-Three factors are measured values, read exactly: the dalton, `Da`,
-`1.66053906660e-27 kg`, the CODATA 2018 value; the tropical year,
-`365.24219 day`; and the sidereal year, `365.256363004 day`. The two
-years are carried to the digits the file gives, and the file names no
-source for them. A conversion through one of these factors is exact
-in the arithmetic, and the relation is `=` where every digit is
-shown, as any exact value's is. Every other factor is a defined
+Three factors are measured values, carried to the digits the file
+gives and read exactly: the dalton, `Da`, `1.66053906660e-27 kg`, the
+CODATA 2018 value; the tropical year, `365.24219 day`; and the
+sidereal year, `365.256363004 day`. A conversion through one of these
+factors is exact in the arithmetic, and the relation is `=` where
+every digit is shown, as any exact value's is. Every other factor is a defined
 factor, fixed by a document or a convention, the five defining
 constants and `gravity` among them
 ([Constants and extras](#constants-and-extras)).

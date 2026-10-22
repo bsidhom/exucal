@@ -688,7 +688,7 @@ listed last: they are not defects, but the pages will quote their result.
 - Description: epoch-dependent values with no source; D3 (Q3): a source and an epoch in the comment.
 - Units: D3 (L84, L342)
 - Docs side: F-069
-- Rewrite impact: none.
+- Rewrite impact: `docs/units.md#Which factors are exact` names the two years as measured values carried to the digits the file gives and says nothing of their source, as the owner decided in the review of work order 05's pull request (2026-10-22). The commit that gives the comment a source and an epoch makes the page cite the same source, in "The measured factors" and "The sources", so that the page and the file agree.
 
 ### B-064. `bit`'s comment does not say why information is a dimension
 

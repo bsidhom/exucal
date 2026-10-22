@@ -226,7 +226,11 @@ answers word:
 - B-062 (Q-033; F-069): `gravity` (`src/units.txt:118`) is marked
   "(exact by convention)".
 - B-063 (Q-033): the tropical and sidereal years (`src/units.txt:344-345`)
-  get a source and an epoch in their comment.
+  get a source and an epoch in their comment, and the same commit makes
+  `docs/units.md#Which factors are exact` cite that source for the two
+  years, in "The measured factors" and "The sources"; the page leaves
+  their source unnamed until then (decided in the review of work order
+  05's pull request, 2026-10-22).
 - B-064 (Q-032): `bit`'s comment (`src/units.txt:25`) gives the reason
   information is a dimension: a count of bits must not collapse into a
   plain number, so that `bit/s` stays apart from `Hz` as `rad/s` does.

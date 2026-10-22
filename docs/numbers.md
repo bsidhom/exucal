@@ -449,7 +449,7 @@ When the range lies on one side of the other value, the comparison is
 decided. When it reaches across the other value, the comparison is
 **undecided**: it neither holds nor fails. A range that ends exactly on
 the other value is the subtle case. It never decides a strict
-comparison, `<` or `>`, in its favour, and it decides a non-strict one,
+comparison, `<` or `>`, in its favor, and it decides a non-strict one,
 `<=` or `>=`, only from the side the comparison admits.
 
 | You type                 | Exucal shows                                     | Note                                                                                                               |

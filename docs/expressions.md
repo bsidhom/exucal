@@ -156,7 +156,7 @@ predefined definitions file defines both as the prefix micro.
 
 A name that does not name a function or a list means a unit, or one
 prefix followed by a unit, a prefix being a multiplier the definitions
-file names: `km` is `k` + `m`, and `kilometre` is `kilo` + `metre`. Six
+file names: `km` is `k` + `m`, and `kilometer` is `kilo` + `meter`. Six
 rules settle what a name means.
 
 - A unit's own name wins over a prefix and a unit, so `min` is the
@@ -168,7 +168,7 @@ rules settle what a name means.
 - There is no plural handling: `inches` is an unknown unit unless the
   file defines it as an alias.
 - Prefixes and units are separate namespaces, so `m` is both the prefix
-  milli and the unit metre, and `h` is both the prefix hecto and the
+  milli and the unit meter, and `h` is both the prefix hecto and the
   unit hour.
 - Inside a function's body, a parameter's name wins over any unit of
   that name ([Functions](definitions.md#functions)).
@@ -265,7 +265,7 @@ as a sign, in two places: in a number's exponent, as `2E+2`; and on a
 ### Juxtaposition
 
 Juxtaposition multiplies the factors written side by side: `2 m` is
-two metres, and `kg m` is a kilogram metre. A number may only be the
+two meters, and `kg m` is a kilogram meter. A number may only be the
 first factor, a count of what follows, so `m 2`, `2 3 m` and
 `5 ft 3 in` are errors as they are typed. Two numbers are multiplied
 with `*` or with parentheses, `2 * 3` or `2 (3)`, and five feet three
@@ -302,7 +302,7 @@ typed: the second `^` has no factor to raise, since `2^3` is not a
 factor. Write `(2^3)^2` for two cubed and then squared. The parentheses
 make `2^3` a factor with an exponent of its own. For two to the ninth
 write `2^9`, since `3^2` as an exponent would be computed. `^` binds
-tightest of the operators, so `m^1/2` is `(m^1) / 2`, half a metre. An
+tightest of the operators, so `m^1/2` is `(m^1) / 2`, half a meter. An
 exponent's sign is written without a space before its digits: `m^-1` is
 a power, and `m^- 1` is an error as it is typed.
 
@@ -480,7 +480,7 @@ may not. The result's value is written as
 Some texts do not parse as they look. One is a fraction before a unit,
 which parses with the juxtaposition first: `1/2 in` is `1/(2 in)`,
 half per inch, while `(1/2) in` and `0.5 in` are half an inch. For
-half an inch, a twelfth of a year and a metre and a half, write
+half an inch, a twelfth of a year and a meter and a half, write
 `(1/2) in`, `year / 12` and `1 m + m/2`.
 
 | You type      | Into | It parses as                                         | Exucal shows                                | Rule                                |
@@ -489,7 +489,7 @@ half an inch, a twelfth of a year and a metre and a half, write
 | `1/2 in`      |      | `1/(2 in)`, half per inch                            | `≈ 19.685039 × (1 / m)`                     | [Operators](#operators)             |
 | `(1/2) in`    |      | half an inch                                         | `= 0.0127 m`                                | [Operators](#operators)             |
 | `1 m + 1/2 m` |      | `1 m` plus `1 / (2 m)`                               | an error, a dimension mismatch              | [Operators](#operators)             |
-| `m^1/2`       |      | `(m^1) / 2`, half a metre                            | `= 0.5 m`                                   | [Operators](#operators)             |
+| `m^1/2`       |      | `(m^1) / 2`, half a meter                            | `= 0.5 m`                                   | [Operators](#operators)             |
 | `-2^2`        |      | `-(2^2)`                                             | `= -4`                                      | [Operators](#operators)             |
 | `2^3^2`       |      | does not parse: one exponent per factor              | an error as it is typed                     | [Operators](#operators)             |
 | `m^(1/2 + 1)` |      | does not parse: an exponent is never computed        | an error as it is typed                     | [Operators](#operators)             |

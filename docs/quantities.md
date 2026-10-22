@@ -25,7 +25,7 @@ text file in the definition language that the app loads as it starts
 ([The definition language](definitions.md) describes the format, and
 [Units](units.md) lists the contents). A **unit** is a name the file
 gives to a quantity, so that other quantities can be written as
-multiples of it. The metre and the inch are units. The file also
+multiples of it. The meter and the inch are units. The file also
 defines the prefixes, the unit lists and the functions the calculator
 knows, and it declares the **primitives**, the base quantities that
 every dimension is built from. The kinds are primitives too, markers
@@ -105,10 +105,10 @@ A quantity follows these rules:
 The rest of a quantity, beside its scalar, is one list of exponents,
 with an entry for each of the primitives, which the definitions file
 declares in two roles ([The primitives](units.md#the-primitives) lists
-them). A **dimension primitive** is a base quantity, such as the metre,
+them). A **dimension primitive** is a base quantity, such as the meter,
 the kilogram or the second. The entries for the dimension primitives
 are the quantity's dimension: `6 m kg / s^2` has the exponent one for
-the metre, one for the kilogram and minus two for the second. A
+the meter, one for the kilogram and minus two for the second. A
 primitive absent from the list implicitly has the exponent zero. A
 **kind primitive** is a marker of a kind, with no dimension of its
 own, and its entry is the quantity's kind. The radian is one.
@@ -180,7 +180,7 @@ kind, a value could pass for either. The kind keeps them apart:
 `rad/s` does not convert into `Hz`, a kind mismatch, while `rpm`
 converts into `rad/s`, both being angles per time. Where the file
 declares no kind, quantities of one dimension conform whatever they
-measure: a joule is a newton metre here, since no kind keeps torque
+measure: a joule is a newton meter here, since no kind keeps torque
 from energy.
 
 There is no special case for zero. Both `0` and `1` are dimensionless,
@@ -246,10 +246,10 @@ These pairs of quantities must conform:
 - Each unit of a unit list and the have ([Unit lists](#unit-lists)).
 
 A body-mass index illustrates the annotation check. It is computed
-from how many kilograms a weight holds and how many metres a height
+from how many kilograms a weight holds and how many meters a height
 holds, and it is a scale fitted to those units: its number means
 something only with the weight counted in kilograms and the height in
-metres. Say the definitions file defines one as follows
+meters. Say the definitions file defines one as follows
 ([Functions](definitions.md#functions) says how a function is
 written):
 
@@ -311,7 +311,7 @@ Three things follow.
   With `bmi` defined as above, `bmi(100 lb, 4 ft)` and
   `bmi(45.359237 kg, 1.2192 m)` are the same call, and both give
   `≈ 30.515173`. The body needs the number of kilograms in the weight
-  and the number of metres in the height. It gets each by dividing the
+  and the number of meters in the height. It gets each by dividing the
   argument by that unit, `weight / kg` and `height / m`, since the
   argument remembers no unit. A scale fitted to pounds and feet would
   divide by `lb` and `ft` in the same way, and its number would come out
@@ -321,8 +321,8 @@ Three things follow.
   argument with a dimension or a kind, whatever unit it was typed in.
   `floor`, `ceil`, `trunc` and `round` are such functions, and so are
   the functions that take only whole numbers, `factorial` among them.
-  `floor(3.7 ft)` is an error: the value is held in metres, and the
-  whole number of feet in it is not the whole number of metres, so there
+  `floor(3.7 ft)` is an error: the value is held in meters, and the
+  whole number of feet in it is not the whole number of meters, so there
   is no floor of a length. Divide the unit out, take the floor, and
   multiply the unit back: `floor(3.7 ft / ft) ft` is `= 3 ft`.
 - A function that takes a quantity with a dimension works on the
@@ -359,7 +359,7 @@ number, times other units, down to the primitives
 ([Units](definitions.md#units) says how a definition is written). A
 name you type is read as the unit of that name if there is one, and
 otherwise as a prefix followed by a unit, so that `km` is a thousand
-metres while `min` is a minute and never a thousandth of an inch.
+meters while `min` is a minute and never a thousandth of an inch.
 [Names](expressions.md#names) says how a name is read in full, as a
 unit, as a prefix and a unit, as a parameter or as a function.
 
@@ -808,7 +808,7 @@ written in the expression language:
   dimension is `1` alone, the empty product.
 
 The watt's dimension is written `m^2 kg / s^3`, the hertz's `1 / s`,
-and a square root of a metre `m^(1/2)`. A kind primitive is written
+and a square root of a meter `m^(1/2)`. A kind primitive is written
 among the primitives in the same way, so an angular speed is
 `radian / s`. The text pastes back as it is, and the same writing
 orders an answer: `1 kg m` with a blank want is `= 1 m kg`. When

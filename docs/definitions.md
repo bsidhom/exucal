@@ -1,22 +1,23 @@
 # The definition language
 
-The **definitions file** is a text file that the app loads as it
-starts. It defines every unit, prefix and unit list the calculator
-knows, and every function but the built-in ones. The file is written
-in the **definition language**. A definition occupies one line, as a
-name and a body, in one of six forms: primitive, prefix, unit, unit
-list, function or inverse. A unit's body is an expression over other
-units, and a function's body is an expression over its parameters,
-both in [The expression language](expressions.md). The format is
-inspired by the definitions file of
-[GNU units](https://www.gnu.org/software/units/). The rules and
-examples here assume the predefined definitions file, the one that
-ships with the app. [Units](units.md) lists what that file defines.
+The **definitions file** is a text file that the app loads as it starts.
+It defines every unit, prefix and unit list the calculator knows, and
+every function but the built-in ones. The file is written in the
+**definition language**. A definition occupies one line, as a name and a
+body, in one of six forms: primitive, prefix, unit, unit list, function
+or inverse. A unit's body is an expression over other units, and a
+function's body is an expression over its parameters, both in
+[The expression language](expressions.md). The format is inspired by the
+definitions file of [GNU units](https://www.gnu.org/software/units/).
+The rules and examples here assume the predefined definitions file, the
+one that ships with the app. [Units](units.md) lists what that file
+defines.
 
 An example gives what you type, what you convert it into, and what
-Exucal shows: the result side of an output line, with its relation,
-`=` or `≈`. An error is described in a few words, not quoted. A
-definition an example adds to the file stands above its table.
+Exucal shows: the result side of an output line, with its relation, `=`
+or `≈`, at the default settings unless the note says otherwise. An error
+is described in a few words, not quoted. A definition an example adds to
+the file stands above its table.
 
 The definitions file follows these rules:
 
@@ -29,7 +30,7 @@ The definitions file follows these rules:
 - **A prefix's body is a plain number** ([Prefixes](#prefixes)).
 - **A unit's body is evaluated once, when the file loads**
   ([Units](#units)).
-- **A unit list's units must conform, be positive and decrease**, and
+- **A unit list's units must conform, be certainly positive and strictly decrease**, and
   its name stands for the list only as the want
   ([Unit lists](#unit-lists)).
 - **A defined function computes a value from its arguments by its body**
@@ -78,8 +79,8 @@ inch      2.54 cm           # a comment after a body
 
 ## Grammar
 
-Seven lines of the predefined file, one of each form and one more for
-the second primitive, with a comment added to each:
+One line of each form, as the predefined file writes them, each with a
+comment added:
 
 ```
 m         !                                # a dimension primitive
@@ -90,6 +91,8 @@ time      hr;min;s                         # a unit list: two or more items
 tempC(x) | x >= -273.15 = x K + 273.15 K   # a function
 ~tempC(y) = y / K - 273.15                 # its inverse
 ```
+
+Each form has a shape of its own:
 
 - A primitive has a body of `!`, or of `!kind` for a kind
   ([Primitives](#primitives)).
@@ -179,9 +182,11 @@ quantities can be written as multiples of it. It is defined by a body of
 one expression over numbers, units and calls: `in 2.54 cm`,
 `N kg m / s^2`, `Hz 1 / s`. A body that is a name alone makes an alias,
 as `metre m` does. Every unit is evaluated once, when the file loads.
-The evaluation runs at the ceiling and in exact mode, whatever mode you
-compute in afterwards. In decimal mode the unit's value is then rounded
-as it is looked up, like any other step
+The evaluation runs at the ceiling, the highest precision any pass
+computes at ([Digits you can trust](numbers.md#digits-you-can-trust)
+says what sets it). It runs in exact mode, whatever mode you compute in
+afterwards. In decimal mode the unit's value is then rounded as it is
+looked up, like any other step
 ([The two modes](numbers.md#the-two-modes)). Every factor is read
 exactly as written, as a typed number is, so a conversion between units
 defined by exact factors is exact. A unit defined through an inexact
@@ -200,24 +205,29 @@ the boiling point of water. A call whose condition cannot be decided
 keeps the file from loading: a call you type shows such a doubt as a
 warning, but a unit has nowhere to show it. A body may also call
 `approx`, the one operation whose purpose is to make a value inexact.
-The unit is then inexact on purpose: it carries an error radius, as any
-value `approx` gives does, so every conversion through it is `≈` and
-never `=`, which suits a measured constant. Say the file defines:
+The unit is then inexact on purpose: `approx` gives it the smallest
+error radius the ceiling's precision allows, and each use of the unit
+carries its own copy of that radius, so every conversion through it is
+`≈` and never `=`, even `2 G` into `G`. That radius is not a
+measurement's uncertainty. Nothing carries a measurement's uncertainty
+through a conversion
+([#100](https://github.com/bsidhom/exucal/issues/100) studies a value
+known to within a stated one). Say the file defines:
 
 ```
 boil  tempC(100)
 G     approx(6.67430e-11) m^3 / (kg s^2)
 ```
 
-| You type | Into    | Exucal shows                | Note                                   |
-| -------- | ------- | --------------------------- | -------------------------------------- |
-| `1 in`   | `cm`    | `= 2.54 cm`                 | an exact factor                        |
-| `1 mi`   | `km`    | `= 1.609344 km`             | exact through every factor on the way  |
-| `1 turn` | `deg`   | `≈ 360 deg`                 | inexact: both units call `pi()`        |
-| `1 boil` | `K`     | `= 373.15 K`                | a unit defined by a call               |
-| `1 boil` | `tempC` | `= tempC(100)`              |                                        |
-| `1 G`    |         | `≈ 6.6743e-11 m^3 / kg s^2` | inexact on purpose                     |
-| `2 G`    | `G`     | `≈ 2 G`                     | `≈` even between multiples of the unit |
+| You type | Into    | Exucal shows                | Note                                                         |
+| -------- | ------- | --------------------------- | ------------------------------------------------------------ |
+| `1 in`   | `cm`    | `= 2.54 cm`                 | an exact factor                                              |
+| `1 mi`   | `km`    | `= 1.609344 km`             | exact through every factor on the way                        |
+| `1 turn` | `deg`   | `≈ 360 deg`                 | inexact: both units call `pi()`                              |
+| `1 boil` | `K`     | `= 373.15 K`                | a unit defined by a call                                     |
+| `1 boil` | `tempC` | `= tempC(100)`              |                                                              |
+| `1 G`    |         | `≈ 6.6743e-11 m^3 / kg s^2` | inexact on purpose: the smallest radius, not a measurement's |
+| `2 G`    | `G`     | `≈ 2 G`                     | `≈` even between multiples of the unit                       |
 
 ## Unit lists
 
@@ -235,20 +245,17 @@ the ceiling:
 
 - The units conform to one another.
 - Each unit is certainly positive.
-- The units decrease along the list, each smaller than the one before
-  it.
+- The units strictly decrease along the list: two equal units are a fault too.
 
-So a list the file defines can fail at the want only for not conforming
-to the have.
 [Unit lists defined in the file](units.md#unit-lists-defined-in-the-file)
-lists the predefined file's lists.
+names the predefined file's lists.
 
 | You type      | Into     | Exucal shows                                    | Note                                                     |
 | ------------- | -------- | ----------------------------------------------- | -------------------------------------------------------- |
 | `3661 s`      | `time`   | `= 1 hr + 1 min + 1 s`                          | a defined list, by name                                  |
 | `1 hr / 7 mi` | `mipace` | `≈ 8 min / mi + 34.285714 s / mi`               | a defined list; the count of `hr / mi` is zero, left out |
 | `2 time`      |          | an error: `time` is an unknown unit             | a list's name is not a unit                              |
-| `1 m`         | `time`   | an error, a dimension mismatch: `m` against `s` | the one way a defined list fails                         |
+| `1 m`         | `time`   | an error, a dimension mismatch: `m` against `s` | a dimension mismatch, as for a typed list                |
 
 ## Functions
 
@@ -290,39 +297,42 @@ parentheses is not a call
 An **annotation** is the unit a parameter takes, in this sense alone:
 the argument must conform to it, and nothing is converted into it. An
 annotation changes no value, since the argument is held in the
-primitives whatever unit the annotation names, so `n: in` means a
-length, any length
+primitives whatever unit the annotation names
 ([A quantity carries no unit](quantities.md#a-quantity-carries-no-unit)).
-A parameter without an annotation takes a plain number. So an annotation
-is a unit expression and nothing more: unit names, with products,
-quotients and powers of them, as `m/s`, or the number `1`, which means a
-plain number, as leaving the annotation out does. Any other number would
-read as a scale that the annotation does not apply: `: 2` and `: 1000 m`
-are errors, and the scale is written in the body. A sum, a negation or a
-call names no unit, and is an error too. A formula that needs the number
-of some unit in its argument divides that unit out in the body, as the
-body-mass index does with `weight / kg`
-([Conformance](quantities.md#conformance) defines `bmi`, which the
-predefined file does not hold).
+So `n: in` means a length, in any length unit. A parameter without an
+annotation takes a plain number. So an annotation is a unit expression
+and nothing more: unit names, with products, quotients and powers of
+them, as `m/s`, or the number `1`, which means a plain number, as
+leaving the annotation out does. Any other number would read as a scale
+that the annotation does not apply: `: 2` and `: 1000 m` are errors, and
+the scale is written in the body. A sum, a negation or a call names no
+unit, and is an error too. A formula that needs the number of some unit
+in its argument divides that unit out in the body, as the body-mass
+index does with `weight / kg` ([Conformance](quantities.md#conformance)
+defines the `bmi` example, shown again below, which the predefined file
+does not hold).
 
 The result's dimension, its kind included, is inferred from the body,
 with each parameter standing for a quantity of its annotation's
 dimension: `kinetic` gives an energy. An annotation after the
 parentheses, `): K`, checks the inferred dimension against the one
-written, and `): 1` says that the result is a plain number. An
-annotation names a unit, and zero is no unit, since nothing is a count
-or a multiple of it. So an annotation that is zero, or cannot be told
-from zero, keeps the file from loading, for a parameter's annotation and
-the result's alike: `f(x: zero)` with `zero 0 m` is a fault. Say the
-file defines a function of one annotated parameter:
+written, and `): 1` says that the result is a plain number. Say the file
+defines a function of one annotated parameter, beside the `bmi` example:
 
 ```
 twelve(n: in) = 12 n
+bmi(weight: kg, height: m): 1 = (weight / kg) / (height / m)^2
 ```
 
 `twelve(1 ft)` is twelve feet, since `n` takes any length. A quantity
 converted into the function is written as a count of the parameter's
-annotation, which [Inverses](#inverses) shows with this function.
+annotation, which [Inverses](#inverses) shows with this function. That
+count is the one use of an annotation's value, so an annotation that is
+zero, or cannot be told from zero, is a fault at load, for the result's
+annotation by the same rule. A unit expression can be zero only through
+a unit of the file, one defined as `0 m` or one whose body cancels to a
+value that cannot be told from zero: `f(x: zero)` with `zero 0 m` is a
+fault.
 
 | You type            | Into | Exucal shows                                                                   | Note                              |
 | ------------------- | ---- | ------------------------------------------------------------------------------ | --------------------------------- |
@@ -344,8 +354,9 @@ parameters, `| a < b, a <= x <= b`, or bound an expression of them,
 `| x^2 + y^2 <= 1`. Several conditions are separated by commas and must
 all hold. Each must mention a parameter, and its terms must conform,
 which the app checks as it loads the file: `| t > 0` for `t: K` is a
-fault, and `| t > 0 K` is the condition meant. Nothing checks a
-function's result against a range.
+fault, and `| t > 0 K` is the condition meant. To bound the result,
+write the body's expression in a condition: there is no condition on the
+result itself.
 
 A call checks the conditions before it computes the body. A condition
 holds, fails or is **undecided**. The comparison takes the argument's
@@ -398,13 +409,15 @@ ident(x) | x - x >= 0 = x
 ### The check at load, and the check at a call
 
 As it loads the file, the app checks each function's body for the
-dimension and kind it gives, and it does not compute the body for any
-argument. The check applies every rule the body's operations and calls
-follow. The operands of a sum must conform. A defined function called in
-the body takes one argument per parameter, each conforming to its
-annotation. A built-in follows its own dimension rule, so
-`f(x) = sin(x)` keeps the file from loading, since `sin` takes an angle
-and `x` is a plain number, while `f(x: radian) = sin(x)` loads. One
+dimension and kind it gives, and does not compute the body for any
+argument. The body is an expression of the expression language, so every
+conformance check that applies to a typed expression applies to it. A
+defined function called in the body takes one argument per parameter,
+each conforming to its annotation. A built-in follows the dimension rule
+its entry gives
+([Rules every built-in follows](builtins.md#rules-every-built-in-follows)).
+So `f(x) = sin(x)` keeps the file from loading, since `sin` takes an
+angle and `x` is a plain number. `f(x: radian) = sin(x)` loads. One
 number in a body is computed at load: a `^` exponent, since the power's
 dimension depends on it. The exponent is formed as a fraction, and one
 too large to form within the significand limit is a fault at load. Any
@@ -432,11 +445,11 @@ f(x: radian) = sin(x)
 
 A call is computed as the body typed out in its place would be, afresh
 at every pass of the retry loop and at the pass's precision. Its digits
-are certified the same way, and a cancellation inside the body is paid
-for by the next pass's digits: `em(x) = (exp(x) - 1) / x` gives `≈ 1` at
-`1e-30`, and its author wrote nothing about precision to get it. A call
-is not remembered, so a body that calls a function twice computes it
-twice, at every pass, and a short definition can cost much
+are certified the same way, and a cancellation inside the body is
+recovered at the next pass, as it is for the same text typed out:
+`em(x) = (exp(x) - 1) / x` gives `≈ 1` at `1e-30`. A call is not
+remembered, so a body that calls a function twice computes it twice, at
+every pass, and a short definition can cost much
 ([What costs time](numbers.md#what-costs-time)). A parameter used twice
 is two independent copies of its argument's error radius, so `x - x` in
 a body is a value within a bound of zero and never exactly `0`. A
@@ -452,16 +465,13 @@ where a built-in's value is rounded once
 em(x) = (exp(x) - 1) / x
 ```
 
-| You type                   | Exucal shows | Note                                       |
-| -------------------------- | ------------ | ------------------------------------------ |
-| `em(1e-30)`                | `≈ 1`        | the cancellation paid for by the next pass |
-| `(exp(1e-30) - 1) / 1e-30` | `≈ 1`        | the body typed out: the same value         |
-
-In decimal mode, at eight display digits:
-
-| You type    | Exucal shows | Note                                                  |
-| ----------- | ------------ | ----------------------------------------------------- |
-| `em(1e-30)` | `= 0`        | `exp(1e-30)` is rounded to `1` before the subtraction |
+| You type                   | Mode, display digits | Exucal shows                          | Note                                                                              |
+| -------------------------- | -------------------- | ------------------------------------- | --------------------------------------------------------------------------------- |
+| `em(1e-30)`                | exact, 8             | `≈ 1`                                 | the cancellation recovered at a later pass                                        |
+| `(exp(1e-30) - 1) / 1e-30` | exact, 8             | `≈ 1`                                 | the body typed out: the same value                                                |
+| `em(1e-30)`                | exact, 32            | `≈ 1.0000000000000000000000000000005` | the same value, to more digits                                                    |
+| `em(1e-30)`                | decimal, 8           | `= 0`                                 | `exp(1e-30)` is rounded to `1` before the subtraction, and the difference is lost |
+| `em(1e-30)`                | decimal, 32          | `= 1`                                 | enough digits to keep the `1e-30` through the subtraction                         |
 
 ## Inverses
 
@@ -530,12 +540,20 @@ The file's names follow four rules of their own, checked as the file
 loads, beyond how a typed name is read ([Names](expressions.md#names)).
 
 Units, unit lists, functions and the built-in functions share one set of
-names, and a name is defined once in it. A unit and a function of one
-name are a duplicate, and so is a function named like a built-in:
-`sqrt(x) = x` keeps the file from loading, and no definition can stand
-in for a built-in. Prefixes have a set of names of their own
-([Prefixes](#prefixes)). An inverse adds no name: it is attached to its
-function's name, and a second inverse for one function is a duplicate.
+names, and a name is defined once in it. A bare name typed as the want
+may mean a unit, a list or a conversion into a function, with nothing in
+the text to tell which, so those three share a set. The predefined file
+defines the unit `dozen`, so a function `dozen(n: in) = 12 n` makes
+`dozen` as the want mean either, and the line is a fault. The built-in
+functions are in the set too: a call looks its name up in one place, and
+a definition that took a built-in's name would need a rule for which of
+the two wins, so it is a fault instead, and no definition can stand in
+for a built-in. A unit and a function of one name are a duplicate, a
+name defined twice in one set, and so is a function named like a
+built-in: `sqrt(x) = x` keeps the file from loading. Prefixes have a set
+of names of their own ([Prefixes](#prefixes)). An inverse adds no name:
+it is attached to its function's name, and a second inverse for one
+function is a duplicate.
 
 A list's or a function's name may not read as a prefix followed by a
 unit. `ms hr;min;s` and `ms(x) = x` keep the file from loading: typed as
@@ -564,7 +582,7 @@ by design, and the parameter is named `mass` instead.
 
 | The file holds                       | Result                                                     |
 | ------------------------------------ | ---------------------------------------------------------- |
-| `foo 1 m` and `foo(x) = x`           | does not load: `foo` is defined twice                      |
+| `dozen(n: in) = 12 n`                | does not load: `dozen` is already a unit                   |
 | `sqrt(x) = x`                        | does not load: `sqrt` is a built-in                        |
 | `inch- 1000`                         | loads: a prefix and a unit may share a name                |
 | `ms hr;min;s`                        | does not load: `ms` reads as `m` + `s`                     |
@@ -577,7 +595,7 @@ by design, and the parameter is named `mass` instead.
 The app reads the file whole, and a line that fits none of the six forms
 stops the reading there. Then it checks the names, and then each
 definition in the order written. The first fault found is the error, and
-the file does not load until it is fixed. The faults, each with an
+the file does not load until it is fixed. Each fault follows, with an
 example (the faulty line, or the part of it at fault) and what to write
 instead:
 
@@ -601,7 +619,7 @@ instead:
 | a body, an item, an annotation or a condition names what is not defined, uses a function as a unit, or calls what is not a function | `foo 2 bogus`, `foo 2 tempC`, `foo kg(2)`                         | a defined name; `tempC(…)` for a call; `2 kg` for a product                                               |
 | definitions refer to one another in a circle, through bodies, calls or conditions                                                   | `aa 2 bb` with `bb aa / 2`; `f(x) \| f(x) > 0 = x`                | a chain that ends in primitives                                                                           |
 | a prefix's body has a dimension or a kind                                                                                           | `weird- 2 m`, `weird- 2 radian`                                   | a plain number                                                                                            |
-| a list's units are not all of one dimension, not all certainly positive, or do not decrease                                         | `in;ft`, `ft;12 in`                                               | largest first, each smaller than the one before                                                           |
+| a list's units are not all of one dimension, not all certainly positive, or do not strictly decrease                                | `in;ft`, `ft;ft`, `ft;12 in`                                      | largest first, each smaller than the one before                                                           |
 | a parameter's or the result's annotation is zero or cannot be told from zero                                                        | `f(x: zero)` with `zero 0 m`                                      | a unit of nonzero size: a converted quantity is written as a count of it                                  |
 | the body's dimension does not fit the result's annotation                                                                           | `f(x: kg): m = x`                                                 | a body of that dimension, or no result annotation; `: 1` asserts a plain number                           |
 | an inverse's body does not give back what the function's parameter takes                                                            | `f(x: kg) = x` with `~f(y) = y / kg`                              | a body of the parameter's dimension                                                                       |

@@ -20,12 +20,11 @@ one-word form is not the file's, the typed name comes first.
 
 ## The primitives
 
-The file declares nine primitives, in this order: the seven SI base
-units, the meter `m`, the kilogram `kg`, the second `s`, the ampere
-`A`, the kelvin `K`, the mole `mol` and the candela `cd`; the radian,
-`radian`, as a kind primitive, so that an angle is kept apart from a
-plain number; and the bit, `bit`, as a dimension primitive. A blank
-want answers in the primitives, in that order.
+The file declares nine primitives: the seven SI base units, the meter
+`m`, the kilogram `kg`, the second `s`, the ampere `A`, the kelvin
+`K`, the mole `mol` and the candela `cd`; the radian, `radian`, as a
+kind primitive, so that an angle is kept apart from a plain number;
+and the bit, `bit`, as a dimension primitive.
 
 Information is a dimension so that a count of bits does not collapse
 into a plain number: if the bit were a plain number, a bit per second

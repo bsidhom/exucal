@@ -302,7 +302,9 @@ units gives a dimensionless result. From the page's fourth review
 can parse on their own ("A quantity carries no unit"), never an
 allusion that only the section explains. From the review of the
 definitions page (2026-10-20): American English spellings ("modeled",
-never "modelled"). The style
+never "modelled"), unit names included ("meter", never "metre"),
+except where a spelling marks a different unit, as "tonne" against
+"ton" (2026-10-22). The style
 rules of this paragraph are collected, as the house style every run of
 the rewrite reads, in `.claude/skills/prose-style/SKILL.md`; this
 paragraph records where each came from, and a rule set later is added

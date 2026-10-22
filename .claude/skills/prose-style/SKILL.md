@@ -215,7 +215,9 @@ it to the whole text, not only to the sentence that prompted it.
   an external reference only.
 - Headings are the anchors other pages link; keep them stable.
 - American English spellings: "modeled", "color", "center", never
-  "modelled", "colour", "centre".
+  "modelled", "colour", "centre". Unit names follow the rule, "meter"
+  and "liter", never "metre" and "litre", except where a spelling marks
+  a different unit: "tonne" is not "ton".
 
 ## 6. Working under review
 

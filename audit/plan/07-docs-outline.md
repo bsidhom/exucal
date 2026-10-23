@@ -16,7 +16,11 @@ in the review of the quantities page's pull request: the headings
 short names, as work orders 03 and 05 fix them and as the pages written
 earlier link them (`expressions.md#names`, `units.md#the-primitives`);
 the rest of each line is the section's scope, in parentheses as on
-every other line.
+every other line. Amended on 2026-10-23, in the review of the settings
+page's pull request: the settings page's sections follow the settings
+panel's order and groups, the notation after the display digits and the
+rounding after the working digits, and the panel and the page are to
+stay aligned (section 12.3).
 
 **`docs/README.md` — index (guide).** What the app is in two sentences,
 stating the three goals in priority order, in brief, in its own prose
@@ -200,18 +204,19 @@ structured comments in the file (§12, question 4).
   `rad`; Q-075; nothing of a unit `a`, F-078)
 
 **`docs/settings.md` — Settings (reference).** Every control, in terms
-of the model parameter it sets, grouped and nested by mode and never
-counted; foundational detail lives in `numbers.md`, which each entry
-links to (§12, questions 5 and 16).
+of the model parameter it sets, grouped and nested by mode as the
+settings panel groups them and in its order, never counted (section
+12.3, 2026-10-23); foundational detail lives in `numbers.md`, which each
+entry links to (§12, questions 5 and 16).
 - Where the settings are and how a change applies (short; the panel's
   mechanics are `app.md`'s, F-176, F-488); the entries grouped as D4
   drafts them, how it is shown, how it is computed, how much it may cost
   (F-136)
 - Display digits
-- Rounding
-- Mode
 - Notation and ratio width
+- Mode
 - Working digits and the extended count
+- Rounding
 - Precision limit (the formula once, "four times the sum of the limit
   and ten", Q-005)
 - Significand limit (one sentence and a link, Q-108)

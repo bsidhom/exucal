@@ -63,7 +63,7 @@ one sentence linking the owner (V5's map, V5 L98-101; F-344: the
 targets are `docs/settings.md`'s headings as work order 06 fixed them,
 `#where-the-settings-are-and-how-a-change-applies`, `#precision-limit`,
 `#significand-limit`, `#probe-budget-and-measure-this-device`,
-`#how-the-settings-bound-each-other`, `#defaults-and-resets-storage`,
+`#how-the-settings-bound-each-other`, `#defaults-and-resets`,
 and `docs/app.md#the-settings-panel`), and then keeps the mechanism
 (`Settings`, `NumberContext`, `bitsFor`, `MIGRATIONS`, `withDefault`,
 `clampsOf`, `clampSettings`, `clamps`, `clampLine`, `proposalLine`,
@@ -158,7 +158,11 @@ alternatives, in the present tense.
   "where ties away from zero drift", the migration history dropped
   (D4 L360, V5 L175; F-332); the opener links
   `docs/numbers.md#how-a-value-is-held` and
-  `docs/settings.md#how-the-settings-bound-each-other`.
+  `docs/settings.md#how-the-settings-bound-each-other`. Handed over
+  from work order 06 (the review of 2026-10-23, §12.3): the panel's
+  memory of the last ratio width and the last extended count, offered
+  again when `ratio` or `extended` is chosen again until the page is
+  reloaded (F-124), is this page's; the user page says nothing of it.
 - **Storage.** V5 L177-181: one paragraph on the shape a migration
   takes and the current version's fields; what each version moved is
   the code's, in the comment beside `MIGRATIONS`; a current-version
@@ -166,7 +170,15 @@ alternatives, in the present tense.
   B-012, one rule for a stored value out of range (clamped like the
   count; F-333, Q-049); the console warning for a version above the
   build's is not described (Q-069); the opener links
-  `docs/settings.md#defaults-and-resets-storage`.
+  `docs/settings.md#defaults-and-resets`. Handed over from work order 06
+  (the review of 2026-10-23, §12.3), since the user page names no stored
+  key and no storage detail: the stored keys with their units (F-123,
+  F-135), the fallback of a stored value the build cannot read or of an
+  object from a newer build (F-133), and the clamp of a stored value out
+  of its range, two rules today (a stored significand limit or probe
+  budget out of its range falls back to its default; every other stored
+  number is held to its range, the width since B-012), with #233 linked
+  beside the rule until one rule lands (Q-012's rule for a bug).
 - **Applying a change.** D4 L365-368 inside V5 L183-193: the clamp
   report is passed to the panel as the property `clamps`, and
   `clampLine` writes each setting's line (F-336); a reset goes through

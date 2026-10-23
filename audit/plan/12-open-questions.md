@@ -1265,6 +1265,40 @@ decision, are listed after the answers.
   folded into the introduction's link to `numbers.md`, every example table removed but the
   chain's, and the panel's lines described. §7's settings entry and work order 06 are
   amended.
+- **The review of the settings page, third part (2026-10-23).** Six threads on the cut
+  page, all applied. On the stored keys and the storage: "Browser storage details are
+  _developer_ concerns, not user concerns." and "do _not_ refer to internal storage field
+  paths. That is firmly the concern of developer docs. Same applies everywhere (not just
+  in this doc)." On the panel's memory of the last width and count: "This is arguably an
+  implementation detail and not something users will notice. Put it in the dev docs. While
+  this is technically user-observable, the exact in-memory storage semantics of transient
+  settings are an implementation detail, since the settings as a whole are really just a
+  'meta application'." On the chain: "This is actually a pretty big deal, and it's the one
+  case where the UI is not self-explanatory. You can't see the dependency chain in how the
+  clamping works. This is worth illustrating with a simple diagram or else putting into a
+  (nested?) numbered list in order of clamping/limit propagation. [...] I want it to be
+  very clear and 'schematic', rather than in a big blob of prose. Start with a description
+  of what we mean by clamping and how one field can influence the limits of another (in a
+  general sense). Then give _some_ sort of schematic description of the actual cross-field
+  validation order. [...] I'm inclined to put this clamping flow description at the bottom
+  of the page (or at least after all field behaviors have been described)." On the
+  notation: "...its decimal digits...". On the ratio width's maximum: "Create a tracking
+  issue to relax the ratio width maximum. There are scenarios where you might want a larger
+  exact fractional display (though it's only useful if you have enough significand
+  storage)." Settled, as rules for every user page (principles.md): a user page names no
+  stored key or field path and no storage detail, and says nothing of what the panel
+  remembers between changes; the settings page says only that the settings survive a
+  reload, and `devdocs/settings.md` owns the keys, the fallback, the clamp of a stored
+  value and the panel's memory (F-123, F-124, F-133, F-135, Q-049, B-012 and #233 hand over
+  to work order 16). For the page: the notation's digits are "decimal digits"; the chain
+  section is last, after every entry, and schematic (a definition of clamping, the chain
+  drawn in a fenced code block, the clamps in the order they run), "clamped" being the
+  page's word for a dependent setting brought within its range, beside conflict 8's "does
+  not accept" for a declined edit; the heading "Defaults and resets; storage" is "Defaults
+  and resets". The ratio width's maximum is stated as it is, 1,000 digits; relaxing it is
+  issue #234, filed 2026-10-23, future work for `devdocs/future.md` (work order 18), and
+  `devdocs/notation.md` states the cap as it is. §7's settings entry, work orders 06, 16
+  and 18, §8's refusal row and principles.md are amended.
 
 ### The review's other corrections
 

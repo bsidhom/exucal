@@ -99,85 +99,6 @@ converted.
 | `1/3`    |      | 8              | `≈ 0.33333333`            |
 | `1 ft`   | `in` | 8              | `= 12 in`                 |
 
-## Rounding
-
-The **rounding mode** decides the last digit kept when a value is cut
-to fewer digits than it has. It is stored as `rounding`, and the panel
-offers seven modes under these names:
-
-- to nearest, ties to even, the default
-- to nearest, ties away from zero
-- to nearest, ties toward zero
-- toward zero
-- away from zero
-- up (toward +∞)
-- down (toward −∞)
-
-The three modes to nearest differ only on a value exactly halfway
-between two roundings. Ties to even is the default of IEEE 754
-arithmetic: it sends a tie to the even neighbor, so over many roundings
-ties go up as often as down. Ties away from zero sends every tie up in
-magnitude, and ties toward zero sends every tie down in magnitude.
-
-The rounding mode acts in three places:
-
-- In exact mode it acts once, at the display, on the last digit shown.
-  A mode that rounds in one direction shows the value on the side it
-  names
-  ([Rounding modes and where they act](numbers.md#rounding-modes-and-where-they-act)).
-- In decimal mode it acts at every step, and the last digit shown is
-  rounded with the last step ([The two modes](numbers.md#the-two-modes)).
-- Inside an expression, the built-in `round` rounds in the mode
-  ([Magnitude, sign and rounding](builtins.md#magnitude-sign-and-rounding)).
-
-| You type     | Into | Display digits | Rounding                        | Exucal shows (exact mode) |
-| ------------ | ---- | -------------- | ------------------------------- | ------------------------- |
-| `0.125`      |      | 2              | to nearest, ties to even        | `≈ 0.12`                  |
-| `0.135`      |      | 2              | to nearest, ties to even        | `≈ 0.14`                  |
-| `0.125`      |      | 2              | to nearest, ties away from zero | `≈ 0.13`                  |
-| `1 m`        | `in` | 12             | to nearest, ties to even        | `≈ 39.3700787402 in`      |
-| `1 m`        | `in` | 12             | down (toward −∞)                | `≈ 39.3700787401 in`      |
-| `round(2.5)` |      | 8              | to nearest, ties to even        | `= 2`                     |
-| `round(2.5)` |      | 8              | to nearest, ties away from zero | `= 3`                     |
-
-## Mode
-
-The **mode** chooses between the two arithmetics, which
-[The two modes](numbers.md#the-two-modes) describes. It is stored as
-`mode.kind`. The default is exact. The panel offers the two under the
-names `exact` and `decimal`, with a line under them that says what the
-mode in force does.
-
-Exact mode certifies every digit it shows. It holds an exact result
-of exact operands with all its digits, and cuts only its display to the
-display digits. An exact value is written as its digits or as a ratio,
-which the notation chooses.
-
-Decimal mode rounds every step in the rounding mode, as a hand
-calculator does, to the display digits or to the extended count where
-the working digits are extended, and the rounded value is the value.
-Every answer is written with `=`, since every step has been rounded and
-the rounded value is exact. The one exception is a built-in's value
-whose rounding could not be certified at the precision limit: it is
-written with the uncertified mark, `≈` with a dot above it.
-[The two modes](numbers.md#the-two-modes) says what counts as a step
-and how a built-in's call is certified and rounded once.
-
-| You type              | Into | Mode    | Exucal shows (eight display digits) | Note                                           |
-| --------------------- | ---- | ------- | ----------------------------------- | ---------------------------------------------- |
-| `1 / 3 * 3`           |      | exact   | `= 1`                               |                                                |
-| `1 / 3 * 3`           |      | decimal | `= 0.99999999`                      | each step rounded to eight digits              |
-| `1 / (1 / 3 * 3 - 1)` |      | decimal | `= -1e+8`                           |                                                |
-| `gamma(4.5)`          |      | decimal | `= 11.631728`                       | a built-in's value, certified and rounded once |
-| `1 ft`                | `in` | either  | `= 12 in`                           |                                                |
-
-Each mode carries one setting that exists in that mode alone: exact
-mode carries the notation, and decimal mode carries the working digits,
-which the panel shows under the mode. Since the setting exists only in
-its mode, leaving the mode drops it, and a return to the mode finds the
-setting at its default: the digits notation, or the working digits
-locked.
-
 ## Notation and ratio width
 
 The **notation** says how an exact value is written in exact mode: as
@@ -225,6 +146,44 @@ The width chooses the form:
 | `1 in`   | `cm` | 1           | `= 2.54 cm`      |
 | `1 in`   | `cm` | 20          | `= (127/50) cm`  |
 
+## Mode
+
+The **mode** chooses between the two arithmetics, which
+[The two modes](numbers.md#the-two-modes) describes. It is stored as
+`mode.kind`. The default is exact. The panel offers the two under the
+names `exact` and `decimal`, with a line under them that says what the
+mode in force does.
+
+Exact mode certifies every digit it shows. It holds an exact result
+of exact operands with all its digits, and cuts only its display to the
+display digits. An exact value is written as its digits or as a ratio,
+which the notation chooses.
+
+Decimal mode rounds every step in the rounding mode, as a hand
+calculator does, to the display digits or to the extended count where
+the working digits are extended, and the rounded value is the value.
+Every answer is written with `=`, since every step has been rounded and
+the rounded value is exact. The one exception is a built-in's value
+whose rounding could not be certified at the precision limit: it is
+written with the uncertified mark, `≈` with a dot above it.
+[The two modes](numbers.md#the-two-modes) says what counts as a step
+and how a built-in's call is certified and rounded once.
+
+| You type              | Into | Mode    | Exucal shows (eight display digits) | Note                                           |
+| --------------------- | ---- | ------- | ----------------------------------- | ---------------------------------------------- |
+| `1 / 3 * 3`           |      | exact   | `= 1`                               |                                                |
+| `1 / 3 * 3`           |      | decimal | `= 0.99999999`                      | each step rounded to eight digits              |
+| `1 / (1 / 3 * 3 - 1)` |      | decimal | `= -1e+8`                           |                                                |
+| `gamma(4.5)`          |      | decimal | `= 11.631728`                       | a built-in's value, certified and rounded once |
+| `1 ft`                | `in` | either  | `= 12 in`                           |                                                |
+
+Each mode carries one setting that exists in that mode alone: exact
+mode carries the notation, and decimal mode carries the working digits,
+which the panel shows under the mode. Since the setting exists only in
+its mode, leaving the mode drops it, and a return to the mode finds the
+setting at its default: the digits notation, or the working digits
+locked.
+
 ## Working digits and the extended count
 
 The **working digits** are the digits every step of decimal mode is
@@ -247,7 +206,8 @@ the count, as a calculator keeps hidden digits behind its display.
 [The two modes](numbers.md#the-two-modes) says which step of a result
 is its last. The working digits change how many digits a step keeps,
 never how the rounding mode rounds: under a rounding mode that rounds
-in one direction, the last step rounds that way too.
+in one direction ([Rounding](#rounding)), the last step rounds that way
+too.
 
 | You type        | Working digits | Rounding                 | Exucal shows (decimal mode, eight display digits) |
 | --------------- | -------------- | ------------------------ | ------------------------------------------------- |
@@ -263,6 +223,47 @@ under a mode to nearest, the rounding lies beyond the eight digits
 shown. Under toward zero the last step comes out a little below `0.1`,
 and the rounding mode rounds it down to `0.099999999`, however small
 the shortfall.
+
+## Rounding
+
+The **rounding mode** decides the last digit kept when a value is cut
+to fewer digits than it has. It is stored as `rounding`, and the panel
+offers seven modes under these names:
+
+- to nearest, ties to even, the default
+- to nearest, ties away from zero
+- to nearest, ties toward zero
+- toward zero
+- away from zero
+- up (toward +∞)
+- down (toward −∞)
+
+The three modes to nearest differ only on a value exactly halfway
+between two roundings. Ties to even is the default of IEEE 754
+arithmetic: it sends a tie to the even neighbor, so over many roundings
+ties go up as often as down. Ties away from zero sends every tie up in
+magnitude, and ties toward zero sends every tie down in magnitude.
+
+The rounding mode acts in three places:
+
+- In exact mode it acts once, at the display, on the last digit shown.
+  A mode that rounds in one direction shows the value on the side it
+  names
+  ([Rounding modes and where they act](numbers.md#rounding-modes-and-where-they-act)).
+- In decimal mode it acts at every step, and the last digit shown is
+  rounded with the last step ([The two modes](numbers.md#the-two-modes)).
+- Inside an expression, the built-in `round` rounds in the mode
+  ([Magnitude, sign and rounding](builtins.md#magnitude-sign-and-rounding)).
+
+| You type     | Into | Display digits | Rounding                        | Exucal shows (exact mode) |
+| ------------ | ---- | -------------- | ------------------------------- | ------------------------- |
+| `0.125`      |      | 2              | to nearest, ties to even        | `≈ 0.12`                  |
+| `0.135`      |      | 2              | to nearest, ties to even        | `≈ 0.14`                  |
+| `0.125`      |      | 2              | to nearest, ties away from zero | `≈ 0.13`                  |
+| `1 m`        | `in` | 12             | to nearest, ties to even        | `≈ 39.3700787402 in`      |
+| `1 m`        | `in` | 12             | down (toward −∞)                | `≈ 39.3700787401 in`      |
+| `round(2.5)` |      | 8              | to nearest, ties to even        | `= 2`                     |
+| `round(2.5)` |      | 8              | to nearest, ties away from zero | `= 3`                     |
 
 ## Precision limit
 

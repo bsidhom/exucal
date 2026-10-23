@@ -1,271 +1,432 @@
 # Settings
 
-The settings open from the cog in the top right corner, as a sheet
-over the page that leaves the result in view: on a phone a panel that
-slides up over the lower part of the screen, which its handle drags
-taller, with the settings scrolling inside it; on a wider screen a
-panel along the right edge. Every change applies as it is made, so the
-result shows what a setting does while it is changed, and Done, Escape
-or the cog closes the sheet. A number typed on a phone is committed
-from the keyboard's Done key, and the display digits, the working
-digits and the ratio width have − and + buttons beside them. The
-settings sit in three groups, by what each is for and in the order of
-how often it is touched: how a result is shown (the display digits, the
-notation), how it is computed (the mode with what belongs to it under
-it, the rounding), and how much it may cost (the two limits and the
-probe). Under each control a line opens with the number's range, naming
-the setting that bounds it ("From 1 to 1,000 digits, up to the
-precision limit"), and says in a sentence what it does; the rest is
-here. Beside the name of any setting that is not at its default, a
-"default …" link names the default and restores it when pressed, with
-what depends on it clamped and told as after any change, and "Reset all
-settings" at the foot restores every default; a setting at its default
-has no such link, so a glance shows what has been changed. There are
-six settings, kept in the
-browser so that they survive a reload (under a format version of their
-own, so that a later build migrates what an earlier one stored;
-`devdocs/settings.md` is the design). The mode carries one more under it, which
-one depending on the mode: exact mode the notation its exact values are
-written in, decimal mode its working digits. Every number carries its
-unit, on screen after the input and in the stored key: the display
-digits and the precision limit in decimal digits, the significand limit
-in bits, the probe budget in milliseconds (`devdocs/settings.md`, "The model").
+Exucal's settings are the parameters of its numeric model. They say how
+many digits a result is shown with and how its last digit is rounded;
+whether the arithmetic is exact or rounds every step; how an exact
+value is written; and how much a computation may cost, in time and in
+memory, before it is refused. An output line is a function of the
+value, its exactness and these settings, and of nothing else
+([How numbers are written](numbers.md#how-numbers-are-written)). So a
+reader who knows what each setting does can predict what the
+calculator will show, read its refusals, and trade digits against
+time. The settings are set in the settings panel.
 
-- **Display digits** (`displayDigits` in the stored settings): how many
-  significant digits an answer is shown with, from 1 up to the
-  precision limit; eight by default, as GNU units shows. `1 m` in `in`
-  is `≈ 39.370079 in` at eight digits and `≈ 39.3700787402 in` at
-  twelve. In decimal mode it is also the digits of every value: a
-  number typed with more is rounded to them as it is read, and every
-  step is rounded to them unless the working digits are extended, below.
-- **Rounding**: one of the seven standard modes; to nearest with ties to
-  even by default (`0.125` at two digits is `0.12`; `0.135` is `0.14`),
-  which is IEEE 754's default and unbiased over many roundings where
-  ties away from zero drift. In exact mode it rounds the last digit
-  shown; in decimal mode it rounds every step, the last digit shown with
-  it. The directed modes (toward zero, away from zero, up, down) show
-  the value on the side they name, so at twelve digits `1 m` in `in` is
-  `39.3700787401` rounded down and `39.3700787402` to nearest.
-- **Mode**: exact, the default, or decimal. In exact mode every digit
-  shown is certain: the app computes at rising precisions until the
-  digits asked for are certified, and nothing rounds before the display,
-  so `1 / 3 * 3` is `= 1`. In decimal mode every step is rounded to the
-  display digits, in the rounding mode, as a hand calculator does, and the
-  rounded value is the value: `1 / 3 * 3` at eight digits is
-  `= 0.99999999`, and `1 / (1 / 3 * 3 - 1)` is `= -100000000`. Every
-  answer in decimal mode is written with `=`, since every value there is
-  exact under the mode's rounding. A step is an operation you can see:
-  each `+`, `*`, `/` or `^`, each number typed (one with more digits than
-  the display digits is rounded to them as it is read), each unit, and each function
-  call as a whole, `gamma(4.5)` being computed to whatever precision it
-  takes for its rounding to be certified and then rounded once
-  (`devdocs/numbers.md`, "Decimal mode"). A value with the digits asked for or fewer is
-  exact in either mode (`1 ft` in `in` is `= 12 in`). In the rare case
-  that a function's rounding cannot be certified at the precision limit,
-  the value is rounded all the same and the line is written with the `≈`
-  sign bearing a dot above it, and a note says a step could not be
-  certified. The panel offers the modes as two choices, `exact` and
-  `decimal`, and says under them what the one in force does.
-- **Notation** (exact mode; `mode.notation` in the stored settings,
-  `digits` or `ratio` with a width): digits by default. With `ratio`
-  chosen, a width appears beside it, twenty by default, and the width
-  is the one thing that decides whether a line is a ratio: an exact
-  value that is not a whole number is written as a ratio of two whole
-  numbers in lowest terms when the two have at most the width in
-  digits between them (`1 m = (5000/127) in`, `1 in = (127/50) cm`,
-  `m / (3 m) = 1/3`, a unit list as `1 m = 3 ft + (428/127) in`, and
-  `in = (1/36) × 3 ft` on the second line of `3 ft = 36 in`); a whole
-  number is written entire when it has at most the width in digits
-  (`3^20 = 3486784401`, where the digits notation writes
-  `≈ 3.4867844e+9` at eight digits); and a ratio that fits only with
-  its power of ten factored out is written as the ratio times the power
-  (`(1/3) * 1e30 = 1/3 × 1e+30`, which reads back as itself).
-  Anything longer is written as a decimal at the display digits, `=` when the
-  decimal is exact and `≈` otherwise, and an inexact value is always
-  a decimal with `≈` (`sqrt(2) m ≈ 1.4142136 m`): the notation changes
-  how an exact value is written, never what is exact. The ratio is in
-  parentheses before a unit, since `5000/127 in` would read as
-  `5000 / (127 in)`, and bare when nothing follows it. It is a setting
-  of exact mode alone, since in decimal mode every value is a decimal
-  of the display digits, which its digits write entire; choosing decimal
-  mode and coming back finds digits again. `devdocs/notation.md` is the design.
-- **Working digits** (decimal mode, under the mode in the panel;
-  `mode.working` in the stored settings, locked to the
-  display digits or `extended` with a count): locked to the display
-  digits by default, under which every step is rounded to them. With
-  `extended` checked, a count from the display digits up to the
-  precision limit appears, and every step but the last is rounded to
-  that many digits while the answer is rounded to the display digits
-  directly from the exact result
-  of its last step, as a calculator keeps hidden digits behind its
-  display: `ln(exp(1/10))` at eight digits is `= 0.099999984`, the
-  first rounding's error having been amplified, and over twelve working
-  digits it is `= 0.1`; `1 / 3 * 3` is `= 0.99999999` and `= 1`. Under
-  a directed rounding mode the answer is the neighbor of a value that
-  sits on the grid, as that mode asks (`0.099999999` toward zero), since
-  the working digits change what is rounded, never how.
-  `devdocs/numbers.md` ("The working digits") is the design.
-- **Precision limit**, in digits (`precisionLimitDigits` in the stored
-  settings): the most digits any grid may be asked for ("How a number
-  is held" below says what the grid is), 1,000 by default: the precision limit on
-  the display digits and on the working digits, and through the finest
-  grid the app rounds onto, four times this plus ten digits (4,040 by
-  default), a limit on effort. To certify an answer, exact mode rounds
-  onto finer and finer grids up to that one, and an expression whose
-  digits can never be certain (`(2^(1/2))^2 - 2`, which is zero within
-  a bound) runs all the way up on every keystroke; in decimal mode a
-  step's rounding is certified on grids up to the same one. The panel's
-  line says the limit's own top under the significand limit and the
-  finest grid as numbers, never as a formula. Changing it rebuilds the
-  unit table, since the angle units carry `pi()` to that grid; changing
-  the display digits never does.
-- **Significand limit**, in bits (`significandLimitBits` in the stored
-  settings): a value is a significand, a numerator over a denominator
-  in lowest terms, times a power of ten, and this is the most bits the
-  numerator and, separately, the denominator may have, 65,536 by default
-  (a numerator or a denominator of about 19,700 digits; a ratio such as
-  `1/3` has no digit count of its own). It is a hard limit on cost, in
-  time and in memory, not on how large a value may be: the power of ten
-  is free (`10^1000000000` is `1e+1000000000`, and only its exponent,
-  bounded at `10^18` either way, is counted), while a fraction with a
-  power of two in its denominator is stored with fives instead, so
-  `2^-30000`, a 30,000-bit value, costs 69,658 bits. That is the one
-  case where the cost is more than the value's own bits, by a factor of
-  about 2.3 at most, and it only matters for a value already within
-  that factor of the limit: a number that simple by its factors is
-  still a big number by its digits (`3^-100000` costs its 158,497 bits
-  under any way of storing it as digits), and `approx` is the way to
-  compute with one, as below. The limit is what makes `3^1000000000`
-  an error rather than a hang. The limit is strict: no exact value past
-  it is ever formed, and an operation predicts the size of its result
-  before forming it. When a result would need a significand
-  past the limit, the app refuses that part of the expression, names
-  it and says how many bits it would need, exactly or about, where the
-  operation knows. Where the operation that refused expects the same step to fit
-  when computed inexactly, the message suggests what to try: `approx(…)`
-  around the operand it names, so that the part is computed to the
-  digits asked and shown with `≈` instead of `=`, or decimal mode, which
-  rounds every step and so never holds the exact value. Where the
-  operation expects the value to pass the limit however it is computed,
-  a built-in whose value needs more bits than the limit holds even
-  rounded (`factorial(20000)`, `sin` of an angle whose reduction passes
-  the limit), a literal of more digits than the limit, a power whose
-  exponent cannot be formed within it (`2^1e-30000`), the message says
-  so and suggests nothing; what a higher limit would need is the user's
-  to judge. The suggestion is the operation's expectation, not a
-  promise. In exact mode the app never rounds an exact value on its
-  own.
-  The finest grid must fit inside it, so it also bounds the precision
-  limit: 2,453 digits at the default.
-- **Probe budget**, in milliseconds (`budgetMs` in the stored settings):
-  the time the probe below allows one pass, 50 by default, from 10 to
-  10,000.
+[Numbers](numbers.md) explains the model behind the settings: exact
+and inexact values, certified digits, the two modes and the two size
+limits. Every setting has a default and a range, and most are bounded
+by another setting; the key each is stored under is given beside it,
+for anyone who reads the browser's storage.
 
-The limits are set top-down: the significand limit bounds the precision
-limit, the precision limit the display digits, and the two of them the
-working digits. An edit within a setting's range is accepted; one past
-a bound is refused, and a line under the input names the bound and the
-setting that sets it ("at most 2,453 digits under the significand
-limit"). An accepted edit that lowers a limit lowers what depends on it,
-and a line under each setting moved says so ("lowered from 1,000 to 26
-digits to fit the significand limit"), until the next change: the
-bounding setting always wins, since a limit is a cost bound the user
-set and an edit to a dependent must not raise it unasked. The defaults
-are the app's and depend on no device. Both limits are cost limits whose
-right values do depend on the device, so the panel's "Measure this
-device" button times the costliest exact product and the costliest
-built-ins at rising sizes, within the probe budget a pass, and proposes
-the largest significand limit and precision limit at which each stays
-within it, so that an expression that runs to the finest grid answers
-within a keystroke; the proposal shows the sizes and the timings it
-found, and nothing changes until "Apply" is pressed. The probe runs only
-when pressed, on the main thread, for a fraction of a second.
+The settings panel groups the settings by what each is for:
 
-Tapping the build number in the footer asks at once whether a new version
-of the app has been deployed, rather than waiting for the app's own checks
-(see devdocs/offline.md); the footer says "checking…" and then what
-the check found: "up to date", "downloading…" while a new version
-downloads, then the "update to …" link that switches to it, or "couldn't
-check (offline?)". The build number is plain text in development or in a
-browser without service workers, which have no service worker to ask.
+- **How a result is shown.**
+  - The [display digits](#display-digits) are the significant digits
+    an answer is shown with.
+  - In exact mode, the [notation](#notation-and-ratio-width) writes an
+    exact value as its digits or, where a ratio fits the ratio width,
+    as a ratio.
+- **How it is computed.**
+  - The [mode](#mode) is exact or decimal. Exact is the default;
+    decimal rounds every step as a hand calculator does.
+  - In decimal mode, the
+    [working digits](#working-digits-and-the-extended-count) are locked
+    to the display digits or extended to a count above them.
+  - The [rounding](#rounding) mode decides the last digit kept: at the
+    display in exact mode, and at every step in decimal mode.
+- **How much it may cost.**
+  - The [precision limit](#precision-limit) caps the digits that may be
+    asked for and bounds the effort an expression may cost.
+  - The [significand limit](#significand-limit) bounds the fraction
+    every value is held as, and an exact result past it is refused.
+  - The [probe budget](#probe-budget-and-measure-this-device) is the
+    time the "Measure this device" button allows one pass when it
+    proposes the two limits for your device.
 
-An answer shows every digit asked for when the computation can vouch for
-them all. When it cannot, a note in parentheses says what the digits are
-worth: how many of them are certain ("8 of 12 digits are certain"), that
-the value is zero within a bound ("within 2e-30 of zero", the value
-written `0` whatever the sign of the noise it is within), or that none
-is certified.
+Three rules hold across them:
 
-An answer is written with `=` when it is exact and every digit it has is
-shown (`1 in = 2.54 cm`, `3 ft = 36 in`), and with `≈` when digits were
-rounded away or when a step of the computation was inexact: `1 m ≈
-39.370079 in`, and `2^(1/2) m` in `2^(1/2) m` is `≈ 1`, since the two roots
-were each computed to a finite number of digits, however exactly they
-cancel. A value that cannot be told from zero at any precision up to the
-ceiling (`(2^(1/2))^2 - 2`) cannot be divided by, and the app says so.
+- **The settings panel opens from the cog, and every change applies as it is made**
+  ([Where the settings are and how a change applies](#where-the-settings-are-and-how-a-change-applies)).
+- **The limits bound each other in a chain, and a bound always wins.**
+  The significand limit bounds the precision limit, which bounds the
+  display digits and the extended count. The panel does not accept an
+  edit past a bound, and lowering a limit lowers what depends on it to
+  fit, and a line under each moved setting says so
+  ([How the settings bound each other](#how-the-settings-bound-each-other)).
+- **Every setting has a default and can be reset, and the settings survive a reload**
+  ([Defaults and resets; storage](#defaults-and-resets-storage)).
 
-## How a number is held, and what the settings touch
+## Where the settings are and how a change applies
 
-A value is a fraction times a power of ten: `2.54` is `254/100`, kept as
-`127/50`, and `1e999999999` is `1` times `10^999999999`. The fraction is
-exact, so `1/3` is one over three and not a string of threes, and the
-power of ten is a separate exponent, so a value's magnitude costs
-nothing. Every value also carries a radius, a bound on how far the
-number held may lie from the number meant. An exact value has radius
-zero, and `=` means that. A value with a nonzero radius is inexact, and
-in exact mode it arises in exactly two ways: an inexact function (a
-root, `exp`, `sin`, `pi()`) and `approx`. In decimal mode no value is
-inexact: every step is rounded and the rounded value is the value, and
-the radius serves only inside a function, to certify its rounding.
+The settings panel opens from the cog in the top right corner of the
+page, and lies over the page with the result still in view. Every
+change applies as it is made, so the result shows what a setting does
+while you change it. Every numeric setting shows its unit after its
+input: digits, bits or milliseconds. Under each control a line says
+what the setting does in the mode in force. Under a numeric setting the
+line opens with the range and names the setting that bounds it, where
+one does. Under the display digits at the defaults it reads "From 1 to
+1,000 digits, up to the precision limit.", the 1,000 being the
+precision limit's default.
+[The settings panel](app.md#the-settings-panel) says how the panel
+works on a phone and on a wider screen.
 
-The fraction is the value's significand, the part the power of ten
-scales, as a float's significand is the part its exponent scales, with
-the one difference that here it is a rational rather than a binary
-fraction. When a value is rounded, it is not snapped to a nearby
-rational: its significand is snapped onto a decimal grid, an integer of
-some number of significant digits times a power of ten, and the number
-of digits of the grid is the working precision of the arithmetic at
-that moment. A rounding adds half a grid cell to the radius, which is
-what decides what digits of an answer are certain; a finer grid is
-necessary for more certain digits and never sufficient, since
-cancellation keeps `(2^(1/2))^2 - 2` at a radius of a grid cell on every
-grid. The two kinds of value are limited by two different things, and
-that is why the limits come in two units.
+## Display digits
 
-- **An exact value is limited by the significand limit, in bits.** `1/3`
-  is small, `3^100000` is not, and what it costs to store and multiply
-  is the bits of its numerator and denominator. The significand limit
-  bounds each of them, and nothing else touches an exact value in exact
-  mode: it is never rounded, and no digits setting applies to it. The
-  display writes as many of its digits as the display digits ask for
-  and marks the rest rounded away with `≈`.
-- **An inexact value is limited by the precision limit, in decimal
-  digits.** What is known of it is its midpoint within its radius, and
-  the app keeps the midpoint on a grid, rounding it after every step and
-  adding the rounding to the radius, so that an inexact number never
-  grows past what its radius makes meaningful. The grid is decimal
-  because the exponent is decimal: a midpoint rounded to `w` digits is
-  an integer of `w` digits times a power of ten, the smallest form the
-  type has, and it is what the display writes, so the digits shown and
-  the digits computed are the same kind of thing. The functions
-  themselves work in binary, at the bits those digits are worth plus a
-  guard, and round their results onto the decimal grid on the way out.
-  A grid point is itself a significand, an integer over one, so it must
-  fit inside the significand limit: that is how the two limits meet.
+The **display digits** are the significant digits an answer is shown
+with. They are stored as `displayDigits`, in digits. The default is
+eight; the range is 1 up to the precision limit, which bounds them.
 
-In exact mode, the display digits are how many digits of the answer
-must be certain before it is shown, and the app raises the grid of the
-inexact values, pass by pass, until the two ends of the ball round to
-the same digits. The precision limit is how far it may raise them, four
-times the limit plus ten, which is also the most digits an answer may
-be asked for. In decimal mode every step is rounded onto the grid of
-the display digits (or the working digits), exact values included, and
-is exact after it; a function's value is computed on finer grids, up to
-the same ceiling, until its rounding onto that grid is certified, so the
-precision limit bounds the display digits and the working digits and
-bounds that certification. In both modes, the significand limit is the
-one limit on exact values, and it also bounds the precision limit, since
-a grid point at the ceiling must fit within it with room for a product
-of two: at 65,536 bits the precision limit may be 2,453 digits.
+In exact mode they are the digits that must be certified before the
+answer is shown ([Digits you can trust](numbers.md#digits-you-can-trust)).
+In the digits notation, an exact value with the display digits or fewer
+is shown with all its digits, with `=`.
 
-**Why four times the limit plus ten.** The schedule of passes, and why its factor is four and its guard ten, are explained in `devdocs/numbers.md` ("Working precision and the schedule").
+In decimal mode they are also the digits of every value: the grid
+every step is rounded onto
+([How a value is held](numbers.md#how-a-value-is-held) explains the
+grid). A number typed with more digits is rounded to them as it is
+read, and so is every step, unless the working digits are extended
+([Working digits and the extended count](#working-digits-and-the-extended-count)).
+
+In the tables, the "Into" column gives what the value is converted
+into, typed in the second field; it is empty where nothing is
+converted.
+
+| You type | Into | Display digits | Exucal shows (exact mode) |
+| -------- | ---- | -------------- | ------------------------- |
+| `1 m`    | `in` | 8              | `≈ 39.370079 in`          |
+| `1 m`    | `in` | 12             | `≈ 39.3700787402 in`      |
+| `1/3`    |      | 8              | `≈ 0.33333333`            |
+| `1 ft`   | `in` | 8              | `= 12 in`                 |
+
+## Rounding
+
+The **rounding mode** decides the last digit kept when a value is cut
+to fewer digits than it has. It is stored as `rounding`, and the panel
+offers seven modes under these names:
+
+- to nearest, ties to even, the default
+- to nearest, ties away from zero
+- to nearest, ties toward zero
+- toward zero
+- away from zero
+- up (toward +∞)
+- down (toward −∞)
+
+The three modes to nearest differ only on a value exactly halfway
+between two roundings. Ties to even is the default of IEEE 754
+arithmetic: it sends a tie to the even neighbor, so over many roundings
+ties go up as often as down. Ties away from zero sends every tie up in
+magnitude, and ties toward zero sends every tie down in magnitude.
+
+The rounding mode acts in three places:
+
+- In exact mode it acts once, at the display, on the last digit shown.
+  A mode that rounds in one direction shows the value on the side it
+  names
+  ([Rounding modes and where they act](numbers.md#rounding-modes-and-where-they-act)).
+- In decimal mode it acts at every step, and the last digit shown is
+  rounded with the last step ([The two modes](numbers.md#the-two-modes)).
+- Inside an expression, the built-in `round` rounds in the mode
+  ([Magnitude, sign and rounding](builtins.md#magnitude-sign-and-rounding)).
+
+| You type     | Into | Display digits | Rounding                        | Exucal shows (exact mode) |
+| ------------ | ---- | -------------- | ------------------------------- | ------------------------- |
+| `0.125`      |      | 2              | to nearest, ties to even        | `≈ 0.12`                  |
+| `0.135`      |      | 2              | to nearest, ties to even        | `≈ 0.14`                  |
+| `0.125`      |      | 2              | to nearest, ties away from zero | `≈ 0.13`                  |
+| `1 m`        | `in` | 12             | to nearest, ties to even        | `≈ 39.3700787402 in`      |
+| `1 m`        | `in` | 12             | down (toward −∞)                | `≈ 39.3700787401 in`      |
+| `round(2.5)` |      | 8              | to nearest, ties to even        | `= 2`                     |
+| `round(2.5)` |      | 8              | to nearest, ties away from zero | `= 3`                     |
+
+## Mode
+
+The **mode** chooses between the two arithmetics, which
+[The two modes](numbers.md#the-two-modes) describes. It is stored as
+`mode.kind`. The default is exact. The panel offers the two under the
+names `exact` and `decimal`, with a line under them that says what the
+mode in force does.
+
+Exact mode certifies every digit it shows. It holds an exact result
+of exact operands with all its digits, and cuts only its display to the
+display digits. An exact value is written as its digits or as a ratio,
+which the notation chooses.
+
+Decimal mode rounds every step in the rounding mode, as a hand
+calculator does, to the display digits or to the extended count where
+the working digits are extended, and the rounded value is the value.
+Every answer is written with `=`, since every step has been rounded and
+the rounded value is exact. The one exception is a built-in's value
+whose rounding could not be certified at the precision limit: it is
+written with the uncertified mark, `≈` with a dot above it.
+[The two modes](numbers.md#the-two-modes) says what counts as a step
+and how a built-in's call is certified and rounded once.
+
+| You type              | Into | Mode    | Exucal shows (eight display digits) | Note                                           |
+| --------------------- | ---- | ------- | ----------------------------------- | ---------------------------------------------- |
+| `1 / 3 * 3`           |      | exact   | `= 1`                               |                                                |
+| `1 / 3 * 3`           |      | decimal | `= 0.99999999`                      | each step rounded to eight digits              |
+| `1 / (1 / 3 * 3 - 1)` |      | decimal | `= -1e+8`                           |                                                |
+| `gamma(4.5)`          |      | decimal | `= 11.631728`                       | a built-in's value, certified and rounded once |
+| `1 ft`                | `in` | either  | `= 12 in`                           |                                                |
+
+Each mode carries one setting that exists in that mode alone: exact
+mode carries the notation, and decimal mode carries the working digits,
+which the panel shows under the mode. Since the setting exists only in
+its mode, leaving the mode drops it, and a return to the mode finds the
+setting at its default: the digits notation, or the working digits
+locked.
+
+## Notation and ratio width
+
+The **notation** says how an exact value is written in exact mode: as
+its digits, or as a ratio of two whole numbers in lowest terms. It is
+stored as `mode.notation.kind`. The default is digits, and the panel
+offers the two as `digits` and `ratio`. The notation is a setting of
+exact mode alone: a value shown in decimal mode has no more digits than
+the display digits, so writing its digits writes all of it. The notation changes how an exact value is
+written, never what is exact, and an inexact value is always written as
+digits.
+
+With `ratio` chosen, the **ratio width** appears beside it. It is
+stored as `mode.notation.width`, in digits. The default is twenty; the
+range is 1 to 1,000, bounded by no other setting. The width chooses
+the form of an exact value: a whole number or a ratio where one fits
+the width, and digits otherwise. A whole number fits when it has at
+most the width's digits, and a ratio when its two parts together have
+at most that many. The rule in full, with where a ratio is bare and
+where it is in parentheses, is in
+[How numbers are written](numbers.md#how-numbers-are-written). The
+width is stored with the settings while `ratio` is in force, and comes
+back with them after a reload. After a switch to `digits` the panel
+remembers the width until the page is reloaded, so choosing `ratio`
+again offers it; after a reload, `ratio` starts at twenty again.
+
+| You type       | Into    | Digits notation                                               | Ratio notation, width 20                               |
+| -------------- | ------- | ------------------------------------------------------------- | ------------------------------------------------------ |
+| `1 m`          | `in`    | `≈ 39.370079 in`                                              | `= (5000/127) in`                                      |
+| `1 in`         | `cm`    | `= 2.54 cm`                                                   | `= (127/50) cm`                                        |
+| `m / (3 m)`    |         | `≈ 0.33333333`                                                | `= 1/3`                                                |
+| `1 m`          | `ft;in` | `≈ 3 ft + 3.3700787 in`                                       | `= 3 ft + (428/127) in`                                |
+| `3^20`         |         | `≈ 3.4867844e+9`                                              | `= 3486784401`                                         |
+| `(1/3) * 1e30` |         | `≈ 3.3333333e+29`                                             | `= 1/3 × 1e+30`                                        |
+| `sqrt(2) m`    |         | `≈ 1.4142136 m`                                               | `≈ 1.4142136 m`                                        |
+| `3 ft`         | `in`    | `= 36 in`, with the reciprocal line `in ≈ 0.027777778 × 3 ft` | `= 36 in`, with the reciprocal line `in = 1/36 × 3 ft` |
+
+The width chooses the form:
+
+| You type | Into | Ratio width | Exucal shows     |
+| -------- | ---- | ----------- | ---------------- |
+| `1/3`    |      | 1           | `≈ 0.33333333`   |
+| `1/3`    |      | 2           | `= 1/3`          |
+| `3^20`   |      | 9           | `≈ 3.4867844e+9` |
+| `3^20`   |      | 10          | `= 3486784401`   |
+| `1 in`   | `cm` | 1           | `= 2.54 cm`      |
+| `1 in`   | `cm` | 20          | `= (127/50) cm`  |
+
+## Working digits and the extended count
+
+The **working digits** are the digits every step of decimal mode is
+rounded to. They are stored as `mode.working.kind`. By default they are
+locked to the display digits, the `extended` box unchecked, and every
+step is rounded to the display digits. With the box checked, they are
+extended to a count above them.
+
+With `extended` checked, the **extended count** appears beside the box.
+It is stored as `mode.working.digits`, in digits. The default is the
+display digits; the range is the display digits up to the precision
+limit, which bound it from either side. The count is stored with the
+settings while `extended` is checked, and comes back with them after a
+reload. After the box is unchecked the panel remembers the count until
+the page is reloaded, so checking it again offers the count; after a
+reload, `extended` starts at the display digits again. Every step but
+the last is rounded to the count. The answer is rounded to the display
+digits directly from its last step, not from a value already rounded to
+the count, as a calculator keeps hidden digits behind its display.
+[The two modes](numbers.md#the-two-modes) says which step of a result
+is its last. The working digits change how many digits a step keeps,
+never how the rounding mode rounds: under a rounding mode that rounds
+in one direction, the last step rounds that way too.
+
+| You type        | Working digits | Rounding                 | Exucal shows (decimal mode, eight display digits) |
+| --------------- | -------------- | ------------------------ | ------------------------------------------------- |
+| `ln(exp(1/10))` | locked, 8      | to nearest, ties to even | `= 0.099999984`                                   |
+| `ln(exp(1/10))` | extended to 12 | to nearest, ties to even | `= 0.1`                                           |
+| `ln(exp(1/10))` | extended to 12 | toward zero              | `= 0.099999999`                                   |
+| `1 / 3 * 3`     | locked, 8      | to nearest, ties to even | `= 0.99999999`                                    |
+| `1 / 3 * 3`     | extended to 12 | to nearest, ties to even | `= 1`                                             |
+
+At eight working digits `exp(1/10)` is rounded to `1.1051709` before
+the logarithm is taken, and the answer shows that rounding. At twelve,
+under a mode to nearest, the rounding lies beyond the eight digits
+shown. Under toward zero the last step comes out a little below `0.1`,
+and the rounding mode rounds it down to `0.099999999`, however small
+the shortfall.
+
+## Precision limit
+
+The **precision limit** is the most digits an answer may be asked for,
+and a limit on effort. It is stored as `precisionLimitDigits`, in
+digits. The default is 1,000; the range is 1 up to the most the
+significand limit allows, 2,453 digits at that limit's default.
+
+The limit caps the display digits and, in decimal mode, the extended
+count: neither may be set above it, and lowering it lowers them
+([How the settings bound each other](#how-the-settings-bound-each-other)).
+And it bounds the effort an expression may cost, through the
+**ceiling** of its passes, the highest precision any pass computes at.
+Exact mode certifies an answer by computing at a precision ten digits
+above the display digits. While the digits do not certify, it computes
+again at twice the precision, pass by pass, up to the ceiling
+([Digits you can trust](numbers.md#digits-you-can-trust)). The ceiling
+is four times the sum of the limit and ten digits, 4,040 at the default
+limit; the factor and the ten digits are the schedule's design, whose
+reasons [Digits you can trust](numbers.md#digits-you-can-trust) links.
+It is derived from the limit and never set, and the panel writes
+it as a number only in the proposal of "Measure this device"
+([Probe budget and Measure this device](#probe-budget-and-measure-this-device)).
+The calculator evaluates as you type, so an expression whose digits can
+never be certified runs every pass up to the ceiling at every
+keystroke. `(2^(1/2))^2 - 2` is one: it is zero within a bound at every
+precision. That is the cost the limit bounds
+([What costs time](numbers.md#what-costs-time)). In decimal mode a
+step's rounding is certified at precisions up to the same ceiling.
+
+| You type          | Precision limit | Exucal shows                   | Note                                         |
+| ----------------- | --------------- | ------------------------------ | -------------------------------------------- |
+| `(2^(1/2))^2 - 2` | 1,000           | `≈ 0 (within 4e-4049 of zero)` | every pass up to the ceiling of 4,040 digits |
+| `(2^(1/2))^2 - 2` | 100             | `≈ 0 (within 4e-449 of zero)`  | every pass up to the ceiling of 440 digits   |
+
+## Significand limit
+
+The **significand limit** is the most bits an exact value's numerator
+may have and the most bits its denominator may have, each counted on
+its own. It is stored as `significandLimitBits`, in bits. The default
+is 65,536 bits, a numerator or a denominator of about 19,700 digits.
+The range is 358 to 1,048,576 bits, bounded by no other setting; the
+floor is the least that allows a precision limit of one digit. An exact result
+that would pass the limit is refused, and the message names what to
+try: decimal mode, or `approx`, the one operation whose purpose is to
+make a value inexact.
+[Values too big to hold](numbers.md#values-too-big-to-hold) says what
+the limit refuses and what each remedy changes, and
+[How a value is held](numbers.md#how-a-value-is-held) says what a
+value costs to hold.
+
+| You type   | Significand limit | Exucal shows                        |
+| ---------- | ----------------- | ----------------------------------- |
+| `3^100000` | 65,536 bits       | refused: past the significand limit |
+| `3^100000` | 262,144 bits      | `≈ 1.3349714e+47712`                |
+
+## Probe budget and Measure this device
+
+The defaults are fixed, the same on every device. Both limits are cost
+limits whose right values do depend on the device, so the panel's
+"Measure this device" button (the probe) proposes them, within the
+**probe budget**. The budget is stored as `budgetMs`, in milliseconds.
+The default is 50; the range is 10 to 10,000, bounded by no other
+setting. The budget is the time the probe allows one pass. It is a
+setting of the probe alone and never touches the arithmetic. The line
+under the button says what the probe does: "Times an exact product and
+the four elementary functions at rising sizes and proposes the largest
+limits that stay within the budget a pass; nothing changes until the
+proposal is applied."
+
+The probe times one operation for each limit:
+
+1. For the significand limit, it times an exact product of two
+   fractions with the candidate's bits in each part. The candidates are
+   the limit's lowest value and then sizes doubling from 512 bits up to
+   its highest, and it keeps the largest whose product stays within the
+   budget.
+2. For the precision limit, it times one expression of the four
+   elementary functions, `sin`, `atan`, `exp` and `ln`, each called
+   once, at the ceiling each candidate limit would give. The candidates
+   are 1, 2 and 5 times a power of ten, up to the most the proposed
+   significand limit allows, and it keeps the largest within the budget.
+   The special functions are not timed. A limit low enough for their
+   passes would be lower than the one the elementary functions allow,
+   and the probe does not take digits away from the elementary
+   functions for the sake of the special ones.
+
+Each size is timed as the shortest of three runs after one run that is
+not timed, and the probe stops at the first size over the budget. The
+budget is per pass. The passes double in precision, so an expression
+that runs to the ceiling costs about twice its last pass, and a budget
+on one pass bounds the whole.
+
+The proposal names the sizes it timed and what each took against the
+budget, and says so when even the lowest value of a limit cost more
+than the budget. Nothing changes until "Apply" is pressed. Applying is
+a change like any edit: the two limits are set, what depends on them is
+lowered to fit, and a line under each moved setting says so
+([How the settings bound each other](#how-the-settings-bound-each-other)).
+
+The probe runs only when pressed, and the page waits while it runs. It
+measures time alone, not memory.
+
+## How the settings bound each other
+
+The limits form a chain, and a bound always wins: a limit is a cost
+bound you set, and an edit to a setting under it never raises it
+unasked. The significand limit bounds the precision limit. The finest
+grid is the grid of the ceiling's pass, and its values are fractions
+like any other ([How a value is held](numbers.md#how-a-value-is-held)).
+The significand limit must hold not one such value but the product of
+two, since a step may multiply two of them; so a significand limit
+allows only the precision limits whose ceiling keeps that product
+within it. The precision limit bounds the display digits and the
+extended count, and the display digits are the extended count's
+floor.
+
+| Setting           | Lowest             | Highest                                                             | Moved by a change above it                                                                    |
+| ----------------- | ------------------ | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Significand limit | 358 bits           | 1,048,576 bits                                                      | never                                                                                         |
+| Precision limit   | 1 digit            | the most the significand limit allows (2,453 digits at its default) | lowered when the significand limit no longer allows it                                        |
+| Display digits    | 1 digit            | the precision limit                                                 | lowered when the precision limit falls below them                                             |
+| Extended count    | the display digits | the precision limit                                                 | raised when the display digits rise above it; lowered when the precision limit falls below it |
+| Ratio width       | 1 digit            | 1,000 digits                                                        | never                                                                                         |
+| Probe budget      | 10 ms              | 10,000 ms                                                           | never                                                                                         |
+
+An edit within a setting's range is accepted. The panel does not accept
+one past a bound: the input shows the setting in force again, and a
+line under it names the bound and the setting that sets it, until the
+next change. An accepted edit that moves a bound holds each setting
+under it to its new range: the setting is moved to the bound, as the
+table's last column says, and a line under it says so, until the next
+change. A moved value is stored as moved, so moving the bound back
+afterwards does not restore it. A reset does the same
+([Defaults and resets; storage](#defaults-and-resets-storage)).
+
+| You edit                                                              | The panel says                                                                             |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| the precision limit to 3,000 digits, at the default significand limit | "At most 2,453 digits under the significand limit."                                        |
+| the extended count to 4 digits, at eight display digits               | "At least 8 digits, the display digits."                                                   |
+| the ratio width to 2,000 digits                                       | "At most 1,000 digits."                                                                    |
+| the display digits to 2.5                                             | "A whole number."                                                                          |
+| the significand limit to 1,024 bits, from the defaults                | under the precision limit: "Lowered from 1,000 to 26 digits to fit the significand limit." |
+| the display digits to 20, with the count extended to 16               | under the working digits: "Raised from 16 to 20 digits to the display digits."             |
+
+## Defaults and resets; storage
+
+Beside the name of a setting that is off its default, a "default …"
+link names the default and restores it. "Reset all settings" at the foot of the panel restores
+every default. A reset is a change like any other: what depends on the
+reset setting is held to its range, and a line under it says so.
+[The settings panel](app.md#the-settings-panel) describes the links.
+
+The settings are kept in the browser's storage as one object, so that
+they survive a reload. The object carries a format version of its own,
+so that a later build migrates what an earlier one stored. A stored
+value the build cannot read falls back to that setting's default, and a
+stored object written by a newer build falls back to all the defaults,
+in either case without notice. A stored significand limit or probe
+budget out of its range falls back to its default too. Every other
+stored number out of its range is held to the range as after an edit: a
+precision limit past the most the significand limit allows, display
+digits past the precision limit, an extended count out of its range,
+and a ratio width past its limit.
+
+[Digits you can trust](numbers.md#digits-you-can-trust) says how to
+read a result, its `=` or `≈` and the note beside it.

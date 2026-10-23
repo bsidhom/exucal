@@ -1236,6 +1236,35 @@ decision, are listed after the answers.
   the tests that pin today's fallback and the docs sentence that changes); the user page
   states today's behaviour and names no issue (Q-012's rule), and the storage section of
   `devdocs/settings.md` links #233 when it is rewritten (work order 16).
+- **The review of the settings page, second part (2026-10-23).** Four threads and a
+  direction for the whole page, all applied. The owner: "The doc is currently too long for
+  what it's supposed to be: a brief explainer for each setting the user can currently
+  configure. In particular, it goes off topic and duplicates concepts already explained
+  elsewhere. Abiding by the ownership and scope principles should hopefully cut down
+  document size substantially." On the example tables, which were all in exact mode: "what
+  is the value of this table? I don't see why anybody would reference it. Just link to the
+  appropriate first-class docs where needed. [...] only one doc owns each given core
+  concept. It's fine to _briefly_ mention some unique aspect of this app in a documentation
+  section that relies on it, but fuller explanations, table-driven examples, etc., must be
+  owned by their upstream documents and only referenced where actually relevant here." On
+  the section "Where the settings are and how a change applies": "the settings behavior
+  (in terms of how and when they are applied) should be predictable and consistent. If
+  that's done correctly, then this section is not useful and just bogs down the doc. We
+  also don't want to risk drift as the precise UX details change." On the rounding mode:
+  make it "extra clear that 'at the display' in exact mode means that it's rounded exactly
+  once: whole-expression rounding." On the display digits' decimal-mode sentence: the
+  working digits "should actually be mentioned first [...] display digits determine final
+  output display width, but [...] working digits decides each intermediate step's rounding
+  precision. Then _afterward_ note that it defaults to the same as the display digits."
+  Settled, for this page and as the reading of the ownership rule for every user page: a
+  page that depends on a concept another page owns links that page and says only what is
+  its own; its example tables belong to the owning page; the panel's wording is described,
+  not quoted, so that the page does not drift with the panel. `docs/settings.md` is cut to
+  a brief explainer of each setting (about half its length), the section "Where the
+  settings are" dropped with its one sentence in the introduction, F-025's foot sentence
+  folded into the introduction's link to `numbers.md`, every example table removed but the
+  chain's, and the panel's lines described. §7's settings entry and work order 06 are
+  amended.
 
 ### The review's other corrections
 

@@ -20,7 +20,10 @@ every other line. Amended on 2026-10-23, in the review of the settings
 page's pull request: the settings page's sections follow the settings
 panel's order and groups, the notation after the display digits and the
 rounding after the working digits, and the panel and the page are to
-stay aligned (section 12.3).
+stay aligned (section 12.3); the same review cut the page to a brief
+explainer of each setting, with no example table of its own and the
+section "Where the settings are and how a change applies" dropped, its
+sentence in the introduction.
 
 **`docs/README.md` — index (guide).** What the app is in two sentences,
 stating the three goals in priority order, in brief, in its own prose
@@ -208,10 +211,12 @@ of the model parameter it sets, grouped and nested by mode as the
 settings panel groups them and in its order, never counted (section
 12.3, 2026-10-23); foundational detail lives in `numbers.md`, which each
 entry links to (§12, questions 5 and 16).
-- Where the settings are and how a change applies (short; the panel's
-  mechanics are `app.md`'s, F-176, F-488); the entries grouped as D4
-  drafts them, how it is shown, how it is computed, how much it may cost
-  (F-136)
+- (the introduction says where the settings are and that a change
+  applies as it is made, the panel's mechanics being `app.md`'s, F-176,
+  F-488; the entries are grouped as the panel groups them, how it is
+  shown, how it is computed, how much it may cost, F-136, and the page
+  is a brief explainer with no example table of its own, section 12.3,
+  2026-10-23)
 - Display digits
 - Notation and ratio width
 - Mode

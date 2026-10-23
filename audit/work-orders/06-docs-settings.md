@@ -8,7 +8,8 @@ nothing else. Written 2026-10-12 from the owner's answers
 sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
 step, and 2026-10-23 in the review of the page's pull request, #232,
 which ordered the page's sections as the settings panel orders its
-controls) and the consolidated audit. Ids: F-nnn is a finding in
+controls and then cut the page to a brief explainer of each setting,
+section 4) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D4 (L141-350)` is `audit/reports/D4/fable.md`, lines 141 to 350. `§7`
@@ -114,12 +115,23 @@ the settings are and that a change applies as it is made.
 
 ## 4. The outline, section by section
 
-Headings, in §7's order, each an anchor later pages link: "Where the
-settings are and how a change applies", "Display digits", "Notation and
-ratio width", "Mode", "Working digits and the extended count",
-"Rounding", "Precision limit", "Significand limit", "Probe budget and
-Measure this device", "How the settings bound each other", "Defaults
-and resets; storage". The order of the entries is the settings panel's
+Headings, in §7's order, each an anchor later pages link: "Display
+digits", "Notation and ratio width", "Mode", "Working digits and the
+extended count", "Rounding", "Precision limit", "Significand limit",
+"Probe budget and Measure this device", "How the settings bound each
+other", "Defaults and resets; storage". The page is a brief explainer
+of each setting (the review of its pull request, 2026-10-23, §12.3):
+each entry says what its control sets, its default, its range and what
+bounds it, and links the `numbers.md` section that owns the concept
+rather than explaining it again; the page carries no example table of
+its own, the owning pages carrying the examples, and it describes the
+panel's behaviour rather than quoting its lines, so that it does not
+drift with the panel's wording. The section "Where the settings are and
+how a change applies" is dropped, its one sentence (the panel, the cog,
+a change applying as it is made, the link to `app.md#the-settings-panel`,
+F-176) standing in the introduction, and F-025's foot sentence is the
+introduction's link to `numbers.md`, which says how to read a result.
+The order of the entries is the settings panel's
 (decided in the review of the page's pull request, 2026-10-23, §12.3):
 the controls grouped by what each is for, as D4 groups them (F-136, §12
 question 16), how it is shown (the display digits and, in exact mode,
@@ -130,16 +142,7 @@ cost (the two limits and the probe), nested by mode, never counted
 the panel's sequence, and the panel and the page are to stay aligned,
 a later change to the panel's grouping moving both.
 
-- **Where the settings are and how a change applies.** One sentence:
-  the settings open from the cog, every change applies as it is made,
-  and the panel's mechanics are `app.md#the-settings-panel`'s (D4
-  L146-153 reduced; F-176, F-488). The storage sentence (D4 L155-159):
-  kept in the browser under a format version of their own; a later
-  build migrates what an earlier one stored; a stored value a build
-  cannot read, or an object from a newer build, falls back to the
-  defaults without notice (F-133), and a stored ratio width out of
-  range is clamped like the count (B-012, Q-049).
-- **Display digits.** D4 L175-183 and A3 L78-84: "eight by default",
+- **Display digits.** D4 L175-183 and A3 L78-84, in the brief form (the review of 2026-10-23: the working digits named first in the decimal-mode sentence, as what each intermediate step is rounded to, their default to the display digits after): "eight by default",
   with nothing of GNU units (F-118, Q-081); the digits that must certify
   in exact mode, the grid of every step in decimal mode; links
   `numbers.md#digits-you-can-trust`.
@@ -188,11 +191,12 @@ a later change to the panel's grouping moving both.
   lowers a setting the user raised being told before it lands (F-130);
   "the page waits while it runs" (F-131); the panel's line not quoted
   until B-017 has landed.
-- **How the settings bound each other.** D4's table (D4 L289-314): the
-  chain of clamps, with the panel's lines ("At most 2,453 digits under
-  the significand limit"; "lowered from 1,000 to 26 digits …") quoted
-  as examples once batch 1 has landed (Q-007), worded under section 3's
-  reading of F-442 (F-132).
+- **How the settings bound each other.** D4's table (D4 L289-314)
+  reduced to the bounding setting and what moves it, each range being
+  its entry's: the chain of clamps; the panel's lines ("At most 2,453 digits under the
+  significand limit"; "lowered from 1,000 to 26 digits …") described,
+  not quoted (the review of 2026-10-23, against drift with the panel's
+  wording), worded under section 3's reading of F-442 (F-132).
 - **Defaults and resets; storage.** Each setting's default beside its
   entry; that any setting can be reset to its default and all at once
   (one sentence; the links' mechanics are `app.md#the-settings-panel`'s,
@@ -286,8 +290,9 @@ The session records in its pull request the echoed forms it ran
 
 - Every section of section 4 exists under its heading, in order, each
   entry with key, default, range and what bounds it, linking `numbers.md`
-  rather than restating it; the dissolved sections and the build-ID
-  paragraph are gone, one sentence at the foot linking `numbers.md`.
+  rather than restating it, with no example table of its own; the
+  dissolved sections and the build-ID paragraph are gone, and the
+  introduction links `numbers.md` for how to read a result.
 - No "sheet", no count of the settings, "the finest grid" never as the ceiling's gloss, no "four
   times this limit plus ten", no "costliest", no timing, no devdocs
   pointer, no "refused" for a declined edit, no "inexact values are

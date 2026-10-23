@@ -23,7 +23,10 @@ rounding after the working digits, and the panel and the page are to
 stay aligned (section 12.3); the same review cut the page to a brief
 explainer of each setting, with no example table of its own and the
 section "Where the settings are and how a change applies" dropped, its
-sentence in the introduction.
+sentence in the introduction; its third part removed the storage
+details and the stored keys, which are the developer docs', put the
+chain section last as a schematic, and renamed "Defaults and resets;
+storage" to "Defaults and resets".
 
 **`docs/README.md` — index (guide).** What the app is in two sentences,
 stating the three goals in priority order, in brief, in its own prose
@@ -227,9 +230,11 @@ entry links to (§12, questions 5 and 16).
 - Significand limit (one sentence and a link, Q-108)
 - Probe budget and "Measure this device" (the four elementary
   functions, F-491; as a procedure, F-129)
-- How the settings bound each other (the chain; the edits the panel
-  does not accept and the values held to their range, conflict 8)
-- Defaults and resets; storage (one sentence)
+- Defaults and resets (one sentence; storage is `devdocs/settings.md`'s,
+  section 12.3)
+- How the settings bound each other (last, and schematic: a definition
+  of clamping, a diagram of the chain and the clamps in the order they
+  run; the edits the panel does not accept, conflict 8; section 12.3)
 
 **`docs/builtins.md` — Built-in functions (reference).** Renamed from
 `docs/functions.md` (Q-020's note), every link following. Generated from

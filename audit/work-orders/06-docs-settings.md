@@ -8,8 +8,9 @@ nothing else. Written 2026-10-12 from the owner's answers
 sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
 step, and 2026-10-23 in the review of the page's pull request, #232,
 which ordered the page's sections as the settings panel orders its
-controls and then cut the page to a brief explainer of each setting,
-section 4) and the consolidated audit. Ids: F-nnn is a finding in
+controls, cut the page to a brief explainer of each setting, and
+removed the storage details and the stored keys, section 4) and the
+consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D4 (L141-350)` is `audit/reports/D4/fable.md`, lines 141 to 350. `§7`
@@ -118,8 +119,8 @@ the settings are and that a change applies as it is made.
 Headings, in §7's order, each an anchor later pages link: "Display
 digits", "Notation and ratio width", "Mode", "Working digits and the
 extended count", "Rounding", "Precision limit", "Significand limit",
-"Probe budget and Measure this device", "How the settings bound each
-other", "Defaults and resets; storage". The page is a brief explainer
+"Probe budget and Measure this device", "Defaults and resets", "How the
+settings bound each other". The page is a brief explainer
 of each setting (the review of its pull request, 2026-10-23, §12.3):
 each entry says what its control sets, its default, its range and what
 bounds it, and links the `numbers.md` section that owns the concept
@@ -141,6 +142,23 @@ cost (the two limits and the probe), nested by mode, never counted
 (F-117). The page's summary names the three groups; the sections follow
 the panel's sequence, and the panel and the page are to stay aligned,
 a later change to the panel's grouping moving both.
+
+The review's third part (2026-10-23, §12.3) removed from the page
+everything about storage and the panel's memory, as rules for every
+user page: no stored key or field path (F-123's and F-135's keys are
+`devdocs/settings.md`'s, work order 16); no storage detail (F-133's
+fallback sentence, the clamp of a stored width, Q-049 and B-012, and
+#233 are work order 16's; the page says only that the settings survive
+a reload); and nothing of what the panel remembers between changes
+(F-124's offer of the last width and count is work order 16's). The
+notation's digits are "decimal digits". The chain section is the page's
+last, after every entry, and schematic: it defines clamping, draws the
+chain in a fenced code block, and lists the clamps in the order they
+run; "clamped" is the page's word for a dependent setting brought
+within its range, and "does not accept" stands for a declined edit
+(conflict 8). The heading "Defaults and resets; storage" is "Defaults
+and resets". The ratio width's maximum of 1,000 digits is stated as it
+is; relaxing it is #234, future work (work order 18).
 
 - **Display digits.** D4 L175-183 and A3 L78-84, in the brief form (the review of 2026-10-23: the working digits named first in the decimal-mode sentence, as what each intermediate step is rounded to, their default to the display digits after): "eight by default",
   with nothing of GNU units (F-118, Q-081); the digits that must certify
@@ -191,16 +209,20 @@ a later change to the panel's grouping moving both.
   lowers a setting the user raised being told before it lands (F-130);
   "the page waits while it runs" (F-131); the panel's line not quoted
   until B-017 has landed.
-- **How the settings bound each other.** D4's table (D4 L289-314)
-  reduced to the bounding setting and what moves it, each range being
-  its entry's: the chain of clamps; the panel's lines ("At most 2,453 digits under the
-  significand limit"; "lowered from 1,000 to 26 digits …") described,
-  not quoted (the review of 2026-10-23, against drift with the panel's
-  wording), worded under section 3's reading of F-442 (F-132).
-- **Defaults and resets; storage.** Each setting's default beside its
-  entry; that any setting can be reset to its default and all at once
-  (one sentence; the links' mechanics are `app.md#the-settings-panel`'s,
-  F-176); the storage sentence as above.
+- **Defaults and resets.** Each setting's default beside its entry;
+  that any setting can be reset to its default and all at once (one
+  sentence; the links' mechanics are `app.md#the-settings-panel`'s,
+  F-176), and that the settings survive a reload; the storage sentence
+  is `devdocs/settings.md`'s (work order 16).
+- **How the settings bound each other.** Last on the page and
+  schematic (the review's third part): a definition of clamping, the
+  chain drawn in a fenced code block, and the clamps in the order they
+  run, with D4's reasons (D4 L289-314) and the significand limit's
+  bound on the precision limit argued in one sentence; the panel's
+  lines ("At most 2,453 digits under the significand limit"; "lowered
+  from 1,000 to 26 digits …") described, not quoted (against drift
+  with the panel's wording), worded under section 3's reading of F-442
+  (F-132).
 
 ## 5. Findings applied
 
@@ -289,7 +311,7 @@ The session records in its pull request the echoed forms it ran
 ## 10. Done when
 
 - Every section of section 4 exists under its heading, in order, each
-  entry with key, default, range and what bounds it, linking `numbers.md`
+  entry with default, range and what bounds it, linking `numbers.md`
   rather than restating it, with no example table of its own; the
   dissolved sections and the build-ID paragraph are gone, and the
   introduction links `numbers.md` for how to read a result.

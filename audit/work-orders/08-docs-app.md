@@ -50,7 +50,7 @@ panel behaves on a phone and a wider screen, what the copy button
 does, and what the two fields do beyond reading an expression. It
 links the owners and restates nothing: `numbers.md#how-numbers-are-written`
 for the paste-back principle, `settings.md#where-the-settings-are-and-how-a-change-applies`
-and `#defaults-and-resets-storage` for the settings, `expressions.md#evaluation-order-and-error-locations`
+and `#defaults-and-resets` for the settings, `expressions.md#evaluation-order-and-error-locations`
 for which field an error points at.
 
 ## 3. Rules that bind the page, applied to the drafts

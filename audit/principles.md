@@ -137,6 +137,16 @@ never the adjective of a value.
 panel", or "the panel", in both corpora; never "sheet", which is only
 today's visual design.
 
+**Storage and the panel's memory are the developer docs' (the review
+of the settings page, 2026-10-23; plan §12.3).** A user page names no
+stored key or field path and no storage detail: not the format
+version, not the migrations, not what a stored value the build cannot
+read or a stored value out of its range becomes. Nor does it describe
+what the panel remembers between changes within a page's life, which
+is the settings' in-memory state, an implementation detail. The
+settings page says that the settings survive a reload;
+`devdocs/settings.md` owns the rest.
+
 **The definitions file (F-475).** `src/units.txt` is "the definitions
 file", or "the predefined definitions file" where a user's definitions
 could be meant; never "the system file", "system definitions" or
@@ -173,7 +183,10 @@ and never say "refuse" for a domain error, an edge or a mismatch. The settings
 panel's lines that decline an edit are not refusals either: the docs
 say the panel "does not accept" an edit, or that a value is "held to"
 its range, and the devdocs keep "refusal" there only as the code's
-identifier, `refusalOf` (conflict 8 of the owner's list, answered).
+identifier, `refusalOf` (conflict 8 of the owner's list, answered). A
+dependent setting brought within the range another setting sets is
+"clamped", the word the settings page defines where it draws the chain
+of the settings (the review of 2026-10-23).
 
 **Topological order (Q-008).** The pages are written in topological
 order, each after the pages it depends on: the user pages first

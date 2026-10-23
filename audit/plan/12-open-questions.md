@@ -1212,6 +1212,30 @@ decision, are listed after the answers.
   this question is to be taken up; recorded here so that it is not dropped. The owner
   confirmed that a reciprocal line refused for its size is left out with no user-visible
   message (B-009), as the page says.
+- **The review of the settings page (2026-10-23).** The page's review notes (#232) put two
+  questions to the owner, both answered the same day. On the order of the sections, which
+  §7 had fixed in an order that interleaves the panel's groups, the owner: "I'm torn about
+  this one. I want to ultimately go with whatever order is most logically coherent and
+  easiest to understand for users. But this also implies that _eventually_ both the docs
+  and settings panel should be aligned in this same way." Asked for a recommendation, the
+  owner took it: the sections follow the settings panel's order and groups now, at no cost
+  in code. Settled: `docs/settings.md`'s sections run in the panel's order, how a result is
+  shown (the display digits; the notation with its ratio width), how it is computed (the
+  mode; the working digits with the extended count; the rounding), how much it may cost
+  (the precision limit; the significand limit; the probe budget with "Measure this
+  device"), then the chain and the storage; every heading, and so every anchor, is
+  unchanged; the panel and the page are to stay aligned, a later change to the panel's
+  grouping moving both. §7's settings entry and section 4 of work order 06 are amended. On
+  the stored values out of range, where a stored significand limit or probe budget out of
+  its range falls back to its default while every other stored number is held to its range
+  (B-012's clamp of the width among them), the owner: "I do actually want to clamp all of
+  these for consistency and predictability. (It also just makes more sense from a UX
+  perspective.) File an issue to fix that so I don't forget to follow up. Docs will
+  eventually need to be rewritten to match it, but they should document current behavior
+  for now." Settled: one rule, clamp, as issue #233 (filed 2026-10-23, naming the code,
+  the tests that pin today's fallback and the docs sentence that changes); the user page
+  states today's behaviour and names no issue (Q-012's rule), and the storage section of
+  `devdocs/settings.md` links #233 when it is rewritten (work order 16).
 
 ### The review's other corrections
 

@@ -6,7 +6,9 @@ The session that writes this page reads this file,
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
 sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
-step) and the consolidated audit. Ids: F-nnn is a finding in
+step, and 2026-10-23 in the review of the page's pull request, #232,
+which ordered the page's sections as the settings panel orders its
+controls) and the consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D4 (L141-350)` is `audit/reports/D4/fable.md`, lines 141 to 350. `§7`
@@ -113,14 +115,20 @@ the settings are and that a change applies as it is made.
 ## 4. The outline, section by section
 
 Headings, in §7's order, each an anchor later pages link: "Where the
-settings are and how a change applies", "Display digits", "Rounding",
-"Mode", "Notation and ratio width", "Working digits and the extended
-count", "Precision limit", "Significand limit", "Probe budget and
+settings are and how a change applies", "Display digits", "Notation and
+ratio width", "Mode", "Working digits and the extended count",
+"Rounding", "Precision limit", "Significand limit", "Probe budget and
 Measure this device", "How the settings bound each other", "Defaults
-and resets; storage". D4 groups the entries as "how it is shown", "how
-it is computed" and "how much it may cost" (F-136, §12 question 16):
-keep the groups as the page's structure around these entries, nested by
-mode, never counted (F-117).
+and resets; storage". The order of the entries is the settings panel's
+(decided in the review of the page's pull request, 2026-10-23, §12.3):
+the controls grouped by what each is for, as D4 groups them (F-136, §12
+question 16), how it is shown (the display digits and, in exact mode,
+the notation with its width), how it is computed (the mode, the working
+digits under it in decimal mode, and the rounding) and how much it may
+cost (the two limits and the probe), nested by mode, never counted
+(F-117). The page's summary names the three groups; the sections follow
+the panel's sequence, and the panel and the page are to stay aligned,
+a later change to the panel's grouping moving both.
 
 - **Where the settings are and how a change applies.** One sentence:
   the settings open from the cog, every change applies as it is made,
@@ -135,18 +143,6 @@ mode, never counted (F-117).
   with nothing of GNU units (F-118, Q-081); the digits that must certify
   in exact mode, the grid of every step in decimal mode; links
   `numbers.md#digits-you-can-trust`.
-- **Rounding.** D4 L238-249: the seven modes, the default half even,
-  where the mode acts (the display in exact mode, every step in decimal
-  mode) and that `round()` rounds in it, with the link to
-  `builtins.md#magnitude-sign-and-rounding` (F-119); the directed modes'
-  effect at a grid point is `numbers.md`'s.
-- **Mode.** D4 L209-222 with A4's corrections (A4 L109-113): exact and
-  decimal; the step list is not restated: it moved to
-  `numbers.md#the-two-modes`, linked (F-037); `1 / (1 / 3 * 3 - 1)` is
-  `= -1e+8` (F-120); the notation is not nested under the mode where D4
-  L221-222 puts it (the conflict with F-340 is settled by §3: the
-  notation is exact mode's choice, and this page says so without
-  nesting the entry).
 - **Notation and ratio width.** D4 L184-205 with A2's examples (A2
   L111-114): `in = 1/36 × 3 ft` (F-121, Q-003); the haves as the app
   echoes them, which the session settles by running `m / (3 m)` and
@@ -154,10 +150,22 @@ mode, never counted (F-117).
   default and range (F-123); the panel offers the last width again
   within a session (F-124, F-488); the rule itself is
   `numbers.md#how-numbers-are-written`'s, linked (Q-082).
+- **Mode.** D4 L209-222 with A4's corrections (A4 L109-113): exact and
+  decimal; the step list is not restated: it moved to
+  `numbers.md#the-two-modes`, linked (F-037); `1 / (1 / 3 * 3 - 1)` is
+  `= -1e+8` (F-120); the notation is not nested under the mode where D4
+  L221-222 puts it (the conflict with F-340 is settled by §3: the
+  notation is exact mode's choice, and this page says so without
+  nesting the entry).
 - **Working digits and the extended count.** D4 L223-237: locked to the
   display digits or extended; the count as an entry of its own, "the
   display digits by default, or the last count chosen in the session"
   (F-123, F-124); links `numbers.md#the-two-modes`.
+- **Rounding.** D4 L238-249: the seven modes, the default half even,
+  where the mode acts (the display in exact mode, every step in decimal
+  mode) and that `round()` rounds in it, with the link to
+  `builtins.md#magnitude-sign-and-rounding` (F-119); the directed modes'
+  effect at a grid point is `numbers.md`'s.
 - **Precision limit.** D4 L253-266 corrected by A3 L86-92 and D8
   L273-277: caps the display and working digits; the formula once, as
   section 3 says; "and, through the ceiling of its passes, the effort an

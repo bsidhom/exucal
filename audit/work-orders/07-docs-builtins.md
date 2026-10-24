@@ -146,8 +146,24 @@ sections in order; the preamble maps onto the first section.
   F-139); one rule on decimal mode, a call is one step, certified then
   rounded once, exact cases rounded, linking `numbers.md#the-two-modes`
   (F-137); the errors and the size refusals as `numbers.md` names them;
-  no prefix on a function; arity as `expressions.md#calls-and-arity`
-  has it. Not D5's edit 6 (F-168).
+  no prefix on a function; arity as `expressions.md#calls-and-arity` has
+  it. Not D5's edit 6 (F-168). Cut in review on 2026-10-24 (plan §12.3):
+  the lead keeps one sentence on the goal and restates nothing of the
+  guarantee; the preamble's paragraphs on what decides a call's result
+  and on how the examples are read are deleted; the section is three
+  paragraphs, what a built-in takes, where the exact cases are named,
+  and the refusals of cost, with no sub-headings and no table, the
+  families' tables carrying the examples; the decimal-mode rule (F-137)
+  and the names rules leave the page as the numbers, expressions and
+  definitions pages'; every row on the page that showed another page's
+  rule (a unit defined through `pi()`, the elementary charge, an angle
+  converted into turns or divided by the radian, a kind mismatch of an
+  operator, the rules of `^` beside `pow`, `approx` on a length, the
+  floor of a length, the rounding functions at zero, the identity
+  `sin(pi() radian)`) is dropped, as is the table under "Functions
+  defined in the file"; and the exponential entry gains `exp` at the
+  exponent bound and the incomplete entries the refusal of a huge order
+  or parameter, each with its example.
 - **Constants.** `pi()` (bullet 1).
 - **Exponential and logarithms.** Bullet 2 as it stands; the exact
   cases of `log` both ways and `b` checked first, and those of `log10`,

@@ -104,7 +104,7 @@ Yi-       1024^8
 # ---------------------------------------------------------------------------
 # Physical constants used in definitions below. The defining constants of
 # the SI are exact. The circle constant is not a definition: `pi()` is a
-# built-in function of the app (docs/functions.md),
+# built-in function of the app (docs/builtins.md),
 # computed to the precision of the table when a body below calls it, so
 # the angle units carry its digits to the table's ceiling and no literal
 # limits them.
@@ -215,7 +215,7 @@ tempF(x) | x >= -459.67 = (x + 459.67) degF
 # amplitude ratio e. A ratio converts back into the level as into any
 # function: `1000` into `decibel` is `decibel(30)`. The level and the ratio
 # are both plain numbers, and the bodies call the built-in functions
-# `pow`, `log10`, `exp` and `ln` (docs/functions.md).
+# `pow`, `log10`, `exp` and `ln` (docs/builtins.md).
 # `dB` is deliberately absent: it reads as `d` + `B`, a tenth of a byte,
 # and a function's name may not read as a prefix followed by a unit, the
 # rule that keeps `u` and `at` out of this file.

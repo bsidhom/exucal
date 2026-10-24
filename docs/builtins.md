@@ -4,30 +4,22 @@ Exucal's **built-in functions** are the functions it computes in code,
 from `pi()` and `exp` to the Gamma family. Every other function the
 calculator knows is a **defined function**, written in the definitions
 file ([The definition language](definitions.md)), and the two are called
-the same way ([Calls and arity](expressions.md#calls-and-arity)). The
-set covers the functions a calculator is used for: all the elementary
-functions, and the special functions that matter most in combinatorics,
-probability and physics. Each is held to the arithmetic's guarantee
-([Numbers](numbers.md)): a built-in returns the exact value wherever it
-recognizes one, and otherwise a value shown to the digits it has
-certified, or a message saying why there is none.
-
-Three things about a built-in decide what a call shows. Its dimension
-rule, the dimensions its arguments must have, decides whether the call
-is an error before anything is computed. Its exact cases, the arguments
-at which its value is a fraction, decide whether the result is exact.
-Its edges and its limits decide where the result is an error or a
-refusal instead of a value.
-
-An example gives what you type, what you convert it into where that
-matters, and what Exucal shows: the result side of an output line, with
-its relation, `=` or `≈`, at the default settings unless the note says
-otherwise. An error is described in a few words, not quoted.
+the same way ([Calls and arity](expressions.md#calls-and-arity)). Exucal
+provides, under the same guarantee as the arithmetic
+([Numbers](numbers.md)), the functions a calculator is used for: all the
+elementary functions, and the special functions that matter most in
+combinatorics, probability and physics.
 
 The built-ins follow these rules:
 
-- **Every built-in takes plain numbers, apart from the trigonometric functions and six that take any quantity; an argument outside the domain or at an edge is an error, and a value past a size limit, or a call past a limit of cost, is a refusal**
+- **Three rules hold for every built-in**
   ([Rules every built-in follows](#rules-every-built-in-follows)).
+  - Every built-in takes plain numbers, apart from the trigonometric
+    functions and six that take any quantity.
+  - Each entry names its function's exact cases; every other result is
+    inexact.
+  - A few calls are refused for their cost rather than for a value's
+    size.
 - **The elementary functions are exact at a few arguments and inexact everywhere else.**
   - `pi()` is inexact at every precision ([Constants](#constants)).
   - `exp` is exact at zero, and a logarithm is exact at `1` and where
@@ -63,138 +55,45 @@ The built-ins follow these rules:
 
 ## Rules every built-in follows
 
-A built-in is called by its name followed by its arguments in
-parentheses, with no space before the `(`. A call stands anywhere a unit
-stands, in the have, the quantity you type, in the want, what you
-convert it into, and in a definition's body: `exp(1)`, `2 sqrt(2) m` and
-`sin(30 deg)` are calls.
-
-### What a built-in takes
-
-Every built-in takes **plain numbers**, quantities with neither
-dimension nor kind, which [Quantities](quantities.md) calls
-dimensionless
-([Primitives, dimensions and kinds](quantities.md#primitives-dimensions-and-kinds)).
-The exceptions are the trigonometric functions, which take an angle, and
-six functions that take quantities of any dimension:
+Every built-in takes plain numbers
+([Primitives, dimensions and kinds](quantities.md#primitives-dimensions-and-kinds)),
+apart from the trigonometric functions, which take an angle, and six
+functions that take quantities of any dimension:
 
 - `approx`, `abs` and `sign` take one quantity;
-- `div`, `mod` and `atan2` take two quantities that conform, in
-  dimension and in kind ([Conformance](quantities.md#conformance)).
+- `div`, `mod` and `atan2` take two quantities that conform
+  ([Conformance](quantities.md#conformance)).
 
-An argument of the wrong dimension or kind is an error that names the
-dimension, before anything is computed: `exp(1 m)` is an error, and a
-plain number where an angle is needed is a kind mismatch
-([Trigonometric](#trigonometric)). Each built-in takes a fixed count of
-arguments, or a range: `round` takes one or two, and `pi()` takes none.
-A call with another count is an error that says how many the function
-takes ([Calls and arity](expressions.md#calls-and-arity)).
+Each entry's signature gives the count of arguments its function takes
+([Calls and arity](expressions.md#calls-and-arity)). Each entry names
+its function's exact cases, the arguments at which the function
+recognizes its value as a fraction and returns it exactly
+([Operations that stay exact; exact cases of functions](numbers.md#operations-that-stay-exact-exact-cases-of-functions));
+every other result is inexact.
 
-### Exact cases
-
-A built-in recognizes some arguments at which its value is a fraction,
-its **exact cases**, and there the result is exact: `sqrt(9/4)` is
-`= 1.5` and `gamma(5)` is `= 24`. An exact result is shown with `=` when
-the display holds all of its digits, and with `≈` when it has more, as
-`factorial(20)` has at eight display digits
-([Digits you can trust](numbers.md#digits-you-can-trust)). Every other
-result is inexact. It is computed to the digits asked for and shown with
-`≈`, however round it looks: `ln(8) / ln(2)` is `≈ 3`
-([Operations that stay exact; exact cases of functions](numbers.md#operations-that-stay-exact-exact-cases-of-functions)).
-
-### Errors and refusals
-
-An argument outside the function's domain is an error that says what the
-domain is: `ln(-1)`, `asin(2)` and `acosh(0.5)` are errors. An inexact
-argument whose error radius reaches across an edge, either the end of
-the domain or a pole, makes the calculator compute the call again at
-more digits. At the ceiling the call is an error saying that the value
-cannot be told from the edge
-([Values at an edge](numbers.md#values-at-an-edge)), unless the result
-is the same on both sides of the edge, as it is for `trunc` at zero
-([Magnitude, sign and rounding](#magnitude-sign-and-rounding)):
-`tan(90 deg)` is such an error, at the pole of `tan`. A value the size
-limits cannot hold is a refusal, never a wrong value
+A value the size limits cannot hold is a refusal
 ([Values too big to hold](numbers.md#values-too-big-to-hold)), and so is
-a call that would take more work than the calculator allows:
-
-- A result whose exponent would pass `10^18` is too large to compute,
-  and one whose exponent would fall below `-10^18` is too small:
-  `exp(1e30)` and `sinh(1e30)` are too large, `exp(-1e30)` is too small,
-  and `exp(1e6)` is a value, `≈ 3.0332154e+434294`. `approx` around the
-  argument changes nothing here, since `approx` says how well a value is
-  known and not how large it is. - A result that would need a
-  significand past the significand limit is refused as past it:
-  `factorial(20000)`. So is a call that needs its argument to more
-  digits than the limit holds: a huge angle
-  ([Trigonometric](#trigonometric)), or a huge argument of `beta` or of
-  the incomplete functions, whose logarithms need as many digits more as
-  the argument has before the point ([Gamma family](#gamma-family)).
-  `approx` lifts such a refusal only where the refused operation can
-  round an inexact operand instead, as the subtraction inside `mod`
-  rounds `approx(-1)` and absorbs the `1` into the error radius
-  ([Division](#division)). It does not shorten the digits a function
-  needs of its argument ([approx](numbers.md#approx)). - A few calls are
-  refused for the work they would take rather than for the size of a
-  value: the incomplete gamma functions at large arguments
-  ([Incomplete gamma](#incomplete-gamma)), and the incomplete beta
-  function at large parameters with the argument near the point where
-  the value is one half ([Incomplete beta](#incomplete-beta)). The
-  message of such a refusal says that the call is past the significand
-  limit, though the limit there is one of cost rather than of size.
-
-### Decimal mode
-
-Decimal mode is the arithmetic that rounds every step to a set number of
-digits ([The two modes](numbers.md#the-two-modes)), and there a call is
-one step. The calculator computes the call's value at rising precision
-until its rounding to the step's digits is certified, then rounds it
-once, and an exact case is rounded like any other value. So
-`ln(8) / ln(2)` is `= 2.9999999` there, `factorial(20)` is
-`= 2.432902e+18`, and `approx` is the identity
-([approx](numbers.md#approx)).
-
-### Names
-
-No prefix applies to a function: `kpi()` is a call of an unknown
-function ([Names](expressions.md#names)). A built-in's name is in the
-one namespace that the units, the unit lists and the defined functions
-share, so the definitions file cannot define a function of a built-in's
-name ([Names](definitions.md#names)).
-
-| You type                  | Exucal shows                                           | Note                                       |
-| ------------------------- | ------------------------------------------------------ | ------------------------------------------ |
-| `exp(1 m)`                | an error: the argument of `exp` must be a plain number | the dimension rule                         |
-| `round(1, 2, 3)`          | an error: `round` takes 1 to 2 arguments               | the count of arguments                     |
-| `gamma(5)`                | `= 24`                                                 | an exact case                              |
-| `factorial(20)`           | `≈ 2.432902e+18`                                       | an exact case, with more digits than shown |
-| `ln(8) / ln(2)`           | `≈ 3`                                                  | inexact, however round                     |
-| `ln(-1)`                  | an error: the argument is not positive                 | the domain                                 |
-| `exp(1e30)`               | refused: too large to compute                          | the exponent bound                         |
-| `exp(1e6)`                | `≈ 3.0332154e+434294`                                  | within the bound                           |
-| `factorial(20000)`        | refused: past the significand limit                    | the size of the value                      |
-| `lowergammareg(1e7, 1e7)` | refused: past the significand limit                    | the work, not the size                     |
-| `ln(8) / ln(2)`           | `= 2.9999999`                                          | decimal mode                               |
-| `factorial(20)`           | `= 2.432902e+18`                                       | decimal mode: the exact case rounded once  |
-| `kpi()`                   | an error: unknown function `kpi`                       | no prefix on a function                    |
+a call that would take more work than the calculator allows: the
+incomplete gamma functions at large orders and arguments
+([Incomplete gamma](#incomplete-gamma)), and the incomplete beta
+functions at large parameters with the argument near the point where the
+value is one half ([Incomplete beta](#incomplete-beta)). The message of
+such a refusal says that the call is past the significand limit, though
+the limit there is one of cost rather than of size.
 
 ## Constants
 
 `pi()` is the circle constant, written as a call of no arguments so that
 it is computed to the precision in force, in an expression and in a
 definition's body alike. It has no exact case: π is irrational, so
-`pi()` is inexact at every precision, and so is every unit defined
-through it ([Angles and rotation](units.md#angles-and-rotation)).
-Euler's number has no call of its own and is written `exp(1)`, since `e`
-is the elementary charge
+`pi()` is inexact at every precision. Euler's number has no call of its
+own and is written `exp(1)`, since `e` is the elementary charge
 ([Names that are absent or mean something else](units.md#names-that-are-absent-or-mean-something-else)).
 
-| You type | Into  | Exucal shows        | Note                                                      |
-| -------- | ----- | ------------------- | --------------------------------------------------------- |
-| `pi()`   |       | `≈ 3.1415927`       | inexact at every precision                                |
-| `1 turn` | `deg` | `≈ 360 deg`         | both units carry `pi()`                                   |
-| `exp(1)` |       | `≈ 2.7182818`       | Euler's number                                            |
-| `e`      | `C`   | `≈ 1.6021766e-19 C` | the elementary charge: exact, with more digits than shown |
+| You type | Exucal shows  | Note                       |
+| -------- | ------------- | -------------------------- |
+| `pi()`   | `≈ 3.1415927` | inexact at every precision |
+| `exp(1)` | `≈ 2.7182818` | Euler's number             |
 
 ## Exponential and logarithms
 
@@ -213,14 +112,14 @@ stop there. `exp(1)` and `ln(2)` are inexact, and so is `log(4, 8)`,
 whose exponent `3/2` is neither a whole number nor the reciprocal of
 one: it is computed inexactly, `≈ 1.5`. No argument is too large or too
 small for a logarithm: `ln(1e-300)` is `≈ -690.77553`, and
-`log10(1e999999999)` is the whole number `999999999`.
+`log10(1e999999999)` is the whole number `999999999`. `exp` reaches the
+exponent bound: `exp(1e30)` is too large to compute, and `exp(-1e30)` is
+too small ([Values too big to hold](numbers.md#values-too-big-to-hold)).
 
 | You type             | Exucal shows                           | Note                                            |
 | -------------------- | -------------------------------------- | ----------------------------------------------- |
 | `exp(0)`             | `= 1`                                  | an exact case                                   |
-| `exp(1)`             | `≈ 2.7182818`                          |                                                 |
 | `ln(1)`              | `= 0`                                  | an exact case                                   |
-| `ln(2)`              | `≈ 0.69314718`                         |                                                 |
 | `log10(1000)`        | `= 3`                                  | a power of the base                             |
 | `log2(1/8)`          | `= -3`                                 | a negative exponent                             |
 | `log(2, 8)`          | `= 3`                                  |                                                 |
@@ -231,115 +130,89 @@ small for a logarithm: `ln(1e-300)` is `≈ -690.77553`, and
 | `log(1, 8)`          | an error: no logarithm has base one    |                                                 |
 | `ln(1e-300)`         | `≈ -690.77553`                         | any exponent                                    |
 | `log10(1e999999999)` | `≈ 1e+9`                               | exact, `999999999`, with more digits than shown |
+| `exp(1e30)`          | refused: too large to compute          | the exponent bound                              |
+| `exp(-1e30)`         | refused: too small to compute          | the exponent bound                              |
 
 ## Roots and powers
 
 `sqrt(x)` and `cbrt(x)` are the square and cube roots of a plain number,
 and `pow(x, y)` raises a plain number to a plain number. The three share
-the exact cases of `^` ([Operators](expressions.md#operators)). A root
-is exact where the argument is a perfect square or cube: `sqrt(9/4)` is
-`= 1.5` and `cbrt(-8)` is `= -2`. `pow` is exact for a whole-number
-exponent and for a fraction whose root is exact: `pow(2, 3)` is `= 8`
-and `pow(4, 1/2)` is `= 2`. Every other value is inexact, `sqrt(2)` and
-`pow(2, sqrt(2))` among them. An even root of a negative value is an
-error, so `sqrt(-1)` is an error, while a cube root of a negative value
-is a value.
+the exact cases of `^`
+([Operations that stay exact; exact cases of functions](numbers.md#operations-that-stay-exact-exact-cases-of-functions)).
+A root is exact where the argument is a perfect square or cube:
+`sqrt(9/4)` is `= 1.5` and `cbrt(-8)` is `= -2`. `pow` is exact for a
+whole-number exponent and for a fraction whose root is exact:
+`pow(2, 3)` is `= 8` and `pow(4, 1/2)` is `= 2`. Every other value is
+inexact, `sqrt(2)` and `pow(2, sqrt(2))` among them. An even root of a
+negative value is an error, so `sqrt(-1)` is an error, while a cube root
+of a negative value is a value.
 
-`pow` and `^` differ in what they take. `^` raises a quantity of any
-dimension to an exponent typed as a number or a fraction, never
-computed, so that the dimension stays exact. `pow` raises a plain number
-to an exponent that may be anything computed. So `(2 m)^2` is the square
-of a quantity, while `pow(2 m, 2)` is an error whose message says to
-write `(2 m)^2`; and `pow(2, sqrt(2))` is a value, while `2^sqrt(2)` is
-an error as it is typed, reported before anything is computed, since a
-`^` exponent must be a number. A `^` exponent is held as a fraction that
-must fit the significand limit, while `pow` computes the exponential of
-`y` times the logarithm of `x` instead, which no exponent can overfill
-([Values too big to hold](numbers.md#values-too-big-to-hold)):
-`2^1e-30000` is refused, while `pow(2, 1e-30000)` is `≈ 1`.
+`pow` differs from `^` in what it takes
+([Operators](expressions.md#operators)). `pow` raises a plain number to
+an exponent that may be anything computed: `pow(2 m, 2)` is an error
+whose message says to write `(2 m)^2`, and `pow(2, sqrt(2))` is a value
+where `2^sqrt(2)` is an error as it is typed. `pow` computes the
+exponential of the exponent times the logarithm of the base, which no
+exponent can overfill: `pow(2, 1e-30000)` is `≈ 1`, where `2^1e-30000`
+is refused as past the significand limit.
 
-| You type           | Exucal shows                               | Note                                     |
-| ------------------ | ------------------------------------------ | ---------------------------------------- |
-| `sqrt(9/4)`        | `= 1.5`                                    | an exact case                            |
-| `cbrt(-8)`         | `= -2`                                     | a cube root of a negative value          |
-| `sqrt(2)`          | `≈ 1.4142136`                              |                                          |
-| `pow(2, 3)`        | `= 8`                                      | a whole-number exponent                  |
-| `pow(4, 1/2)`      | `= 2`                                      | the root is exact                        |
-| `pow(2, sqrt(2))`  | `≈ 2.6651441`                              | a computed exponent                      |
-| `sqrt(-1)`         | an error: an even root of a negative value |                                          |
-| `(2 m)^2`          | `= 4 m^2`                                  | `^` for a quantity                       |
-| `pow(2 m, 2)`      | an error: the base must be a plain number  | the message says to write `(2 m)^2`      |
-| `2^sqrt(2)`        | an error as it is typed                    | a `^` exponent is never computed         |
-| `2^1e-30000`       | refused: past the significand limit        | the exponent's denominator is `10^30000` |
-| `pow(2, 1e-30000)` | `≈ 1`                                      | through the logarithm                    |
+| You type           | Exucal shows                               | Note                                |
+| ------------------ | ------------------------------------------ | ----------------------------------- |
+| `sqrt(9/4)`        | `= 1.5`                                    | an exact case                       |
+| `cbrt(-8)`         | `= -2`                                     | a cube root of a negative value     |
+| `pow(2, 3)`        | `= 8`                                      | a whole-number exponent             |
+| `pow(4, 1/2)`      | `= 2`                                      | the root is exact                   |
+| `pow(2, sqrt(2))`  | `≈ 2.6651441`                              | a computed exponent                 |
+| `sqrt(-1)`         | an error: an even root of a negative value |                                     |
+| `pow(2 m, 2)`      | an error: the base must be a plain number  | the message says to write `(2 m)^2` |
+| `pow(2, 1e-30000)` | `≈ 1`                                      | through the logarithm               |
 
 ## Trigonometric
 
-`sin(x)`, `cos(x)` and `tan(x)` take an angle, a quantity of the radian
-kind
-([Primitives, dimensions and kinds](quantities.md#primitives-dimensions-and-kinds)):
-`sin(30 deg)`, `sin(pi() radian / 4)` and `tan(1 radian)` are calls. A
-plain number is not an angle, so `sin(1)` is an error that says to write
-`sin(1 radian)`. The exact cases are at zero alone: `sin(0 radian)` and
-`tan(0 radian)` are `= 0`, and `cos(0 radian)` is `= 1`. Every other
-value is inexact. An angle typed in degrees is inexact before the
-function is applied, since `deg` is defined through `pi()`, so
-`sin(30 deg)` is `≈ 0.5`
-([Units, prefixes and exactness of factors](quantities.md#units-prefixes-and-exactness-of-factors)).
-`sin(pi() radian)` is zero only within a bound, since `pi()` is inexact,
-and no pass certifies a digit of it, so the retry loop runs to the
-ceiling
-([Identities and cancellation](numbers.md#identities-and-cancellation)).
-`tan` has a pole at every odd multiple of a right angle, and an inexact
-argument there cannot be told from the pole, so `tan(90 deg)` is an
-error at the ceiling. A huge angle is refused as past the significand
-limit, since reducing it needs π to as many digits as the angle has
-before its decimal point: `sin(1e999999999 radian)` would need a billion
-of them.
+`sin(x)`, `cos(x)` and `tan(x)` take an angle
+([Primitives, dimensions and kinds](quantities.md#primitives-dimensions-and-kinds)),
+written with its unit: `sin(30 deg)`, `sin(pi() radian / 4)` and
+`tan(1 radian)`. A plain number is not an angle, so `sin(1)` is an error
+that says to write `sin(1 radian)`. The exact cases are at zero alone:
+`sin(0 radian)` and `tan(0 radian)` are `= 0`, and `cos(0 radian)` is
+`= 1`. Every other value is inexact. `tan` has a pole at every odd
+multiple of a right angle, and an inexact argument there cannot be told
+from the pole, so `tan(90 deg)` is an error at the ceiling. A huge angle
+is refused as past the significand limit, since reducing it needs π to
+as many digits as the angle has before its decimal point:
+`sin(1e999999999 radian)` would need a billion of them.
 
 | You type                  | Exucal shows                                               | Note                                      |
 | ------------------------- | ---------------------------------------------------------- | ----------------------------------------- |
-| `sin(30 deg)`             | `≈ 0.5`                                                    | `deg` is inexact                          |
-| `sin(pi() radian / 4)`    | `≈ 0.70710678`                                             |                                           |
-| `tan(1 radian)`           | `≈ 1.5574077`                                              |                                           |
+| `sin(30 deg)`             | `≈ 0.5`                                                    |                                           |
 | `sin(0 radian)`           | `= 0`                                                      | an exact case                             |
 | `cos(0 radian)`           | `= 1`                                                      | an exact case                             |
 | `sin(1)`                  | an error, a kind mismatch, saying to write `sin(1 radian)` |                                           |
 | `tan(90 deg)`             | an error: the argument cannot be told from a pole          | at the ceiling                            |
-| `sin(pi() radian)`        | `≈ 0 (within 2e-4049 of zero)`                             | zero within a bound, at the ceiling       |
 | `sin(1e999999999 radian)` | refused: past the significand limit                        | the reduction needs π to a billion digits |
 
 ## Inverse trigonometric
 
 `asin(x)`, `acos(x)`, `atan(x)` and `atan2(y, x)` return an angle, of
-the radian kind. `asin` and `acos` take a plain number within `[-1, 1]`,
-and `atan` takes any plain number. `atan2` takes a rise `y` and a run
-`x`, two quantities that conform, and gives the angle between the run's
-direction and the line from the origin to the point they mark, in that
-point's quadrant: `atan2(3 m, 4 m)` is the angle whose tangent is three
-quarters. The result is an angle whatever unit it is shown in.
-`asin(0.5)` into `deg` is `≈ 30 deg`. Into `turn` it is
-`≈ 0.083333333 turn`, the same angle counted in turns, an angle still.
-`asin(0.5) / radian` is the angle's measure in radians, a plain number,
-`≈ 0.52359878`. The exact cases are the zero results: `asin(0)`,
-`atan(0)`, `acos(1)` and `atan2(0, 1)` are `= 0 radian`, and `asin(0)`
-into `deg` is `= 0 deg`. Every other value is inexact, a right angle
-among them. A conversion of an inexact angle is `≈` for that reason
-alone, and `deg` and `turn` are inexact units in any case, being defined
-through `pi()`. An argument outside `[-1, 1]` is an error: `asin(2)`.
+the radian kind, whatever unit it is shown in
+([Primitives, dimensions and kinds](quantities.md#primitives-dimensions-and-kinds)).
+`asin` and `acos` take a plain number within `[-1, 1]`, and `atan` takes
+any plain number. `atan2` takes a rise `y` and a run `x`, two quantities
+that conform. It gives the angle from the run's direction to the line
+from the origin to the point they mark, in that point's quadrant:
+`atan2(3 m, 4 m)` is the angle whose tangent is three quarters. The
+exact cases are the zero results: `asin(0)`, `atan(0)`, `acos(1)` and
+`atan2(0, 1)` are `= 0 radian`. Every other value is inexact, a right
+angle among them. An argument outside `[-1, 1]` is an error: `asin(2)`.
 
-| You type             | Into   | Exucal shows                                  | Note                        |
-| -------------------- | ------ | --------------------------------------------- | --------------------------- |
-| `asin(0.5)`          | `deg`  | `≈ 30 deg`                                    |                             |
-| `atan2(3 m, 4 m)`    | `deg`  | `≈ 36.869898 deg`                             | an angle from two lengths   |
-| `asin(0.5)`          | `turn` | `≈ 0.083333333 turn`                          | an angle still              |
-| `asin(0.5) / radian` |        | `≈ 0.52359878`                                | the measure in radians      |
-| `asin(0)`            | `deg`  | `= 0 deg`                                     | an exact case               |
-| `acos(1)`            |        | `= 0 radian`                                  | an exact case               |
-| `asin(1)`            | `deg`  | `≈ 90 deg`                                    | inexact: a right angle      |
-| `asin(2)`            |        | an error: the argument lies outside `[-1, 1]` |                             |
-| `atan2(3 m, 4 s)`    |        | an error, a dimension mismatch                |                             |
-| `2 asin(0.5) + 1`    |        | an error, a kind mismatch                     | an angle and a plain number |
+| You type          | Into  | Exucal shows                                  | Note                      |
+| ----------------- | ----- | --------------------------------------------- | ------------------------- |
+| `asin(0.5)`       | `deg` | `≈ 30 deg`                                    |                           |
+| `atan2(3 m, 4 m)` | `deg` | `≈ 36.869898 deg`                             | an angle from two lengths |
+| `acos(1)`         |       | `= 0 radian`                                  | an exact case             |
+| `asin(1)`         | `deg` | `≈ 90 deg`                                    | inexact: a right angle    |
+| `asin(2)`         |       | an error: the argument lies outside `[-1, 1]` |                           |
+| `atan2(3 m, 4 s)` |       | an error, a dimension mismatch                |                           |
 
 ## Hyperbolic
 
@@ -360,7 +233,6 @@ reach the exponent bound as it does
 | `sinh(0)`        | `= 0`                                                       | an exact case      |
 | `cosh(0)`        | `= 1`                                                       | an exact case      |
 | `acosh(1)`       | `= 0`                                                       | an exact case      |
-| `sinh(1)`        | `≈ 1.1752012`                                               |                    |
 | `sinh(1 radian)` | an error: the argument must be a plain number               | not an angle       |
 | `acosh(0.5)`     | an error: the argument is less than `1`                     |                    |
 | `atanh(1)`       | an error: the argument is not strictly between `-1` and `1` |                    |
@@ -368,69 +240,50 @@ reach the exponent bound as it does
 
 ## `approx`
 
-`approx(x)` is the value of `x` known to the precision of the pass and
-no better: its argument is any quantity, angles included, and its result
-has the argument's dimension. It is the one operation whose purpose is
-to make a value inexact, so `approx(2.54) cm` into `in` is `≈ 1 in`
-while `2.54 cm` into `in` is `= 1 in` ([approx](numbers.md#approx) says
-what it does and what it cannot do).
+`approx(x)` takes any quantity, angles included, and returns it with its
+dimension and kind kept and its value made inexact
+([approx](numbers.md#approx) says what it does and what it cannot do):
+`approx(30 deg)` into `deg` is `≈ 30 deg`.
 
-| You type          | Into  | Exucal shows | Note                         |
-| ----------------- | ----- | ------------ | ---------------------------- |
-| `approx(2.54) cm` | `in`  | `≈ 1 in`     | inexact on purpose           |
-| `2.54 cm`         | `in`  | `= 1 in`     |                              |
-| `approx(30 deg)`  | `deg` | `≈ 30 deg`   | an angle, its dimension kept |
+| You type         | Into  | Exucal shows | Note                         |
+| ---------------- | ----- | ------------ | ---------------------------- |
+| `approx(30 deg)` | `deg` | `≈ 30 deg`   | an angle, its dimension kept |
 
 ## Magnitude, sign and rounding
 
 `abs(x)` is the magnitude of a quantity of any dimension and keeps the
 dimension. `sign(x)` takes any quantity and gives `-1`, `0` or `1`, a
 plain number. `floor(x)`, `ceil(x)`, `trunc(x)` and `round(x)` take a
-plain number, since a quantity is held in the primitives and
-`floor(3.7 ft)` would floor the meters: it is an error, and the floor of
-a length is `floor(3.7 ft / ft) ft`
-([A quantity carries no unit](quantities.md#a-quantity-carries-no-unit)).
-`round(x)` rounds to a whole number, and `round(x, places)` rounds to
-that many decimal places, a negative count rounding to the left of the
-point: `round(3.14159, 2)` is `= 3.14` and `round(1234, -2)` is
-`= 1200`. Both round in the rounding mode the settings choose
-([Rounding](settings.md#rounding)). Inside an expression that is the one
-place where the mode acts, and
-[Rounding modes and where they act](numbers.md#rounding-modes-and-where-they-act)
-says how each mode rounds a tie.
+plain number
+([A quantity carries no unit](quantities.md#a-quantity-carries-no-unit)
+says why, and how to floor a length). `round(x)` rounds to a whole
+number, and `round(x, places)` rounds to that many decimal places, a
+negative count rounding to the left of the point: `round(3.14159, 2)` is
+`= 3.14` and `round(1234, -2)` is `= 1200`. Both round in the rounding
+mode in force
+([Rounding modes and where they act](numbers.md#rounding-modes-and-where-they-act)).
 
 All six are exact on an exact argument. On an inexact argument `abs`
 keeps the error radius, so its result is inexact. The result of the
-other five depends only on which side of a boundary the argument lies.
-For `sign` the boundary is zero. For the rounding functions it is a
-**rounding boundary**, a point between two values the function could
-round to: a whole number for `floor`, `ceil` and `trunc`, and for
-`round` either a whole number or a point halfway between two of them, as
-the mode decides. So the result is exact once the whole error radius
-lies on one side of the boundary: `round(sqrt(2), 3)` is `= 1.414`.
-While the radius still reaches across the boundary at the ceiling, the
-result is an error: `floor(sqrt(2)^2)` is one such, since its argument
-reaches across `2` at every precision. Zero is the one boundary at which
-some of them still have an answer for a value that cannot be told from
-zero. `trunc`, and `round` in a mode to nearest or toward zero, give
-`= 0`, since they give `0` on either side of zero. `floor`, `ceil`,
-`sign` and `round` in the other modes make it an error, since their
-results differ on the two sides
-([Values at an edge](numbers.md#values-at-an-edge)).
+other five depends only on which side of a boundary the argument lies:
+zero for `sign`, and for the rounding functions a point between two
+values the function could round to. So the result is exact once the
+whole error radius lies on one side of the boundary: `round(sqrt(2), 3)`
+is `= 1.414`. While the radius still reaches across the boundary at the
+ceiling, the result is an error: `floor(sqrt(2)^2)` is one such, since
+its argument reaches across `2` at every precision.
+[Values at an edge](numbers.md#values-at-an-edge) says which of them
+still has an answer for a value that cannot be told from zero.
 
-| You type                   | Into | Exucal shows                                    | Note                                     |
-| -------------------------- | ---- | ----------------------------------------------- | ---------------------------------------- |
-| `abs(-3 m)`                |      | `= 3 m`                                         | the dimension kept                       |
-| `sign(-3 m)`               |      | `= -1`                                          | a plain number                           |
-| `floor(3.7 ft)`            |      | an error: the argument must be a plain number   |                                          |
-| `floor(3.7 ft / ft) ft`    | `ft` | `= 3 ft`                                        | the unit divided out and back            |
-| `round(3.14159, 2)`        |      | `= 3.14`                                        |                                          |
-| `round(1234, -2)`          |      | `= 1200`                                        | to the left of the point                 |
-| `round(sqrt(2), 3)`        |      | `= 1.414`                                       | exact: the side of the boundary is known |
-| `abs(sqrt(2) - 2)`         |      | `≈ 0.58578644`                                  | inexact: the radius kept                 |
-| `floor(sqrt(2)^2)`         |      | an error: the argument cannot be told from `2`  | at the ceiling                           |
-| `trunc(sqrt(2) - sqrt(2))` |      | `= 0`                                           | the same on both sides of zero           |
-| `floor(sqrt(2) - sqrt(2))` |      | an error: the argument cannot be told from zero | at the ceiling                           |
+| You type            | Exucal shows                                   | Note                                     |
+| ------------------- | ---------------------------------------------- | ---------------------------------------- |
+| `abs(-3 m)`         | `= 3 m`                                        | the dimension kept                       |
+| `sign(-3 m)`        | `= -1`                                         | a plain number                           |
+| `round(3.14159, 2)` | `= 3.14`                                       |                                          |
+| `round(1234, -2)`   | `= 1200`                                       | to the left of the point                 |
+| `round(sqrt(2), 3)` | `= 1.414`                                      | exact: the side of the boundary is known |
+| `abs(sqrt(2) - 2)`  | `≈ 0.58578644`                                 | inexact: the radius kept                 |
+| `floor(sqrt(2)^2)`  | an error: the argument cannot be told from `2` | at the ceiling                           |
 
 ## Division
 
@@ -456,7 +309,7 @@ and decimal mode offered: `mod(-1, 1e20000)`, whose remainder
 | `mod(-7, 2)`               |       | `= 1`                                                                                  | the divisor's sign                       |
 | `div(7 ft, 2 ft)`          |       | `= 3`                                                                                  | a count                                  |
 | `mod(7 ft, 2 ft)`          | `ft`  | `= 1 ft`                                                                               | the dimension kept                       |
-| `mod(-30 deg, 360 deg)`    | `deg` | `≈ 330 deg`                                                                            | an angle; `≈` since `deg` is inexact     |
+| `mod(-30 deg, 360 deg)`    | `deg` | `≈ 330 deg`                                                                            | an angle                                 |
 | `div(7, 0)`                |       | an error: division by zero                                                             |                                          |
 | `mod(sqrt(2), 1)`          |       | `≈ 0.41421356`                                                                         | inexact                                  |
 | `mod(-1, 1e20000)`         |       | refused: past the significand limit; the message suggests `approx(-1)` or decimal mode | the remainder has twenty thousand digits |
@@ -634,6 +487,9 @@ normal value lies within one standard deviation, and
 where `gamma(s)` is. An order of `1` is not an exact case:
 `lowergammareg(1, x)` is `1 - exp(-x)` and `uppergammareg(1, x)` is
 `exp(-x)`, inexact for an `x` above zero. Every other value is inexact.
+A huge order or argument is refused as past the significand limit, since
+the logarithms are taken to the working digits plus the digits before
+the point of the order and of the argument: `lowergammareg(1e20000, 1)`.
 
 Apart from an order of `1`, an inexact value is computed by one of two
 routes: a series, which gives the lower function, or a continued
@@ -667,6 +523,7 @@ and `lowergammareg(1e7, 1e7)` is refused at the default digits.
 | `uppergammareg(1, 2)`                | `≈ 0.13533528`                      | `exp(-2)`                                               |
 | `lowergammareg(0, 1)`                | an error: the order is not positive |                                                         |
 | `lowergammareg(1, -1)`               | an error: the argument is negative  |                                                         |
+| `lowergammareg(1e20000, 1)`          | refused: past the significand limit | the digits the logarithms need                          |
 | `uppergammareg(1e4, 1e6)`            | `≈ 1.170002e-409956`                | the continued fraction                                  |
 | `uppergammareg(1e5, 1e6)`            | refused: past the significand limit | a limit of cost: only the series is left                |
 | `uppergammareg(1e5, 1.1e5)`          | `≈ 2.6554005e-206`                  | the argument a tenth past the order                     |
@@ -720,8 +577,11 @@ hold:
 So `incbetareg(2, 3, 0.5)` is `= 0.6875`. The other exact cases are the
 ends: at `x = 0` both are `= 0`, and at `x = 1` `incbetareg` is `= 1`
 and `incbeta` is `beta(a, b)`, exact where that is. Every other value is
-inexact. `incbetareg(v / 2, 1/2, v / (v + t^2)) / 2` is the one-sided
-tail of Student's t with `v` degrees of freedom beyond `t`, so
+inexact. Huge parameters are refused as past the significand limit,
+since the logarithms are taken to the working digits plus the digits
+before the point of the parameters: `incbetareg(1e20000, 2, 0.5)`.
+`incbetareg(v / 2, 1/2, v / (v + t^2)) / 2` is the one-sided tail of
+Student's t with `v` degrees of freedom beyond `t`, so
 `incbetareg(3/2, 1/2, 3/(3 + 2^2)) / 2` is `≈ 0.069662984`, the tail
 with three degrees of freedom beyond `2`.
 
@@ -751,6 +611,7 @@ at a thousand display digits.
 | `incbetareg(5002, 5000, 1/2)`           | `≈ 0.49202215`                               | inexact: the degree is past ten thousand                       |
 | `incbetareg(0, 1, 0.5)`                 | an error: a parameter is not positive        |                                                                |
 | `incbetareg(1, 1, 2)`                   | an error: the argument lies outside `[0, 1]` |                                                                |
+| `incbetareg(1e20000, 2, 0.5)`           | refused: past the significand limit          | the digits the logarithms need                                 |
 | `incbetareg(1e6, 1e6, 0.5)`             | `≈ 0.5`                                      | the default digits                                             |
 | `incbetareg(1e6, 1e6, 0.5)`             | refused: past the significand limit          | at a thousand display digits: a limit of cost                  |
 | `incbetareg(1e7, 1e7, 0.5)`             | refused: past the significand limit          | the default digits: a limit of cost                            |
@@ -758,26 +619,13 @@ at a thousand display digits.
 
 ## Functions defined in the file
 
-The functions the definitions file defines are not built-ins but defined
-functions, each written in the definition language
-([Functions](definitions.md#functions)). `tempC` and `tempF`, the
-temperature readings, and `decibel`, `bel` and `neper`, the logarithmic
-levels, are such functions. A defined function may have an inverse, so
-that a quantity converts into it, as `tempF` and `decibel` do.
-[Units](units.md) lists the file's functions with each one's scale and
-ratio
+The definitions file defines functions of its own, such as `tempC` and
+`decibel` ([Functions](definitions.md#functions)). [Units](units.md)
+describes them
 ([Temperature: differences and readings](units.md#temperature-differences-and-readings),
 [Logarithmic levels](units.md#logarithmic-levels)), and
 [Temperature and logarithmic levels as functions](quantities.md#temperature-and-logarithmic-levels-as-functions)
 says why a reading and a level are functions and not units.
-
-| You type      | Into      | Exucal shows    | Note                |
-| ------------- | --------- | --------------- | ------------------- |
-| `tempC(20)`   |           | `= 293.15 K`    | a reading           |
-| `tempF(212)`  | `tempC`   | `= tempC(100)`  | through the inverse |
-| `decibel(20)` |           | `= 100`         | a level's ratio     |
-| `100`         | `decibel` | `= decibel(20)` |                     |
-| `neper(1)`    |           | `≈ 2.7182818`   |                     |
 
 ## Not provided, and what to write instead
 
@@ -794,10 +642,9 @@ These functions are not provided:
   ([Real values only](numbers.md#real-values-only));
 - the statistical distributions as functions of their own.
 
-No definition can be typed into the app: the predefined definitions file
-alone is loaded
-([What the app loads](definitions.md#what-the-app-loads)). An expression
-over the functions provided stands in for some of these.
+No definition can be typed into the app
+([What the app loads](definitions.md#what-the-app-loads)), so for some
+of these an expression over the functions provided stands in.
 
 - A Chebyshev polynomial of the first kind is a cosine of a multiple of
   an arccosine: `cos(3 acos(0.5))` is the third Chebyshev polynomial at

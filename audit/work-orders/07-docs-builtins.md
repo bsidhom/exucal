@@ -193,29 +193,40 @@ sections in order; the preamble maps onto the first section.
   built on first use for the precision in force and kept until a call
   needs more, with one qualitative cost sentence (F-154, Q-016; the
   session checks which calls pay the run before naming them, F-356 in
-  `devdocs/builtins.md`'s record); the example D7 swaps in
+  `devdocs/builtins.md`'s record; checked on 2026-10-24 by running each
+  call in a fresh process and settled in review: the page names the
+  calls that pay as found, and beside each call outside the family the
+  dependency, direct or transitive, through which it pays, F-065 as
+  amended, plan §12.3); the example D7 swaps in
   (`beta(0.5, 0.5) - pi()`) is used only if the session runs it; no
   "kernel" (Q-093). Bullet 13 with D7 L155-159: large arguments go
   through `lgamma`, so `beta(1e17, 1.5)` is `≈ 2.8024956e-26` where
   `gamma(1e17)` is refused as too large to compute (F-155). `gamma`'s
-  sign and the other size refusals are the generated reference's
-  (F-156, F-157); the items F-158 refutes are already on the page.
+  sign and the other size refusals are the generated reference's (F-156,
+  F-157); the items F-158 refutes are already on the page.
 - **Incomplete gamma.** Bullet 14 with D7 L161-165: "a large order
   within a few percent of a large argument, past some millions at a
   high precision, is refused as past the significand limit, the limit
   there being one of cost rather than of size" (F-159, Q-067; the
   session checks "at a high precision" against the default-settings
-  refusals before it lands; B-015 and B-020 are the message's); the
-  truncation bounds stay unverified (F-160); the edges are the
-  generated reference's (F-161).
+  refusals before it lands; B-015 and B-020 are the message's; checked
+  on 2026-10-24: the quantities fail outside one regime,
+  `uppergammareg(1e5, 1.5e5)` being refused at one digit as at the
+  default digits, so, as settled in review, the page states the
+  dependence on the order, the argument and the precision loosely, in
+  words, with verified examples on either side, and no quantified
+  threshold, Q-067 as amended, plan §12.3); the truncation bounds stay
+  unverified (F-160); the edges are the generated reference's (F-161).
 - **Error functions.** Bullet 15 with D7 L167-171: `erfc(10)` is
   `≈ 2.0884876e-45` at the first pass, where `1 - erf(10)` reaches the
   same digits only after the retry loop has raised the precision
   (F-162); no domain error (F-163, generated reference).
 - **Incomplete beta.** Bullet 16 with D7 L173-181: the same
   large-parameter sentence (F-159); the ten-thousand cap worded as
-  `incbeta.ts:447-452` bounds it, which the session settles (F-164);
-  the end points are the generated reference's (F-165).
+  `incbeta.ts:447-452` bounds it, which the session settles (F-164;
+  settled 2026-10-24: `a + b - 1` at most ten thousand, stated as it is;
+  refining the cap, or making it a setting, is #236, future work, work
+  order 18); the end points are the generated reference's (F-165).
 - **Functions defined in the file.** `tempC`, `tempF`, `neper`, `bel`,
   `decibel`: a cross-reference to
   `units.md#temperature-differences-and-readings` and
@@ -246,16 +257,16 @@ reference's; today's bullets keep what they say.
 | F-149, F-150 | Rounding; Division | Generated reference |
 | F-151 | Integer functions | D6's bullet under F-442 and F-451 (Q-096) |
 | F-152 | Integer functions | Generated reference, after B-001 (Q-050) |
-| F-153 | Gamma family | D7's rewrite; the cost qualitative; which calls pay the run checked |
+| F-153 | Gamma family | D7's rewrite; the cost qualitative; which calls pay the run checked, each named with its dependency (2026-10-24) |
 | F-154 | Gamma family | One qualitative sentence (Q-016) |
 | F-155 | Gamma family | D7's corrected `beta` sentence |
 | F-156, F-157 | Gamma family | Generated reference |
 | F-158 | Gamma family | Nothing: the items are on the page |
-| F-159 | Incomplete gamma; Incomplete beta | D7's sentence with "at a high precision" (Q-067); "refused as past the significand limit" stands |
+| F-159 | Incomplete gamma; Incomplete beta | D7's sentence, its quantities dropped for a loose statement with verified examples (Q-067 as amended, 2026-10-24); "refused as past the significand limit" stands |
 | F-160 | Incomplete gamma | The sentences kept; verified with the structured comments |
 | F-161, F-163, F-165, F-166 | (several) | Generated reference |
 | F-162 | Error functions | D7's corrected `erfc` sentence |
-| F-164 | Incomplete beta | D7's wording; the cap settled from `incbeta.ts:447-452` |
+| F-164 | Incomplete beta | D7's wording; the cap settled from `incbeta.ts:447-452`: `a + b - 1` at most ten thousand, stated as it is (#236 is work order 18's) |
 | F-167 | (top) | "the definitions file", with a link |
 | F-168 | (top) | No sentence on the generated reference (Q-011) |
 
@@ -268,9 +279,10 @@ F-478 ("defined function" for the file's functions).
 ## 6. Decisions followed, and still open
 
 Followed: Q-009 (B), Q-010, Q-011, Q-016, Q-019, Q-020 (the rename),
-Q-025, Q-048, Q-050, Q-067, Q-088 (the docs bullet qualitative),
-Q-093, Q-095, Q-096, Q-101, Q-102, Q-114 (the per-function tables stay
-in the devdocs); the rules F-442, F-443, F-451, F-475.
+Q-025, Q-048, Q-050, Q-067 (as amended on 2026-10-24), Q-088 (the docs
+bullet qualitative), Q-093, Q-095, Q-096, Q-101, Q-102, Q-114 (the
+per-function tables stay in the devdocs); the rules F-442, F-443, F-451,
+F-475.
 
 Still open: nothing that blocks the page. #115 stays in
 `devdocs/builtins.md` (the owner's list, item 1, confirmed); it does not
@@ -285,7 +297,7 @@ more.
 | approx, Rounding, Integer functions | D6 L104-132 | the terms and D8's reduction of bullet 7 | L128 to L132's wording ("is an error in exact mode", "an inexact value"); L112's "units" to L116's "dimension"; the "(addition)" clauses wait |
 | Gamma family (bullet 12) | D7 L133-153 | the rewrite | the cost sentence qualitative; the example swap only if run; no "kernel" |
 | Gamma family (bullet 13) | D7 L155-159 | the correction | — |
-| Incomplete gamma, Error functions, Incomplete beta | D7 L161-181 | the corrections | "at a high precision" checked for bullet 14; the cap's quantity settled |
+| Incomplete gamma, Error functions, Incomplete beta | D7 L161-181 | the corrections | "at a high precision" checked for bullet 14 and dropped with the other quantities (2026-10-24); the cap's quantity settled |
 | Deleted: `#Very large results and approx` | D8 L168-170 (the map); A5 L431-449 (not applied) | the deletion | — |
 
 ## 8. Conflicts left to settle
@@ -294,7 +306,10 @@ Of the owner's list, conflict 1 touches this page as the later page: the
 pages written before it link its §7 headings, which it keeps (section
 4); it links no later page. The session records in its pull request
 which calls pay the Bernoulli run as it found them, whether it kept D7's
-example swap, and the cap's quantity.
+example swap, and the cap's quantity. Recorded in the review notes of
+#235 and settled by the owner on 2026-10-24 (plan §12.3): the calls as
+found, each with the dependency it pays through; the example swap kept,
+`beta(0.5, 0.5) - pi()` run; the cap `a + b - 1` at most ten thousand.
 
 ## 9. Code changes it waits on
 

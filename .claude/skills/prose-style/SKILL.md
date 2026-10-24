@@ -164,6 +164,17 @@ it to the whole text, not only to the sentence that prompted it.
 - Prefer the exact statement to the approximate one: "ten digits" when
   it is always ten, "each counted on its own" when the limit tests the
   numerator and the denominator separately.
+- But state only what is actually correct, and weigh precision against
+  fragility. A quantity, a threshold, a percentage, a count, the edge of
+  a regime, is stated only where it holds in every regime the reader can
+  reach: every mode, every setting, every size of argument. Where it
+  holds in one regime and fails in another, leave the claim loosely
+  qualified: say what the quantity depends on, in words, and give
+  verified examples on either side ("very large orders can be past both
+  limits: `uppergammareg(1e4, 1e6)` is a value, while
+  `uppergammareg(1e5, 1e6)` is refused", not "past some millions at a
+  high precision"). A claim that falls apart in another regime is wrong
+  there, not approximately right.
 - One word per concept, used in its sense everywhere: a precision is a
   count of digits of working accuracy; a grid is the coarseness of the
   discrete space itself. Do not ban a precise term; use it precisely.
@@ -275,3 +286,6 @@ reviewer then reads a text that has passed that first reading.
    title?
 10. Any long list, or list of descriptive items, run as one sentence
     across its bullets?
+11. Any quantity, threshold or percentage that holds in one regime and
+    fails in another, where a loose claim with verified examples would
+    be correct?

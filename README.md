@@ -16,7 +16,7 @@ has been loaded once.
 - [`docs/`](docs/README.md) is the user's documentation: the
   [settings](docs/settings.md), the [unit definitions](docs/definitions.md)
   and the expression language, and the
-  [built-in functions](docs/functions.md).
+  [built-in functions](docs/builtins.md).
 - [`devdocs/`](devdocs/README.md) is the developer's documentation: the
   [architecture](devdocs/architecture.md), the
   [layout](devdocs/layout.md), [development](devdocs/development.md),

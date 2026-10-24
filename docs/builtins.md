@@ -123,22 +123,25 @@ a call that would take more work than the calculator allows:
   `exp(1e30)` and `sinh(1e30)` are too large, `exp(-1e30)` is too small,
   and `exp(1e6)` is a value, `≈ 3.0332154e+434294`. `approx` around the
   argument changes nothing here, since `approx` says how well a value is
-  known and not how large it is.
-- A result that would need a significand past the significand limit is
-  refused as past it: `factorial(20000)`. So is a call that needs its
-  argument to more digits than the limit holds, the one case being a huge
-  angle ([Trigonometric](#trigonometric)). `approx` lifts such a refusal
-  only where the refused operation can round an inexact operand instead,
-  as the subtraction inside `mod` rounds `approx(-1)` and absorbs the `1`
-  into the error radius ([Division](#division)). It does not shorten the
-  digits a function needs of its argument ([approx](numbers.md#approx)).
-- A few calls are refused for the work they would take rather than for
-  the size of a value: the incomplete gamma functions at large arguments
+  known and not how large it is. - A result that would need a
+  significand past the significand limit is refused as past it:
+  `factorial(20000)`. So is a call that needs its argument to more
+  digits than the limit holds: a huge angle
+  ([Trigonometric](#trigonometric)), or a huge argument of `beta` or of
+  the incomplete functions, whose logarithms need as many digits more as
+  the argument has before the point ([Gamma family](#gamma-family)).
+  `approx` lifts such a refusal only where the refused operation can
+  round an inexact operand instead, as the subtraction inside `mod`
+  rounds `approx(-1)` and absorbs the `1` into the error radius
+  ([Division](#division)). It does not shorten the digits a function
+  needs of its argument ([approx](numbers.md#approx)). - A few calls are
+  refused for the work they would take rather than for the size of a
+  value: the incomplete gamma functions at large arguments
   ([Incomplete gamma](#incomplete-gamma)), and the incomplete beta
-  function at large parameters with the argument near the point where the
-  value is one half ([Incomplete beta](#incomplete-beta)). The message of
-  such a refusal says that the call is past the significand limit, though
-  the limit there is one of cost rather than of size.
+  function at large parameters with the argument near the point where
+  the value is one half ([Incomplete beta](#incomplete-beta)). The
+  message of such a refusal says that the call is past the significand
+  limit, though the limit there is one of cost rather than of size.
 
 ### Decimal mode
 
@@ -530,62 +533,90 @@ positive whole numbers: `beta(2, 3)` is the exact `1/12`, and
 `beta(0.5, 0.5)` is `≈ 3.1415927`. A whole number at or below zero in
 either argument is a pole, an error. When the sum `a + b` is such a
 number and neither argument is, the value is exactly `0`, since the pole
-is in the denominator: `beta(-0.5, -0.5)` is `= 0`. Large arguments go
-through `lgamma`, so `beta` has a value where `gamma` of the arguments
-is refused: `beta(1e17, 1.5)` is `≈ 2.8024956e-26`, while `gamma(1e17)`
-is refused as too large to compute, and `beta(1e6, 1e6)` is
-`≈ 3.6164047e-602063`. `1 / ((n + 1) beta(n - k + 1, k + 1))` is
-`binomial(n, k)` for whole numbers and extends it to every other value,
-so `beta` gives a binomial of values that are inexact or not whole
-numbers.
+is in the denominator: `beta(-0.5, -0.5)` is `= 0`. Outside its exact
+cases, the magnitude of `beta` is the exponential of
+`lgamma(a) + lgamma(b) - lgamma(a + b)`, and its sign is decided from
+the arguments. The three logarithms are taken to the working digits plus
+the digits of the largest argument's whole part, so that their
+cancellation leaves the working digits. So `beta` has a value where
+`gamma` of an argument is refused as too large, as long as its own value
+fits the exponent bound and the digits the logarithms need fit the
+significand limit. `beta(1e17, 1.5)` is `≈ 2.8024956e-26`, while
+`gamma(1e17)` is refused as too large to compute. `beta(1e19, 1e19)` is
+refused as too small to compute, and `beta(1e20000, 2)` as past the
+significand limit. For whole numbers `n` and `k` with `k` from `0` to
+`n`, `1 / ((n + 1) beta(n - k + 1, k + 1))` is `binomial(n, k)`, and the
+same expression gives a binomial of values that are inexact or not whole
+numbers: `1 / (5.5 beta(4.5, 2))` is `≈ 4.5`, the binomial of `4.5` and
+`1`.
 
 ### What the family costs
 
 The family's functions are computed from a table of the ratios of
-consecutive Bernoulli numbers. The calculator builds the table on first
-use, for the precision in force, and keeps it until a call needs a
-larger one. Every call whose value goes through the Gamma function pays
-for the table the first time.
+consecutive Bernoulli numbers: `lgamma` and `digamma` are computed from
+those ratios, and the magnitude of `gamma` is the exponential of
+`lgamma`, with its sign decided from the argument. The table grows with
+the precision. The calculator builds it on first use, for the precision
+in force, and keeps it until a call needs a larger one. Outside their
+exact cases, `gamma`, `lgamma` and `digamma` pay for the table the first
+time. Huge and tiny arguments of `lgamma` and `digamma` are the
+exception: they take a shorter route and pay nothing. Every other call
+pays only where it needs `lgamma`, `gamma` or `beta` on the way to its
+own value:
 
-- `gamma`, `lgamma`, `digamma` and `beta` pay outside their exact
-  cases.
-- The regularized incomplete gamma functions, which divide by a value
-  of the Gamma function, pay ([Incomplete gamma](#incomplete-gamma)), and
-  so do `erf` and `erfc`, which are built on them
-  ([Error functions](#error-functions)).
-- The incomplete beta functions pay outside their exact cases
-  ([Incomplete beta](#incomplete-beta)).
-- `lowergamma` and `uppergamma` pay where they take a value of the
-  Gamma function on the way to their own.
+- `beta` pays through `lgamma` outside its exact cases, and a call that
+  needs `beta` pays through `beta`.
+- `lowergammareg` and `uppergammareg` compute `lgamma` on the way to
+  their value outside their exact cases, except where their first
+  argument is `1`, so they pay through `lgamma`
+  ([Incomplete gamma](#incomplete-gamma)). `erf` and `erfc` are built on
+  `lowergammareg` and `uppergammareg`, so they pay through `lgamma` too,
+  apart from huge arguments ([Error functions](#error-functions)).
+- `incbetareg` computes `lgamma` of each parameter and of their sum
+  outside its exact cases, so it pays through `lgamma`. `incbeta` pays
+  through `beta` where it needs `beta` of its parameters: at an argument
+  of `1`, where it is `beta`, and where the calculator reaches its value
+  by subtraction from `beta` ([Incomplete beta](#incomplete-beta)).
+- `lowergamma` and `uppergamma` pay through `gamma` where they need
+  `gamma` of their first argument: `uppergamma` at an argument of `0`,
+  where it is `gamma`, and either of them where the calculator reaches
+  its value by subtraction from `gamma`
+  ([Incomplete gamma](#incomplete-gamma)). `lowergamma(2.5, 1)` is
+  computed directly and pays nothing, while `uppergamma(2.5, 1)` is
+  `gamma(2.5)` less it and pays.
 
-At the default digits the table costs little. A result that runs to the
+A result certified at its first pass pays little at the default digits,
+since the table for that pass is small, while a result that runs to the
 ceiling pays noticeably for it the first time. `beta(0.5, 0.5) - pi()`
 is such a result, an exact cancellation that no pass certifies
 ([Identities and cancellation](numbers.md#identities-and-cancellation)).
-The same expression again, or another at the same precision, pays
+The same expression again, or another that needs no larger table, pays
 nothing more ([What costs time](numbers.md#what-costs-time)).
 
-| You type                | Exucal shows                                      | Note                                                   |
-| ----------------------- | ------------------------------------------------- | ------------------------------------------------------ |
-| `gamma(5)`              | `= 24`                                            | an exact case: `factorial(4)`                          |
-| `gamma(0.5)^2`          | `≈ 3.1415927`                                     |                                                        |
-| `gamma(-1.5)`           | `≈ 2.3632718`                                     |                                                        |
-| `gamma(20001)`          | `≈ 1.8192063e+77337`                              | the value `factorial(20000)` cannot hold               |
-| `gamma(0)`              | an error: a pole                                  |                                                        |
-| `gamma(1e19)`           | refused: too large to compute                     | the exponent bound                                     |
-| `lgamma(1e19)`          | `≈ 4.2749117e+20`                                 |                                                        |
-| `lgamma(1)`             | `= 0`                                             | an exact case                                          |
-| `lgamma(3)`             | `≈ 0.69314718`                                    | `ln(2)`, inexact                                       |
-| `digamma(1)`            | `≈ -0.57721566`                                   | minus the Euler–Mascheroni constant                    |
-| `digamma(approx(-2))`   | an error: the argument cannot be told from a pole | at the ceiling                                         |
-| `beta(0.5, 0.5)`        | `≈ 3.1415927`                                     |                                                        |
-| `beta(2, 3)`            | `≈ 0.083333333`                                   | exact, `1/12`, with more digits than shown             |
-| `beta(-0.5, -0.5)`      | `= 0`                                             | a pole in the denominator alone                        |
-| `beta(0, 1)`            | an error: a pole                                  |                                                        |
-| `beta(1e17, 1.5)`       | `≈ 2.8024956e-26`                                 | where `gamma(1e17)` is refused                         |
-| `beta(1e6, 1e6)`        | `≈ 3.6164047e-602063`                             |                                                        |
-| `1 / (6 beta(4, 3))`    | `= 10`                                            | `binomial(5, 2)` through `beta`                        |
-| `beta(0.5, 0.5) - pi()` | `≈ 0 (within 4e-4049 of zero)`                    | runs to the ceiling; pays for the table the first time |
+| You type                 | Exucal shows                                      | Note                                                   |
+| ------------------------ | ------------------------------------------------- | ------------------------------------------------------ |
+| `gamma(5)`               | `= 24`                                            | an exact case: `factorial(4)`                          |
+| `gamma(0.5)^2`           | `≈ 3.1415927`                                     |                                                        |
+| `gamma(-1.5)`            | `≈ 2.3632718`                                     |                                                        |
+| `gamma(20001)`           | `≈ 1.8192063e+77337`                              | the value `factorial(20000)` cannot hold               |
+| `gamma(0)`               | an error: a pole                                  |                                                        |
+| `gamma(1e19)`            | refused: too large to compute                     | the exponent bound                                     |
+| `lgamma(1e19)`           | `≈ 4.2749117e+20`                                 |                                                        |
+| `lgamma(1)`              | `= 0`                                             | an exact case                                          |
+| `lgamma(3)`              | `≈ 0.69314718`                                    | `ln(2)`, inexact                                       |
+| `digamma(1)`             | `≈ -0.57721566`                                   | minus the Euler–Mascheroni constant                    |
+| `digamma(approx(-2))`    | an error: the argument cannot be told from a pole | at the ceiling                                         |
+| `beta(0.5, 0.5)`         | `≈ 3.1415927`                                     |                                                        |
+| `beta(2, 3)`             | `≈ 0.083333333`                                   | exact, `1/12`, with more digits than shown             |
+| `beta(-0.5, -0.5)`       | `= 0`                                             | a pole in the denominator alone                        |
+| `beta(0, 1)`             | an error: a pole                                  |                                                        |
+| `beta(1e17, 1.5)`        | `≈ 2.8024956e-26`                                 | where `gamma(1e17)` is refused                         |
+| `beta(1e6, 1e6)`         | `≈ 3.6164047e-602063`                             |                                                        |
+| `beta(1e19, 1e19)`       | refused: too small to compute                     | the exponent bound                                     |
+| `beta(1e20000, 2)`       | refused: past the significand limit               | the digits the logarithms need                         |
+| `1 / (5.5 beta(4.5, 2))` | `≈ 4.5`                                           | the binomial of `4.5` and `1`                          |
+| `1 / (6 beta(4, 3))`     | `= 10`                                            | `binomial(5, 2)` through `beta`                        |
+| `beta(0.5, 0.5) - pi()`  | `≈ 0 (within 4e-4049 of zero)`                    | runs to the ceiling; pays for the table the first time |
 
 ## Incomplete gamma
 
@@ -604,32 +635,45 @@ where `gamma(s)` is. An order of `1` is not an exact case:
 `lowergammareg(1, x)` is `1 - exp(-x)` and `uppergammareg(1, x)` is
 `exp(-x)`, inexact for an `x` above zero. Every other value is inexact.
 
-The number of terms a value needs rises with the order and with the
-argument, and past a cap on that number the calculator refuses the call
-rather than run it, a refusal of cost
-([Rules every built-in follows](#rules-every-built-in-follows)). Two
-examples mark the region.
+Apart from an order of `1`, an inexact value is computed by one of two
+routes: a series, which gives the lower function, or a continued
+fraction, which gives the upper. The calculator chooses the route by the
+order, the argument, the precision and which of the pair is asked for.
+The other function of the pair is `gamma(s)` less the one computed. For
+the regularized forms it is `1` less the one computed. How much work
+either route takes depends on the order and the argument together, and
+grows with the precision. Each route has a limit on its work, and where
+neither route is within its limit the calculator refuses the call rather
+than run it, a refusal of cost
+([Rules every built-in follows](#rules-every-built-in-follows)). Very
+large orders can be past both limits. The continued fraction is stepped
+up to the order one unit at a time, and the steps are limited, so at a
+very large order only the series is left: `uppergammareg(1e4, 1e6)` is a
+value, while `uppergammareg(1e5, 1e6)` is refused. The series' work
+grows with how far the argument lies past the order, as well as with the
+order and the precision: `uppergammareg(1e5, 1.1e5)` is a value, while
+`uppergammareg(1e5, 1.5e5)` is refused. `lowergammareg(1e6, 1e6)` is a
+value at the default digits and refused at a thousand display digits,
+and `lowergammareg(1e7, 1e7)` is refused at the default digits.
 
-- An order in the hundreds of thousands or beyond with an argument well
-  past it is refused: `uppergammareg(1e5, 1.5e5)`.
-- An order of some millions or beyond with the argument near it is
-  refused: `lowergammareg(1e7, 1e7)`, while `lowergammareg(1e6, 1e6)` is a
-  value.
-
-| You type                             | Exucal shows                        | Note                          |
-| ------------------------------------ | ----------------------------------- | ----------------------------- |
-| `lowergammareg(0.5, 0.5)`            | `≈ 0.68268949`                      | within one standard deviation |
-| `uppergammareg(1/2, 1.96^2 / 2) / 2` | `≈ 0.024997895`                     | the tail beyond `1.96`        |
-| `lowergamma(2, 0)`                   | `= 0`                               | an exact case                 |
-| `uppergammareg(2, 0)`                | `= 1`                               | an exact case                 |
-| `uppergamma(2, 0)`                   | `= 1`                               | `gamma(2)`, exact             |
-| `uppergamma(2.5, 0)`                 | `≈ 1.3293404`                       | `gamma(2.5)`, inexact         |
-| `uppergammareg(1, 2)`                | `≈ 0.13533528`                      | `exp(-2)`                     |
-| `lowergammareg(0, 1)`                | an error: the order is not positive |                               |
-| `lowergammareg(1, -1)`               | an error: the argument is negative  |                               |
-| `uppergammareg(1e5, 1.5e5)`          | refused: past the significand limit | a limit of cost               |
-| `lowergammareg(1e6, 1e6)`            | `≈ 0.50013298`                      |                               |
-| `lowergammareg(1e7, 1e7)`            | refused: past the significand limit | a limit of cost               |
+| You type                             | Exucal shows                        | Note                                                    |
+| ------------------------------------ | ----------------------------------- | ------------------------------------------------------- |
+| `lowergammareg(0.5, 0.5)`            | `≈ 0.68268949`                      | within one standard deviation                           |
+| `uppergammareg(1/2, 1.96^2 / 2) / 2` | `≈ 0.024997895`                     | the tail beyond `1.96`                                  |
+| `lowergamma(2, 0)`                   | `= 0`                               | an exact case                                           |
+| `uppergammareg(2, 0)`                | `= 1`                               | an exact case                                           |
+| `uppergamma(2, 0)`                   | `= 1`                               | `gamma(2)`, exact                                       |
+| `uppergamma(2.5, 0)`                 | `≈ 1.3293404`                       | `gamma(2.5)`, inexact                                   |
+| `uppergammareg(1, 2)`                | `≈ 0.13533528`                      | `exp(-2)`                                               |
+| `lowergammareg(0, 1)`                | an error: the order is not positive |                                                         |
+| `lowergammareg(1, -1)`               | an error: the argument is negative  |                                                         |
+| `uppergammareg(1e4, 1e6)`            | `≈ 1.170002e-409956`                | the continued fraction                                  |
+| `uppergammareg(1e5, 1e6)`            | refused: past the significand limit | a limit of cost: only the series is left                |
+| `uppergammareg(1e5, 1.1e5)`          | `≈ 2.6554005e-206`                  | the argument a tenth past the order                     |
+| `uppergammareg(1e5, 1.5e5)`          | refused: past the significand limit | a limit of cost: the argument half again past the order |
+| `lowergammareg(1e6, 1e6)`            | `≈ 0.50013298`                      |                                                         |
+| `lowergammareg(1e6, 1e6)`            | refused: past the significand limit | at a thousand display digits: a limit of cost           |
+| `lowergammareg(1e7, 1e7)`            | refused: past the significand limit | a limit of cost                                         |
 
 ## Error functions
 
@@ -681,13 +725,20 @@ tail of Student's t with `v` degrees of freedom beyond `t`, so
 `incbetareg(3/2, 1/2, 3/(3 + 2^2)) / 2` is `≈ 0.069662984`, the tail
 with three degrees of freedom beyond `2`.
 
-Large parameters with `x` within a few percent of the median, the point
-where the regularized value is one half, take more work than the
-calculator allows at a high precision, and are refused, a refusal of
-cost ([Rules every built-in follows](#rules-every-built-in-follows)).
+An inexact value is computed by a series in `x`, or by the same series
+for the swapped parameters in `1 - x`, which gives the part above `x`.
+The calculator chooses by `a`, `b`, `x` and the precision. In the second
+case the value wanted is `beta(a, b)` less the part above `x`. For
+`incbetareg` it is `1` less it. The median is the point where the
+regularized value is one half. A call with large parameters and `x` near
+the median can take more work than the limit on the series allows, in
+`x` and in `1 - x` alike, and is then refused, a refusal of cost
+([Rules every built-in follows](#rules-every-built-in-follows)). A
+higher precision moves the refusal to smaller parameters.
+`incbetareg(1e7, 1e7, 0.5)` is refused at the default digits, while
+`incbetareg(1e7, 1e7, 0.49)` is `≈ 1.3300101e-1740`, and
 `incbetareg(1e6, 1e6, 0.5)` is `≈ 0.5` at the default digits and refused
-at a thousand display digits, and `incbetareg(1e7, 1e7, 0.5)` is refused
-at the default digits.
+at a thousand display digits.
 
 | You type                                | Exucal shows                                 | Note                                                           |
 | --------------------------------------- | -------------------------------------------- | -------------------------------------------------------------- |
@@ -703,6 +754,7 @@ at the default digits.
 | `incbetareg(1e6, 1e6, 0.5)`             | `≈ 0.5`                                      | the default digits                                             |
 | `incbetareg(1e6, 1e6, 0.5)`             | refused: past the significand limit          | at a thousand display digits: a limit of cost                  |
 | `incbetareg(1e7, 1e7, 0.5)`             | refused: past the significand limit          | the default digits: a limit of cost                            |
+| `incbetareg(1e7, 1e7, 0.49)`            | `≈ 1.3300101e-1740`                          | off the median                                                 |
 
 ## Functions defined in the file
 

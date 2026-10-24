@@ -244,7 +244,9 @@ states the second goal, the elementary functions and the special
 functions that matter most in combinatorics, probability and physics
 under the same guarantee as the arithmetic, in its own prose for its
 reader, with the substance principles.md fixes, as the aim of today's
-set, nothing of a set to come (Q-011; §12.3, 2026-10-14).
+set, nothing of a set to come (Q-011; §12.3, 2026-10-14), in one
+sentence that restates nothing of the guarantee (the review of
+2026-10-24).
 - Rules every built-in follows (plain numbers unless stated; exact
   cases; domains; edges; errors and the size refusals, F-442; decimal
   mode; no prefixes; arity)

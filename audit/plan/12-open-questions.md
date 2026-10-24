@@ -1345,6 +1345,33 @@ decision, are listed after the answers.
   index. §7's built-ins entry, work orders 07, 15, 17 and 18, F-065, F-159, F-164, F-356,
   Q-067 and principles.md are amended.
 
+- **The review of the built-ins page, second part (2026-10-24).** One thread on the page's
+  preamble, applied across the page. The owner: "This paragraph and the following one
+  should be deleted. They are already implied by all the context of the rest of the docs
+  and the core calculator semantics themselves. If you want to keep these, you'll need to
+  argue why. Check through the rest of the doc for similar restatements of the app's
+  promises, etc. I want this trimmed down as much as possible while retaining all _new_
+  information on this page about builtins." Settled, for this page and as a rule for every
+  page (principles.md and the house style): a page says only what is new on it, and
+  restates nothing the rest of the docs or the calculator's semantics already imply,
+  neither the app's promises nor what decides a result in general nor how its examples are
+  read; a concept another page owns gets a link and at most a clause; the opening keeps
+  the one sentence that states the goal the page serves. For the page: the two preamble
+  paragraphs are deleted; the opening's guarantee is one link; "Rules every built-in
+  follows" is three paragraphs, what a built-in takes, where its exact cases are named,
+  and the refusals of cost, with no sub-headings and no table, the families' tables
+  carrying the examples; the decimal-mode and names rules leave the page as the numbers,
+  expressions and definitions pages'; the entries drop what the quantities page owns (the
+  conversions of angles and the inexactness of the angle units, the rules of `^` beside
+  `pow`, the floor of a length, `approx` on a length) and what the numbers page owns
+  (where the rounding mode acts, the rounding functions' boundaries and their answers at
+  zero, the identity `sin(pi() radian)`); "Functions defined in the file" is a
+  cross-reference with no table; the rows that showed another page's rule are gone; and
+  the exponential entry gains `exp` at the exponent bound and the incomplete entries the
+  refusal of a huge order or parameter, each with its example, so that every refusal the
+  rules section used to list has its example in an entry. The page goes from 831 lines to
+  678. §7's built-ins entry, work order 07 and principles.md are amended.
+
 ### The review's other corrections
 
 Applied on 2026-10-13 with the answers above; none needed a decision.

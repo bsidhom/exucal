@@ -169,6 +169,24 @@ a figure that does none of that leaves for the benchmarks and the
 stress tools. An item's own answer (Q-017) wins over this rule for its
 passage.
 
+**Only what is actually correct (the owner, 2026-10-24; plan §12.3).** A
+page states only what is actually correct, and weighs precision against
+fragility: a quantified claim, a threshold, a percentage, a count or the
+edge of a regime, is made only where it holds in every regime a reader
+can reach, every mode, every setting and every size of argument, since a
+claim that falls apart in another regime is wrong there, not
+approximately right. Where the quantity is sloppy, where it holds at one
+precision or in one regime and fails in another, the page leaves the
+claim loosely qualified: it says what the quantity depends on, in words,
+and gives verified examples on either side, and the devdocs keep the
+counts and figures under the rule above. So the built-ins page says of
+the incomplete gamma functions that the work depends on the order and
+the argument together and grows with the precision, that very large
+orders can be past the routes' limits, and gives refused and computed
+examples at the default digits and at a thousand, and not "within a few
+percent, past some millions, at a high precision", which the runs
+refuted.
+
 **Refusal (F-442).** In both corpora "refusal" and "refuse" name only a
 size refusal: the significand limit's or the exponent bound's, a value
 the limits keep from being computed or a literal past a size limit. A

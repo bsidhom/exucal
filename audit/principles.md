@@ -126,6 +126,16 @@ linking the user page rather than restating it. A reason a user needs
 is never left to the developer docs alone. §7.1 and the work orders of
 the developer pages follow.
 
+**Only what is new on the page (the review of the built-ins page, 2026-10-24; plan §12.3).**
+A page says only what is new on it. It restates nothing the rest of the
+docs or the calculator's semantics already imply: not the app's
+promises, not what decides a result in general, not how its examples are
+read. A concept another page owns gets a link and at most a clause, and
+the page's words go to its own facts; the opening keeps the one sentence
+that states the goal the page serves (the goals rule below). A reviewer
+reads a restatement as padding and cuts it, so a page is trimmed to what
+is new before it is handed over.
+
 **Inexact, not approximate (F-451).** "Inexact" names a value with a
 nonzero radius, everywhere, headings included ("Exact and inexact
 values", "which units are inexact", "the digits an inexact value is

@@ -21,7 +21,7 @@ These pages describe the app from the user's side:
 - [Unit definitions](definitions.md): what the definitions file contains,
   its format, the rules for names, the expression language, unit lists and
   user-defined functions.
-- [Functions in expressions](functions.md): the built-in functions, and
+- [Functions in expressions](builtins.md): the built-in functions, and
   what happens with very large results.
 
 The developer's documentation is in [`devdocs/`](../devdocs/README.md).

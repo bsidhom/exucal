@@ -5,7 +5,7 @@ definition in `units.txt`: `pi()`, `exp`, the logarithms, the roots,
 `pow`, the trigonometric and hyperbolic functions and their inverses,
 `approx`, the exact functions (`abs`, `floor`, `gcd`, `factorial` and
 their kin), and the Gamma and Beta families with the incomplete
-functions, `erf` and `erfc`. [docs/functions.md](../docs/functions.md)
+functions, `erf` and `erfc`. [docs/builtins.md](../docs/builtins.md)
 lists them from the user's side; this page says how they are built and
 the rules each one follows. [numbers.md](numbers.md) is the arithmetic
 they run on.

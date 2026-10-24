@@ -424,7 +424,7 @@ they change say so. Nothing is pending now.
 - **Q-066. `log10(1e999999999)`: the value or the line.** Decision: ok
   Applied: ok: `devdocs/builtins.md` keeps "exactly `999999999`" (the value); the generated entry may show both lines. F-267 follows.
 - **Q-067. The incomplete functions' refusals and the precision.** Decision: ok
-  Applied: ok: the interim bullets say the incomplete functions' refusals move with the precision, by "at a high precision" (within Q-009). F-159 follows.
+  Applied: ok: the interim bullets say the incomplete functions' refusals move with the precision, by "at a high precision" (within Q-009). F-159 follows. Amended on 2026-10-24 (section 12.3, the review of the built-ins page): the dependence stated loosely, with verified examples, and no quantified threshold.
 - **Q-068. `architecture.md`'s list of sister pages.** Decision: ok
   Applied: ok: `devdocs/architecture.md#(top)` points at `devdocs/README.md`'s map instead of listing sister pages. F-222 follows.
 - **Q-069. The console warning for a stored version above the build's.** Decision: ok
@@ -1299,6 +1299,51 @@ decision, are listed after the answers.
   issue #234, filed 2026-10-23, future work for `devdocs/future.md` (work order 18), and
   `devdocs/notation.md` states the cap as it is. §7's settings entry, work orders 06, 16
   and 18, §8's refusal row and principles.md are amended.
+
+- **The review of the built-ins page (2026-10-24).** The page's review notes (#235) put
+  three questions to the owner and one note, answered the same day. On which calls pay for
+  the Bernoulli table, where the drafts named the Gamma family, the regularized incomplete
+  gamma functions and the incomplete beta functions and the page's runs found `erf` and
+  `erfc` paying too, the unregularized incomplete gamma functions only where they take
+  `gamma(s)`, and `incbeta` only where it takes `beta(a, b)`, the owner: "Yes, fix the
+  docs and WO plan according to the correct behavior. Just make sure to explicitly call
+  out where that memo table is only required due to a dependency (whether transitive or
+  direct)." Settled: `docs/builtins.md` names the calls that pay as they were found, and
+  beside each call outside the family the dependency, direct or transitive, through which
+  it pays (`beta` through `lgamma`; the regularized incomplete gamma functions through
+  `lgamma`, apart from an order of `1`, and `erf` and `erfc` through them; `incbetareg`
+  through `lgamma` of its parameters, and `incbeta` through `beta` where it takes it;
+  `lowergamma` and `uppergamma` through `gamma(s)` only where they take it); F-065 and
+  F-356 are amended, and work orders 15 and 17 carry the list, with its dependencies, to
+  the developer pages. On the quantities in the drafts' sentence on the incomplete
+  functions' refusals ("within a few percent", "past some millions", "at a high
+  precision", D7's wording under Q-067), which the page's runs found to fail outside one
+  regime, the owner: "We need to trade off precision/correctness here with _fragility_
+  (i.e., imprecision in documented claims due to making excessive quantified claims that
+  fall apart in different regimes). Only state what is _actually correct_. If a
+  quantification is sloppy, it's better to just leave it loosely qualified here." Settled,
+  for this page and as a rule for every page (principles.md and the house style): a page
+  states only what is actually correct; a quantity is stated only where it holds in every
+  regime a reader can reach, and where it holds in one regime and fails in another the
+  claim is left loosely qualified, saying what the quantity depends on, with verified
+  examples on either side. The page says that how much work an incomplete gamma value
+  takes depends on the order and the argument together and grows with the precision, that
+  very large orders can be past the routes' limits, with refused and computed examples at
+  the default digits and at a thousand, and that a call of the incomplete beta functions
+  with large parameters and `x` near the median can be refused, a higher precision
+  bringing the refusal on at smaller parameters, with examples at the default digits and
+  at a thousand; Q-067 and F-159 are amended. On the ten-thousand cap of the incomplete
+  beta functions' exact case, the owner: "Leave everything as is for now. Add a tracking
+  issue to refine/change the cap (perhaps even making this a configurable setting). I want
+  to understand the implications well before making a code change, and this is certainly
+  out of scope for the docs rewrite." Settled: the cap is stated as it is, `a + b - 1` at
+  most ten thousand (F-164); refining it, or making it a setting, is issue #236, filed
+  2026-10-24, future work for `devdocs/future.md` (work order 18), and
+  `devdocs/builtins.md` states the cap as it is (work order 15). The note, that
+  `docs/README.md` keeps its link text "Functions in expressions" with only the target
+  repointed, as the work order allows, needed no decision: work order 09 rewrites the
+  index. §7's built-ins entry, work orders 07, 15, 17 and 18, F-065, F-159, F-164, F-356,
+  Q-067 and principles.md are amended.
 
 ### The review's other corrections
 

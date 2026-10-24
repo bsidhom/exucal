@@ -224,11 +224,15 @@ page links (Q-012).
   significant figures (#98); configurable number formatting; a ratio
   width above 1,000 digits (#234, raised in the review of the settings
   page on 2026-10-23; `devdocs/notation.md` states the cap as it is);
-  the display policy (#178, #173); the generated grammar; the generated
-  built-in reference; the generated units page; the generated message
-  catalogue; the conversion-target toggle; typographic characters;
-  the pages shipped with the app; lenient kind conversion (V6 L190);
-  richer UX (page L181-183, linking `architecture.md`, "Messages").
+  the incomplete beta functions' cap on their exact case, `a + b - 1` at
+  most ten thousand, refined or made a setting (#236, raised in the
+  review of the built-ins page on 2026-10-24; `devdocs/builtins.md`
+  states the cap as it is); the display policy (#178, #173); the
+  generated grammar; the generated built-in reference; the generated
+  units page; the generated message catalogue; the conversion-target
+  toggle; typographic characters; the pages shipped with the app;
+  lenient kind conversion (V6 L190); richer UX (page L181-183, linking
+  `architecture.md`, "Messages").
 - **Ruled out, and why.** Deleted whole, after the check of section 3.
 - **The link definitions** (page L231-247): deleted (F-347).
 

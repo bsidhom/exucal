@@ -279,31 +279,37 @@ tense.
   it, Q-007).
 - **The Gamma and Beta families.** The Bernoulli paragraph (D7
   L187-191, V3 L521-549): the memo reserves its count because a memo
-  grown term by term would recompute the run several times in one
-  cold pass (F-291, keep as intent); #103's one link (F-415); the
-  run's cost under section 3; the memory figures stay (F-300).
-  `lgamma` and `gamma` (D7 L193-197, V3 L551-573): the kernel's value
-  is the remedy for a factorial past the significand limit, which the
-  refusal itself does not name (D7 L194; F-292, Q-096); the costs as
-  D7's ratios (D7 L197); the shift named in words with the `cost.md`
-  link (F-420). `beta` (D7 L199-200, V3 L575-590): one of the two
-  verified examples, `beta(1e15, 1.5)` or `beta(1e15, approx(1))`,
-  `beta(1e15, 1)` itself being the exact case (F-293). The incomplete
-  gamma functions (D7 L202-209, V3 L592-620): the regularized forms
-  carry `ln Γ(s)` in the exponent rather than dividing by `gamma(s)`
-  (D7 L203; F-294); the regime named with the `cost.md` link (F-416);
-  the timing as one qualitative sentence, the convergent counts
-  staying (F-295). `erf` and `erfc` (D7 L211-212, V3 L622-634): the
-  timing deleted (F-296), the tiny-argument sentence only where
-  F-297's check puts it. The incomplete beta function (D7 L214-215,
-  V3 L636-665): the block re-flowed (F-289), "`x = 1` is `1`
-  regularized and `B(a, b)` otherwise" (F-298), the timing as the two
-  rewrites combined (F-299), #150 as a `cost.md` link. The last
-  paragraph (D7 L217-218, V3 L667-718): the costs and the hangs
-  pointed at `cost.md` without the numbers (F-424, F-425); the
-  deferred classes as section 3 has it (F-290, F-348; #115 and #112
-  stay here). The kernel-side statements (page L725-729, L771-798,
-  L839-847) stay as they are (F-301).
+  grown term by term would recompute the run several times in one cold
+  pass (F-291, keep as intent); "a page that never evaluates the Gamma
+  family never computes a Bernoulli number" widened to every call that
+  takes a value of the Gamma function, directly or through another
+  function, the calls that pay named with the dependency each pays
+  through, as `docs/builtins.md` names them (F-065, F-356; the review of
+  2026-10-24, plan §12.3); #103's one link (F-415); the run's cost under
+  section 3; the memory figures stay (F-300). `lgamma` and `gamma` (D7
+  L193-197, V3 L551-573): the kernel's value is the remedy for a
+  factorial past the significand limit, which the refusal itself does
+  not name (D7 L194; F-292, Q-096); the costs as D7's ratios (D7 L197);
+  the shift named in words with the `cost.md` link (F-420). `beta` (D7
+  L199-200, V3 L575-590): one of the two verified examples,
+  `beta(1e15, 1.5)` or `beta(1e15, approx(1))`, `beta(1e15, 1)` itself
+  being the exact case (F-293). The incomplete gamma functions (D7
+  L202-209, V3 L592-620): the regularized forms carry `ln Γ(s)` in the
+  exponent rather than dividing by `gamma(s)` (D7 L203; F-294); the
+  regime named with the `cost.md` link (F-416); the timing as one
+  qualitative sentence, the convergent counts staying (F-295). `erf` and
+  `erfc` (D7 L211-212, V3 L622-634): the timing deleted (F-296), the
+  tiny-argument sentence only where F-297's check puts it. The
+  incomplete beta function (D7 L214-215, V3 L636-665): the block
+  re-flowed (F-289), "`x = 1` is `1` regularized and `B(a, b)`
+  otherwise" (F-298), the timing as the two rewrites combined (F-299),
+  #150 as a `cost.md` link, the ten-thousand cap on `a + b - 1` stated
+  as it is (F-164, settled 2026-10-24), refining it being `future.md`'s
+  (#236, work order 18). The last paragraph (D7 L217-218, V3 L667-718):
+  the costs and the hangs pointed at `cost.md` without the numbers
+  (F-424, F-425); the deferred classes as section 3 has it (F-290,
+  F-348; #115 and #112 stay here). The kernel-side statements (page
+  L725-729, L771-798, L839-847) stay as they are (F-301).
 - **Not in this design.** D7 L222-234 or V3 L720-736: the ruled-out
   designs with their reasons; the complex-values bullet as the plain
   fact, no argument leaving the real line since the language has no

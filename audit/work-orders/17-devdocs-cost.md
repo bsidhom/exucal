@@ -135,12 +135,18 @@ order the tables bear out, and the issues, one link each.
   costliest first, with the one link each (section 3); the Gamma
   bullet's surcharge, "about half the warm cost at the defaults …
   about twice the warm cost at the highest precision limit", and the
-  memos paragraph scoped to every call that takes a Gamma value, the
-  Gamma family itself, the regularized incomplete gamma functions and
-  the incomplete beta functions, whose cold run also builds the
-  Bernoulli numbers (F-356); the typing paragraph without its counts
-  (F-353); the elementary functions' bullet pointing at `#The hangs`
-  in words.
+  memos paragraph scoped to every call that takes a value of the Gamma
+  function, directly or through another function, whose cold run also
+  builds the Bernoulli numbers, each call named with the dependency it
+  pays through, as `docs/builtins.md` names them and the review of
+  2026-10-24 settled (F-356, F-065; plan §12.3): the Gamma family itself
+  outside its exact cases; `beta` through `lgamma`; the regularized
+  incomplete gamma functions through `lgamma`, apart from an order of
+  `1`, and `erf` and `erfc` through them; `incbetareg` through `lgamma`
+  of its parameters, and `incbeta` through `beta` where it takes
+  `beta(a, b)`; `lowergamma` and `uppergamma` through `gamma(s)` only
+  where they take it; the typing paragraph without its counts (F-353);
+  the elementary functions' bullet pointing at `#The hangs` in words.
 - **What the search has not reached.** V6 L161-170: the decimal
   profile's empty slot as structural, decimal mode having no schedule,
   its one pass being the context itself, linking
@@ -167,7 +173,7 @@ order the tables bear out, and the issues, one link each.
 | F-353 | What the costs come from; What the search has not reached | The counts dropped (Q-061) |
 | F-354 | What the costs come from | Orderings and ratios; a rough figure only marked illustrative (Q-088, Q-016) |
 | F-355 | What the costs come from | The sum of the passes, the last outweighing the rest |
-| F-356 | What the costs come from | The Bernoulli run's scope; the surcharge ratios |
+| F-356 | What the costs come from | The Bernoulli run's scope, each call that pays named with the dependency it pays through (2026-10-24); the surcharge ratios |
 | F-357 | (top) | The opener links `docs/numbers.md#what-costs-time`; the scheduler in words to `future.md` (Q-013) |
 | F-358 | What the search has not reached | Structural, linking `devdocs/numbers.md#Decimal mode` |
 | F-359 | What the search has not reached | Retitled, the count dropped (Q-061) |

@@ -259,8 +259,9 @@ set, nothing of a set to come (Q-011; §12.3, 2026-10-14).
 - Division (`div`, `mod`)
 - Integer functions
 - Gamma family; incomplete gamma; error functions; incomplete beta (the
-  one user page naming the calls that pay the family's cold start,
-  F-065 as amended 2026-10-14)
+  one user page naming the calls that pay the family's cold start, each
+  outside the family with the dependency it pays through, F-065 as
+  amended 2026-10-14 and 2026-10-24)
 - Functions defined in the file (cross-reference to `units.md`)
 - Not provided, and what to write instead (a plain fact: what the app
   lacks and what to write, never what may come; the deferred classes

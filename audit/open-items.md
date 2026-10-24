@@ -802,7 +802,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D7: yes, by the words "at a high precision", as D7's bullet edits apply them (D7 L161-165, D7 L173-181).
 - Settled by: —
 - Blocks: nothing (within the interim `docs/functions.md` item above).
-- Decision: ok [plan §12.1]
+- Decision: ok [plan §12.1]; amended by the owner on 2026-10-24 (plan §12.3, the review of the built-ins page): the dependence on the precision is stated, but loosely and in words, with verified examples on either side, and no page carries the quantities ("within a few percent", "past some millions", "at a high precision" as a threshold), since each holds in one regime and fails in another; the devdocs keep the counts the dependence comes from.
 
 ### Q-068. `architecture.md`'s list of sister pages
 

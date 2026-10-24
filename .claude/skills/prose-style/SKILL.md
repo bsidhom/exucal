@@ -58,6 +58,12 @@ it to the whole text, not only to the sentence that prompted it.
   where it belongs, and link to it from elsewhere.
 - Keep the page to its topic. Material that belongs to another page
   moves there, with a link; orthogonal material is left out.
+- Say only what is new on the page. Restate nothing another page owns or
+  the system's semantics imply: not the system's promises, not what
+  decides a result in general, not how the examples are read. A shared
+  concept gets a link and at most a clause; the words go to the page's
+  own facts. A reader meets a restatement as padding, and a reviewer
+  cuts it.
 
 ## 2. Sentences
 
@@ -289,3 +295,5 @@ reviewer then reads a text that has passed that first reading.
 11. Any quantity, threshold or percentage that holds in one regime and
     fails in another, where a loose claim with verified examples would
     be correct?
+12. Any passage that restates what another page owns or what the
+    system's semantics imply, where a link would do?

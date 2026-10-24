@@ -68,13 +68,17 @@ one fits the width, and as decimal digits otherwise; the rule is in
 
 The **mode** chooses between the two arithmetics, which
 [The two modes](numbers.md#the-two-modes) describes. Exact mode, the
-default, certifies every digit it shows and rounds only what it shows,
-never the value of an exact result. Decimal mode rounds every step to
-the working digits, as a hand calculator does, and holds each rounded
-value as exact, so it writes its answers with `=`. The panel offers the
-two as "exact" and "decimal". Each mode carries settings that exist in
-that mode alone: exact mode the notation with its ratio width, decimal
-mode the working digits with their extended count.
+default, never rounds an exact value: the value is held in full, and
+only its display is cut to the display digits, once, as the whole
+result is shown. An inexact value is computed at rising precision until
+the digits shown are certified
+([Digits you can trust](numbers.md#digits-you-can-trust)). Decimal mode
+rounds every step to the working digits, as a hand calculator does, and
+holds each rounded value as exact, so it writes its answers with `=`.
+The panel offers the two as "exact" and "decimal". Each mode carries
+settings that exist in that mode alone: exact mode the notation with
+its ratio width, decimal mode the working digits with their extended
+count.
 
 ## Working digits and the extended count
 

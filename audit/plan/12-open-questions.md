@@ -1391,7 +1391,7 @@ decision, are listed after the answers.
   lead-ins, the glosses of owned terms, the second sub-heading of the Gamma family and the
   rows the quantities, numbers and units pages show are gone; and the family's exact cases
   now include `beta`'s exact zeros, which lie at non-whole arguments. The page goes from
-  678 lines and 6,356 words to 485 lines and 4225 words, 831 lines before the review. Work
+  678 lines and 6,356 words to 485 lines and 4,224 words, 831 lines before the review. Work
   order 07 is amended.
 
 ### The review's other corrections

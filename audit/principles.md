@@ -134,7 +134,9 @@ read. A concept another page owns gets a link and at most a clause, and
 the page's words go to its own facts; the opening keeps the one sentence
 that states the goal the page serves (the goals rule below). A reviewer
 reads a restatement as padding and cuts it, so a page is trimmed to what
-is new before it is handed over.
+is new before it is handed over. Within a page, the section that owns a
+concept states it, the page's overview states it once, and no other
+section or overview line restates it (the review of 2026-10-25).
 
 **Inexact, not approximate (F-451).** "Inexact" names a value with a
 nonzero radius, everywhere, headings included ("Exact and inexact
@@ -214,7 +216,13 @@ its range, and the devdocs keep "refusal" there only as the code's
 identifier, `refusalOf` (conflict 8 of the owner's list, answered). A
 dependent setting brought within the range another setting sets is
 "clamped", the word the settings page defines where it draws the chain
-of the settings (the review of 2026-10-23).
+of the settings (the review of 2026-10-23). A call refused because the
+working precision it needs would pass the significand limit is a
+significand-limit refusal, and its message, which names the limit, is
+correct: the limit is the promise that no number beyond it is produced
+at any point. No page calls such a refusal one of cost; a page may say
+that the limit covers the internal extended working precision, nothing
+more (the review of the built-ins page, 2026-10-25; plan §12.3).
 
 **Topological order (Q-008).** The pages are written in topological
 order, each after the pages it depends on: the user pages first

@@ -236,8 +236,12 @@ sections in order; the preamble maps onto the first section.
   default digits, so, as settled in review, the page states the
   dependence on the order, the argument and the precision loosely, in
   words, with verified examples on either side, and no quantified
-  threshold, Q-067 as amended, plan §12.3); the truncation bounds stay
-  unverified (F-160); the edges are the generated reference's (F-161).
+  threshold, Q-067 as amended, plan §12.3; and on 2026-10-25 the owner
+  ruled the refusal a significand-limit refusal with its message
+  correct, so "the limit there being one of cost" leaves the page, which
+  says at most that the limit covers the working precision); the
+  truncation bounds stay unverified (F-160); the edges are the generated
+  reference's (F-161).
 - **Error functions.** Bullet 15 with D7 L167-171: `erfc(10)` is
   `≈ 2.0884876e-45` at the first pass, where `1 - erf(10)` reaches the
   same digits only after the retry loop has raised the precision

@@ -205,6 +205,7 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: V3 (L28, L72, L592-620)
 - Docs side: F-159
 - Rewrite impact: none — `devdocs/builtins.md#The Gamma and Beta families` keeps the sentence with #107 inline.
+- Decision (the owner, 2026-10-25; plan §12.3): not a bug. The significand limit caps the working precision at any point of a computation, so the message names the right limit; the docs call the refusal a significand-limit refusal and no longer a cost limit, and `devdocs/builtins.md` drops "where the limit is one of cost" when it is rewritten (work order 15).
 
 ### B-016. `round`'s second-argument errors are worded for a function of integers
 

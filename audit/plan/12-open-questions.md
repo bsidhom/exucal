@@ -1394,6 +1394,56 @@ decision, are listed after the answers.
   678 lines and 6,356 words to 485 lines and 4,224 words, 831 lines before the review. Work
   order 07 is amended.
 
+- **The review of the built-ins page, fourth part (2026-10-25).** Seven threads on the
+  shortened page, all applied. On the parameter types, which the summary named twice (the
+  first rule and the trigonometric line), the rules section a third time and the entry a
+  fourth, the owner: "The trigonometric functions were already called out above as working
+  with angles. This should be reworked to remove duplication. Since the current section
+  seems like to proper owner for 'function parameter types', I'm inclined to move it here
+  and remove that earlier mention." and, on the entry: "it _is_ appropriate to keep it
+  here (where it is necessary and directly part of the discussion) and at one point above
+  in a 'overview' section. It is _not_ appropriate to mention that repeatedly in different
+  overview sections or other subsections which do not own this concept." On the exact-case
+  rule, in the summary and the rules section both: "Wasn't this also mentioned above? Keep
+  the doc succinct and avoid repeating facts like this. It just bloats the doc without
+  benefit." On the sentence that the incomplete functions' refusal message names the
+  significand limit though the limit there is one of cost: "But it _is_ past the
+  significant limit for internal working precision, right? This means that the message is
+  correct and should be retained (and we don't need to qualify it here). If a computation
+  requires 'excess' precision at any point, even to produce a result which would
+  theoretically fall _under_ the limit, that is a proper significand limit refusal. Full
+  stop. I'm fine leaving a note that the significand limit is due to necessary internal
+  extended working precision, but we should leave it at that. I certainly consider the
+  error message correct, since the limit setting is a promise that we will not produce
+  numbers beyond this limit at any point. This is the knob users turn to set hard memory
+  and compute caps." and, on the Beta sub-section's digits: "This bit explains precisely
+  why the error message is correct as it stands, and why the qualification that I objected
+  to earlier should not be there." On the rounding table: "please add a case to the table
+  for `sign(approx(0))`, and perhaps other interesting cases that straddle hard edges." On
+  the division entry: "I want to document the intention to make div and mod logically
+  consistent. Additionally, I want to include first-class builtins for the different modes
+  (Euclidean division and floor division, at least). Those could be called something like
+  `fdiv`, `fmod`, `ediv`, and `emod`, with the bare functions aliased as needed. Create a
+  tracking issue for this. Do not change the docs to cover that right now, but capture the
+  intent in the issue. Make sure to cite the Boute paper in that issue, which we'll also
+  want to reference in the docs eventually." Settled, as rules for every page
+  (principles.md): the section that owns a concept states it, the page's overview states
+  it once, and no other section or overview line restates it; and a call refused because
+  the working precision it needs would pass the significand limit is a significand-limit
+  refusal, its message correct as it stands, never a "refusal of cost": the limit is the
+  promise that no number beyond it is produced at any point, the knob for hard memory and
+  compute caps, and a page may say that the limit covers the internal extended working
+  precision, nothing more (F-442's rule stands; F-159, B-015, work orders 07 and 15 are
+  amended, "a refusal of cost" leaving the page and the record). For the page: the rules
+  section owns the parameter types, the summary names the rule once and the trigonometric
+  entry where it must; the exact-case rule is the rules section's alone; the rounding
+  table gains `sign(approx(0))`, `sign(sqrt(2) - sqrt(2))`, `trunc(sqrt(2) - sqrt(2))`,
+  `round(2.5)` and `round(approx(2.5))`, and the division table `mod(approx(4.5), 2)` and
+  `div(approx(4), 2)`, the division entry saying that `mod` errs where `div` does. The
+  division modes and the consistency of `div` and `mod` are issue #237, filed 2026-10-25
+  with the Boute reference, future work for `devdocs/future.md` (work order 18); the page
+  documents today's `div` and `mod` only. The page is 488 lines and 4282 words.
+
 ### The review's other corrections
 
 Applied on 2026-10-13 with the answers above; none needed a decision.

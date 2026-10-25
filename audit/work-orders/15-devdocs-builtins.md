@@ -296,11 +296,13 @@ tense.
   being the exact case (F-293). The incomplete gamma functions (D7
   L202-209, V3 L592-620): the regularized forms carry `ln Γ(s)` in the
   exponent rather than dividing by `gamma(s)` (D7 L203; F-294); the
-  regime named with the `cost.md` link (F-416); the timing as one
-  qualitative sentence, the convergent counts staying (F-295). `erf` and
-  `erfc` (D7 L211-212, V3 L622-634): the timing deleted (F-296), the
-  tiny-argument sentence only where F-297's check puts it. The
-  incomplete beta function (D7 L214-215, V3 L636-665): the block
+  regime named with the `cost.md` link (F-416), the refusal stated as
+  past the significand limit with no "cost" qualification, the message
+  being correct (the owner, 2026-10-25, plan §12.3; B-015); the timing
+  as one qualitative sentence, the convergent counts staying (F-295).
+  `erf` and `erfc` (D7 L211-212, V3 L622-634): the timing deleted
+  (F-296), the tiny-argument sentence only where F-297's check puts it.
+  The incomplete beta function (D7 L214-215, V3 L636-665): the block
   re-flowed (F-289), "`x = 1` is `1` regularized and `B(a, b)`
   otherwise" (F-298), the timing as the two rewrites combined (F-299),
   #150 as a `cost.md` link, the ten-thousand cap on `a + b - 1` stated

@@ -1,10 +1,10 @@
 # Built-in functions
 
-Exucal's **built-in functions** are the functions it computes in code,
-from `pi()` and `exp` to the Gamma family. Every other function the
-calculator knows is a **defined function**, written in the definitions
-file ([The definition language](definitions.md)), and the two are called
-the same way ([Calls and arity](expressions.md#calls-and-arity)). Exucal
+Exucal's **built-in functions** are the functions it computes in code.
+Every other function the calculator knows is a **defined function**,
+written in the definitions file
+([The definition language](definitions.md)), and the two are called the
+same way ([Calls and arity](expressions.md#calls-and-arity)). Exucal
 provides, under the same guarantee as the arithmetic
 ([Numbers](numbers.md)), the functions a calculator is used for: all the
 elementary functions, and the special functions that matter most in
@@ -12,42 +12,35 @@ combinatorics, probability and physics.
 
 The built-ins follow these rules:
 
-- **Three rules hold for every built-in**
+- **Every built-in takes plain numbers, apart from the trigonometric functions and six that take any quantity; its entry names its exact cases, and every other result is inexact.**
+  A few calls are refused for their cost rather than for a value's size
   ([Rules every built-in follows](#rules-every-built-in-follows)).
-  - Every built-in takes plain numbers, apart from the trigonometric
-    functions and six that take any quantity.
-  - Each entry names its function's exact cases; every other result is
-    inexact.
-  - A few calls are refused for their cost rather than for a value's
-    size.
 - **The elementary functions are exact at a few arguments and inexact everywhere else.**
-  - `pi()` is inexact at every precision ([Constants](#constants)).
-  - `exp` is exact at zero, and a logarithm is exact at `1` and where
-    its argument and its base are whole-number powers of each other
+  - `pi()` has no exact case ([Constants](#constants)).
+  - `exp` is exact at zero, and a logarithm at `1` and where its argument
+    or its base is a whole-number power of the other
     ([Exponential and logarithms](#exponential-and-logarithms)).
-  - `sqrt`, `cbrt` and `pow` share the exact cases of `^`
-    ([Roots and powers](#roots-and-powers)).
+  - `sqrt`, `cbrt` and `pow` are exact at perfect powers and whole-number
+    exponents ([Roots and powers](#roots-and-powers)).
   - `sin`, `cos` and `tan` take an angle and are exact at zero
     ([Trigonometric](#trigonometric)), and `asin`, `acos`, `atan` and
     `atan2` return an angle
     ([Inverse trigonometric](#inverse-trigonometric)).
   - The hyperbolic functions take plain numbers and are exact at zero,
-    and `acosh` is exact at one ([Hyperbolic](#hyperbolic)).
+    `acosh` at one instead ([Hyperbolic](#hyperbolic)).
 - **`approx` is the one built-in whose purpose is to make a value inexact**
   ([`approx`](#approx)).
-- **`abs`, `sign`, `floor`, `ceil`, `trunc`, `round`, `div` and `mod` are exact on exact arguments, and all but `abs` and `mod` are exact on an inexact argument whose error radius lies on one side of a boundary**
+- **`abs`, `sign`, `floor`, `ceil`, `trunc`, `round`, `div` and `mod` are exact on exact arguments, and all but `abs` and `mod` are exact on an inexact argument whose error radius lies on one side of an edge**
   ([Magnitude, sign and rounding](#magnitude-sign-and-rounding),
   [Division](#division)).
 - **`gcd`, `lcm`, `factorial`, `binomial` and `doublefactorial` take only whole numbers known exactly, and every result is exact**
   ([Integer functions](#integer-functions)).
-- **The Gamma family is exact only at whole numbers, where `gamma` and `beta` are factorials that fit the significand limit, and inexact everywhere else.**
-  The first call at a new precision builds a table of Bernoulli ratios
-  once, which the family's functions are computed from
-  ([Gamma family](#gamma-family)). The incomplete gamma functions
-  ([Incomplete gamma](#incomplete-gamma)), the error functions
-  ([Error functions](#error-functions)) and the incomplete beta function
-  ([Incomplete beta](#incomplete-beta)) are built on the family.
-- **A function the definitions file defines, such as `tempC` or `decibel`, is a defined function, not a built-in**
+- **The Gamma family is exact at whole numbers, where `gamma` and `beta` are factorials that fit the significand limit, at `lgamma(1)` and `lgamma(2)`, and at `beta`'s exact zeros, and inexact everywhere else**, and is computed from a table of Bernoulli ratios built on first use
+  ([Gamma family](#gamma-family)). The incomplete gamma and beta
+  functions and the error functions are built on the family and can be
+  refused for their cost ([Incomplete gamma](#incomplete-gamma),
+  [Error functions](#error-functions), [Incomplete beta](#incomplete-beta)).
+- **The functions the definitions file defines are not built-ins**
   ([Functions defined in the file](#functions-defined-in-the-file)).
 - **`zeta`, `lambertw`, the Bessel functions and some others are not provided**,
   and for some of them an expression over the functions provided stands in
@@ -64,10 +57,7 @@ functions that take quantities of any dimension:
 - `div`, `mod` and `atan2` take two quantities that conform
   ([Conformance](quantities.md#conformance)).
 
-Each entry's signature gives the count of arguments its function takes
-([Calls and arity](expressions.md#calls-and-arity)). Each entry names
-its function's exact cases, the arguments at which the function
-recognizes its value as a fraction and returns it exactly
+Each entry gives its function's signature and names its exact cases
 ([Operations that stay exact; exact cases of functions](numbers.md#operations-that-stay-exact-exact-cases-of-functions));
 every other result is inexact.
 
@@ -83,393 +73,274 @@ the limit there is one of cost rather than of size.
 
 ## Constants
 
-`pi()` is the circle constant, written as a call of no arguments so that
-it is computed to the precision in force, in an expression and in a
-definition's body alike. It has no exact case: π is irrational, so
-`pi()` is inexact at every precision. Euler's number has no call of its
-own and is written `exp(1)`, since `e` is the elementary charge
+`pi()` is the circle constant and has no exact case. Euler's number is
+written `exp(1)`
 ([Names that are absent or mean something else](units.md#names-that-are-absent-or-mean-something-else)).
 
-| You type | Exucal shows  | Note                       |
-| -------- | ------------- | -------------------------- |
-| `pi()`   | `≈ 3.1415927` | inexact at every precision |
-| `exp(1)` | `≈ 2.7182818` | Euler's number             |
+| You type | Exucal shows  |
+| -------- | ------------- |
+| `pi()`   | `≈ 3.1415927` |
+| `exp(1)` | `≈ 2.7182818` |
 
 ## Exponential and logarithms
 
 `exp(x)` is the exponential of a plain number. `ln(x)`, `log10(x)` and
 `log2(x)` are the natural, decimal and binary logarithms of a positive
-plain number. `log(b, x)` is the logarithm of `x` to the base `b`,
-written base first so that it reads as the logarithm to base `b` of `x`;
-the base is a positive plain number other than one. The exact cases are
-these. `exp(0)` is `= 1`. `ln(1)` is `= 0`, and so is every logarithm of
-`1`. `log10` and `log2` of a whole-number power of their base, with a
-positive or a negative exponent, give that exponent: `log10(1000)` is
-`= 3` and `log2(1/8)` is `= -3`. `log(b, x)` is exact where `x` is a
-whole-number power of `b` or `b` is a whole-number power of `x`:
-`log(2, 8)` is `= 3` and `log(8, 2)` is the exact `1/3`. The exact cases
-stop there. `exp(1)` and `ln(2)` are inexact, and so is `log(4, 8)`,
-whose exponent `3/2` is neither a whole number nor the reciprocal of
-one: it is computed inexactly, `≈ 1.5`. No argument is too large or too
-small for a logarithm: `ln(1e-300)` is `≈ -690.77553`, and
-`log10(1e999999999)` is the whole number `999999999`. `exp` reaches the
-exponent bound: `exp(1e30)` is too large to compute, and `exp(-1e30)` is
-too small ([Values too big to hold](numbers.md#values-too-big-to-hold)).
+plain number, and `log(b, x)` is the logarithm of `x` to the base `b`, a
+positive plain number other than one. `exp` is exact at zero. A
+logarithm is exact at `1`; `log10` and `log2` are exact where the
+argument is a whole-number power of the base, and `log(b, x)` where `x`
+is a whole-number power of `b` or `b` is a whole-number power of `x`.
+Every other value is inexact. No argument is too large or too small for
+a logarithm, while `exp` reaches the exponent bound
+([Values too big to hold](numbers.md#values-too-big-to-hold)).
 
-| You type             | Exucal shows                           | Note                                            |
-| -------------------- | -------------------------------------- | ----------------------------------------------- |
-| `exp(0)`             | `= 1`                                  | an exact case                                   |
-| `ln(1)`              | `= 0`                                  | an exact case                                   |
-| `log10(1000)`        | `= 3`                                  | a power of the base                             |
-| `log2(1/8)`          | `= -3`                                 | a negative exponent                             |
-| `log(2, 8)`          | `= 3`                                  |                                                 |
-| `log(8, 2)`          | `≈ 0.33333333`                         | exact, `1/3`, with more digits than shown       |
-| `log(4, 8)`          | `≈ 1.5`                                | inexact: `3/2` is not an exact case             |
-| `ln(0)`              | an error: the argument is not positive |                                                 |
-| `log(-2, 8)`         | an error: the base is not positive     |                                                 |
-| `log(1, 8)`          | an error: no logarithm has base one    |                                                 |
-| `ln(1e-300)`         | `≈ -690.77553`                         | any exponent                                    |
-| `log10(1e999999999)` | `≈ 1e+9`                               | exact, `999999999`, with more digits than shown |
-| `exp(1e30)`          | refused: too large to compute          | the exponent bound                              |
-| `exp(-1e30)`         | refused: too small to compute          | the exponent bound                              |
+| You type             | Exucal shows                        | Note                                                                          |
+| -------------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
+| `log10(1000)`        | `= 3`                               | a power of the base                                                           |
+| `log2(1/8)`          | `= -3`                              | a negative exponent                                                           |
+| `log(8, 2)`          | `≈ 0.33333333`                      | exact, `1/3`, with more digits than shown                                     |
+| `log(4, 8)`          | `≈ 1.5`                             | inexact: `3/2` is neither a whole number nor the reciprocal of a whole number |
+| `log(1, 8)`          | an error: no logarithm has base one |                                                                               |
+| `ln(1e-300)`         | `≈ -690.77553`                      | no argument is too small                                                      |
+| `log10(1e999999999)` | `≈ 1e+9`                            | exact, `999999999`, with more digits than shown                               |
+| `exp(1e30)`          | refused: too large to compute       | the exponent bound                                                            |
+| `exp(-1e30)`         | refused: too small to compute       | the exponent bound                                                            |
 
 ## Roots and powers
 
 `sqrt(x)` and `cbrt(x)` are the square and cube roots of a plain number,
-and `pow(x, y)` raises a plain number to a plain number. The three share
-the exact cases of `^`
-([Operations that stay exact; exact cases of functions](numbers.md#operations-that-stay-exact-exact-cases-of-functions)).
-A root is exact where the argument is a perfect square or cube:
-`sqrt(9/4)` is `= 1.5` and `cbrt(-8)` is `= -2`. `pow` is exact for a
-whole-number exponent and for a fraction whose root is exact:
-`pow(2, 3)` is `= 8` and `pow(4, 1/2)` is `= 2`. Every other value is
-inexact, `sqrt(2)` and `pow(2, sqrt(2))` among them. An even root of a
-negative value is an error, so `sqrt(-1)` is an error, while a cube root
-of a negative value is a value.
+and `pow(x, y)` raises a plain number to a plain number. A root is exact
+where the argument is a perfect square or cube, and `pow` for a
+whole-number exponent and for a fraction whose root is exact; every
+other value is inexact. An even root of a negative value is an error; a
+cube root of a negative value is a value.
 
-`pow` differs from `^` in what it takes
-([Operators](expressions.md#operators)). `pow` raises a plain number to
-an exponent that may be anything computed: `pow(2 m, 2)` is an error
-whose message says to write `(2 m)^2`, and `pow(2, sqrt(2))` is a value
-where `2^sqrt(2)` is an error as it is typed. `pow` computes the
-exponential of the exponent times the logarithm of the base, which no
-exponent can overfill: `pow(2, 1e-30000)` is `≈ 1`, where `2^1e-30000`
-is refused as past the significand limit.
+`pow` differs from `^` ([Operators](expressions.md#operators)) in what
+it takes: a plain number, where `^` takes a quantity, and a computed
+exponent, where a `^` exponent is typed. Outside the exact cases `pow`
+goes through the logarithm, so `pow(2, 1e-30000)` is `≈ 1` where
+`2^1e-30000` is refused as past the significand limit.
 
-| You type           | Exucal shows                               | Note                                |
-| ------------------ | ------------------------------------------ | ----------------------------------- |
-| `sqrt(9/4)`        | `= 1.5`                                    | an exact case                       |
-| `cbrt(-8)`         | `= -2`                                     | a cube root of a negative value     |
-| `pow(2, 3)`        | `= 8`                                      | a whole-number exponent             |
-| `pow(4, 1/2)`      | `= 2`                                      | the root is exact                   |
-| `pow(2, sqrt(2))`  | `≈ 2.6651441`                              | a computed exponent                 |
-| `sqrt(-1)`         | an error: an even root of a negative value |                                     |
-| `pow(2 m, 2)`      | an error: the base must be a plain number  | the message says to write `(2 m)^2` |
-| `pow(2, 1e-30000)` | `≈ 1`                                      | through the logarithm               |
+| You type          | Exucal shows                               | Note                                |
+| ----------------- | ------------------------------------------ | ----------------------------------- |
+| `sqrt(9/4)`       | `= 1.5`                                    | an exact case                       |
+| `cbrt(-8)`        | `= -2`                                     | a cube root of a negative value     |
+| `pow(4, 1/2)`     | `= 2`                                      | the root is exact                   |
+| `pow(2, sqrt(2))` | `≈ 2.6651441`                              | a computed exponent                 |
+| `sqrt(-1)`        | an error: an even root of a negative value |                                     |
+| `pow(2 m, 2)`     | an error: the base must be a plain number  | the message says to write `(2 m)^2` |
 
 ## Trigonometric
 
 `sin(x)`, `cos(x)` and `tan(x)` take an angle
-([Primitives, dimensions and kinds](quantities.md#primitives-dimensions-and-kinds)),
-written with its unit: `sin(30 deg)`, `sin(pi() radian / 4)` and
-`tan(1 radian)`. A plain number is not an angle, so `sin(1)` is an error
-that says to write `sin(1 radian)`. The exact cases are at zero alone:
-`sin(0 radian)` and `tan(0 radian)` are `= 0`, and `cos(0 radian)` is
-`= 1`. Every other value is inexact. `tan` has a pole at every odd
-multiple of a right angle, and an inexact argument there cannot be told
-from the pole, so `tan(90 deg)` is an error at the ceiling. A huge angle
-is refused as past the significand limit, since reducing it needs π to
-as many digits as the angle has before its decimal point:
-`sin(1e999999999 radian)` would need a billion of them.
+([Primitives, dimensions and kinds](quantities.md#primitives-dimensions-and-kinds)).
+The exact cases are at zero alone: `sin(0 radian)` and `tan(0 radian)`
+are `= 0`, and `cos(0 radian)` is `= 1`. Every other value is inexact.
+`tan` has a pole at every odd multiple of a right angle. A huge angle is
+refused as past the significand limit.
 
-| You type                  | Exucal shows                                               | Note                                      |
-| ------------------------- | ---------------------------------------------------------- | ----------------------------------------- |
-| `sin(30 deg)`             | `≈ 0.5`                                                    |                                           |
-| `sin(0 radian)`           | `= 0`                                                      | an exact case                             |
-| `cos(0 radian)`           | `= 1`                                                      | an exact case                             |
-| `sin(1)`                  | an error, a kind mismatch, saying to write `sin(1 radian)` |                                           |
-| `tan(90 deg)`             | an error: the argument cannot be told from a pole          | at the ceiling                            |
-| `sin(1e999999999 radian)` | refused: past the significand limit                        | the reduction needs π to a billion digits |
+| You type                  | Exucal shows                                      | Note                                           |
+| ------------------------- | ------------------------------------------------- | ---------------------------------------------- |
+| `sin(30 deg)`             | `≈ 0.5`                                           |                                                |
+| `tan(90 deg)`             | an error: the argument cannot be told from a pole | at the ceiling                                 |
+| `sin(1e999999999 radian)` | refused: past the significand limit               | reducing the angle needs π to a billion digits |
 
 ## Inverse trigonometric
 
-`asin(x)`, `acos(x)`, `atan(x)` and `atan2(y, x)` return an angle, of
-the radian kind, whatever unit it is shown in
+`asin(x)`, `acos(x)`, `atan(x)` and `atan2(y, x)` return an angle
 ([Primitives, dimensions and kinds](quantities.md#primitives-dimensions-and-kinds)).
 `asin` and `acos` take a plain number within `[-1, 1]`, and `atan` takes
 any plain number. `atan2` takes a rise `y` and a run `x`, two quantities
-that conform. It gives the angle from the run's direction to the line
-from the origin to the point they mark, in that point's quadrant:
-`atan2(3 m, 4 m)` is the angle whose tangent is three quarters. The
-exact cases are the zero results: `asin(0)`, `atan(0)`, `acos(1)` and
-`atan2(0, 1)` are `= 0 radian`. Every other value is inexact, a right
-angle among them. An argument outside `[-1, 1]` is an error: `asin(2)`.
+that conform, and gives the angle of the point they mark, in its
+quadrant. The exact cases are the zero results: `asin(0)`, `atan(0)`,
+`acos(1)` and `atan2(0, 1)` are `= 0 radian`. Every other value is
+inexact, a right angle among them.
 
-| You type          | Into  | Exucal shows                                  | Note                      |
-| ----------------- | ----- | --------------------------------------------- | ------------------------- |
-| `asin(0.5)`       | `deg` | `≈ 30 deg`                                    |                           |
-| `atan2(3 m, 4 m)` | `deg` | `≈ 36.869898 deg`                             | an angle from two lengths |
-| `acos(1)`         |       | `= 0 radian`                                  | an exact case             |
-| `asin(1)`         | `deg` | `≈ 90 deg`                                    | inexact: a right angle    |
-| `asin(2)`         |       | an error: the argument lies outside `[-1, 1]` |                           |
-| `atan2(3 m, 4 s)` |       | an error, a dimension mismatch                |                           |
+| You type          | Into  | Exucal shows      | Note                      |
+| ----------------- | ----- | ----------------- | ------------------------- |
+| `atan2(3 m, 4 m)` | `deg` | `≈ 36.869898 deg` | an angle from two lengths |
+| `asin(1)`         | `deg` | `≈ 90 deg`        | inexact: a right angle    |
 
 ## Hyperbolic
 
 `sinh(x)`, `cosh(x)` and `tanh(x)` and their inverses `asinh(x)`,
-`acosh(x)` and `atanh(x)` take plain numbers and give plain numbers.
-Their arguments are not angles, so `sinh(1 radian)` is an error. The
-exact cases are at zero and one: `sinh(0)`, `tanh(0)`, `asinh(0)` and
-`atanh(0)` are `= 0`, `cosh(0)` is `= 1`, and `acosh(1)` is `= 0`. Every
-other value is inexact. `acosh` takes an argument at or above `1`, and
-`atanh` takes an argument strictly between `-1` and `1`: `acosh(0.5)`
-and `atanh(1)` are errors. `sinh` and `cosh` grow as `exp` does and
-reach the exponent bound as it does
-([Values too big to hold](numbers.md#values-too-big-to-hold)):
-`sinh(1e30)` is too large to compute.
+`acosh(x)` and `atanh(x)` take plain numbers and give plain numbers. The
+exact cases are at zero, and `acosh`'s at one; every other value is
+inexact. `acosh` takes an argument at or above `1`, and `atanh` one
+strictly between `-1` and `1`. `sinh` and `cosh` reach the exponent
+bound as `exp` does
+([Values too big to hold](numbers.md#values-too-big-to-hold)).
 
-| You type         | Exucal shows                                                | Note               |
-| ---------------- | ----------------------------------------------------------- | ------------------ |
-| `sinh(0)`        | `= 0`                                                       | an exact case      |
-| `cosh(0)`        | `= 1`                                                       | an exact case      |
-| `acosh(1)`       | `= 0`                                                       | an exact case      |
-| `sinh(1 radian)` | an error: the argument must be a plain number               | not an angle       |
-| `acosh(0.5)`     | an error: the argument is less than `1`                     |                    |
-| `atanh(1)`       | an error: the argument is not strictly between `-1` and `1` |                    |
-| `sinh(1e30)`     | refused: too large to compute                               | the exponent bound |
+| You type     | Exucal shows                            | Note               |
+| ------------ | --------------------------------------- | ------------------ |
+| `acosh(1)`   | `= 0`                                   | an exact case      |
+| `acosh(0.5)` | an error: the argument is less than `1` |                    |
+| `sinh(1e30)` | refused: too large to compute           | the exponent bound |
 
 ## `approx`
 
 `approx(x)` takes any quantity, angles included, and returns it with its
 dimension and kind kept and its value made inexact
-([approx](numbers.md#approx) says what it does and what it cannot do):
-`approx(30 deg)` into `deg` is `≈ 30 deg`.
+([approx](numbers.md#approx)).
 
-| You type         | Into  | Exucal shows | Note                         |
-| ---------------- | ----- | ------------ | ---------------------------- |
-| `approx(30 deg)` | `deg` | `≈ 30 deg`   | an angle, its dimension kept |
+| You type         | Into  | Exucal shows | Note     |
+| ---------------- | ----- | ------------ | -------- |
+| `approx(30 deg)` | `deg` | `≈ 30 deg`   | an angle |
 
 ## Magnitude, sign and rounding
 
-`abs(x)` is the magnitude of a quantity of any dimension and keeps the
-dimension. `sign(x)` takes any quantity and gives `-1`, `0` or `1`, a
-plain number. `floor(x)`, `ceil(x)`, `trunc(x)` and `round(x)` take a
-plain number
+`abs(x)` is the absolute value of a quantity of any dimension and keeps
+its dimension and kind. `sign(x)` takes any quantity and gives `-1`, `0`
+or `1`, a plain number. `floor(x)`, `ceil(x)`, `trunc(x)` and `round(x)`
+take a plain number
 ([A quantity carries no unit](quantities.md#a-quantity-carries-no-unit)
-says why, and how to floor a length). `round(x)` rounds to a whole
-number, and `round(x, places)` rounds to that many decimal places, a
-negative count rounding to the left of the point: `round(3.14159, 2)` is
-`= 3.14` and `round(1234, -2)` is `= 1200`. Both round in the rounding
-mode in force
+says how to floor a length). `round(x)` rounds to a whole number, and
+`round(x, places)` rounds to that many decimal places, a negative count
+rounding to the left of the point. Both round in the rounding mode in
+force
 ([Rounding modes and where they act](numbers.md#rounding-modes-and-where-they-act)).
 
 All six are exact on an exact argument. On an inexact argument `abs`
 keeps the error radius, so its result is inexact. The result of the
-other five depends only on which side of a boundary the argument lies:
-zero for `sign`, and for the rounding functions a point between two
-values the function could round to. So the result is exact once the
-whole error radius lies on one side of the boundary: `round(sqrt(2), 3)`
-is `= 1.414`. While the radius still reaches across the boundary at the
-ceiling, the result is an error: `floor(sqrt(2)^2)` is one such, since
-its argument reaches across `2` at every precision.
+other five depends only on which side of an edge the argument lies on,
+so it is exact once the whole error radius lies on one side of the edge;
 [Values at an edge](numbers.md#values-at-an-edge) says which of them
 still has an answer for a value that cannot be told from zero.
 
-| You type            | Exucal shows                                   | Note                                     |
-| ------------------- | ---------------------------------------------- | ---------------------------------------- |
-| `abs(-3 m)`         | `= 3 m`                                        | the dimension kept                       |
-| `sign(-3 m)`        | `= -1`                                         | a plain number                           |
-| `round(3.14159, 2)` | `= 3.14`                                       |                                          |
-| `round(1234, -2)`   | `= 1200`                                       | to the left of the point                 |
-| `round(sqrt(2), 3)` | `= 1.414`                                      | exact: the side of the boundary is known |
-| `abs(sqrt(2) - 2)`  | `≈ 0.58578644`                                 | inexact: the radius kept                 |
-| `floor(sqrt(2)^2)`  | an error: the argument cannot be told from `2` | at the ceiling                           |
+| You type            | Exucal shows                                   | Note                                               |
+| ------------------- | ---------------------------------------------- | -------------------------------------------------- |
+| `round(1234, -2)`   | `= 1200`                                       | to the left of the point                           |
+| `round(sqrt(2), 3)` | `= 1.414`                                      | exact: the side of the edge is known               |
+| `abs(sqrt(2) - 2)`  | `≈ 0.58578644`                                 | inexact: the radius kept                           |
+| `floor(sqrt(2)^2)`  | an error: the argument cannot be told from `2` | the argument reaches across `2` at every precision |
 
 ## Division
 
-`div(a, b)` and `mod(a, b)` are floored division and its remainder, on
-two quantities of one dimension. `div(a, b)` is the floor of `a / b`,
-and `mod(a, b)` is the rest, `a - b div(a, b)`, so the remainder is zero
-or has the divisor's sign: `div(-7, 2)` is `= -4` and `mod(-7, 2)` is
-`= 1`. `div` gives a count, a plain number, and `mod` keeps the
-dimension: `div(7 ft, 2 ft)` is `= 3`, and `mod(-30 deg, 360 deg)` is
-`≈ 330 deg`. Both are exact on exact arguments. On an inexact argument
-`div` answers as the rounding functions do, by the side of a whole
-number the quotient lies on
+`div(a, b)` is the floor of `a / b`, and `mod(a, b)` is
+`a - b div(a, b)`, so the remainder is zero or has the divisor's sign.
+`div` gives a count, a plain number, and `mod` keeps the dimension. Both
+are exact on exact arguments. On an inexact argument `div` answers as
+the rounding functions do
 ([Magnitude, sign and rounding](#magnitude-sign-and-rounding)), and
-`mod` is inexact. A divisor of zero is an error. A remainder that would
-need a significand past the significand limit is refused, with `approx`
-and decimal mode offered: `mod(-1, 1e20000)`, whose remainder
-`1e20000 - 1` has twenty thousand digits, is refused, while
-`mod(approx(-1), 1e20000)` is `≈ 1e+20000`.
+`mod` is inexact. A remainder that would need a significand past the
+significand limit is refused.
 
-| You type                   | Into  | Exucal shows                                                                           | Note                                     |
-| -------------------------- | ----- | -------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `div(-7, 2)`               |       | `= -4`                                                                                 | floored                                  |
-| `mod(-7, 2)`               |       | `= 1`                                                                                  | the divisor's sign                       |
-| `div(7 ft, 2 ft)`          |       | `= 3`                                                                                  | a count                                  |
-| `mod(7 ft, 2 ft)`          | `ft`  | `= 1 ft`                                                                               | the dimension kept                       |
-| `mod(-30 deg, 360 deg)`    | `deg` | `≈ 330 deg`                                                                            | an angle                                 |
-| `div(7, 0)`                |       | an error: division by zero                                                             |                                          |
-| `mod(sqrt(2), 1)`          |       | `≈ 0.41421356`                                                                         | inexact                                  |
-| `mod(-1, 1e20000)`         |       | refused: past the significand limit; the message suggests `approx(-1)` or decimal mode | the remainder has twenty thousand digits |
-| `mod(approx(-1), 1e20000)` |       | `≈ 1e+20000`                                                                           | the `1` absorbed into the error radius   |
+| You type                   | Exucal shows                                                                           | Note                                     |
+| -------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `div(-7, 2)`               | `= -4`                                                                                 | floored                                  |
+| `mod(-7, 2)`               | `= 1`                                                                                  | the divisor's sign                       |
+| `mod(-1, 1e20000)`         | refused: past the significand limit; the message suggests `approx(-1)` or decimal mode | the remainder has twenty thousand digits |
+| `mod(approx(-1), 1e20000)` | `≈ 1e+20000`                                                                           | the `1` absorbed into the error radius   |
 
 ## Integer functions
 
 `gcd(a, b)`, `lcm(a, b)`, `factorial(n)`, `binomial(n, k)` and
-`doublefactorial(n)` take whole numbers known exactly, and every result
-is exact. `gcd` and `lcm` are never negative. An inexact argument is an
-error, since an inexact value is not known to be any whole number:
-`factorial(approx(5))` is an error in exact mode, the default, where
-`approx(5)` is inexact. A value that is not a whole number is an error
-too, and so is one outside the domain the message names:
-`factorial(5.5)` and `factorial(-1)` are errors. `factorial`, `binomial`
-and `doublefactorial` predict the size of their result and are refused
-past the significand limit before anything is computed:
-`factorial(5000)` is a value of 16,326 digits, and `factorial(20000)`,
-whose value has 77,338 digits, is refused. `gamma(20001)` gives that
-value to the digits asked ([Gamma family](#gamma-family)).
+`doublefactorial(n)` take whole numbers known exactly, `factorial` and
+`binomial` from zero up and `doublefactorial` from `-1` up, and every
+result is exact. `gcd` and `lcm` are never negative. `factorial`,
+`binomial` and `doublefactorial` are refused past the significand limit;
+`gamma(20001)` gives the value `factorial(20000)` cannot hold
+([Gamma family](#gamma-family)).
 
-| You type               | Exucal shows                                 | Note                            |
-| ---------------------- | -------------------------------------------- | ------------------------------- |
-| `gcd(12, 18)`          | `= 6`                                        |                                 |
-| `gcd(-12, 18)`         | `= 6`                                        | never negative                  |
-| `gcd(5, 0)`            | `= 5`                                        |                                 |
-| `lcm(4, 6)`            | `= 12`                                       |                                 |
-| `factorial(5)`         | `= 120`                                      |                                 |
-| `binomial(5, 2)`       | `= 10`                                       |                                 |
-| `doublefactorial(7)`   | `= 105`                                      |                                 |
-| `factorial(approx(5))` | an error: the argument is not known exactly  | exact mode                      |
-| `factorial(5.5)`       | an error: the argument is not a whole number |                                 |
-| `factorial(-1)`        | an error: the argument is negative           |                                 |
-| `factorial(5000)`      | `≈ 4.2285779e+16325`                         | exact, a value of 16,326 digits |
-| `factorial(20000)`     | refused: past the significand limit          | before anything is computed     |
+| You type               | Exucal shows                                 | Note                                 |
+| ---------------------- | -------------------------------------------- | ------------------------------------ |
+| `gcd(-12, 18)`         | `= 6`                                        | never negative                       |
+| `gcd(5, 0)`            | `= 5`                                        |                                      |
+| `binomial(5, 2)`       | `= 10`                                       |                                      |
+| `doublefactorial(7)`   | `= 105`                                      |                                      |
+| `factorial(approx(5))` | an error: the argument is not known exactly  | `approx(5)` is inexact in exact mode |
+| `factorial(5.5)`       | an error: the argument is not a whole number |                                      |
+| `factorial(5000)`      | `≈ 4.2285779e+16325`                         | exact, a value of 16,326 digits      |
+| `factorial(20000)`     | refused: past the significand limit          |                                      |
 
 ## Gamma family
 
 The family is four functions of plain numbers.
 
-- `gamma(x)` is the Gamma function, which extends the factorial.
-- `lgamma(x)` is the logarithm of its magnitude.
+- `gamma(x)` is the Gamma function.
+- `lgamma(x)` is the logarithm of its absolute value.
 - `digamma(x)` is its logarithmic derivative.
 - `beta(a, b)` is the Beta function, `gamma(a) gamma(b) / gamma(a + b)`.
 
-The family is exact only at whole numbers: `gamma` and `beta` where the
-factorials they reduce to fit the significand limit, and `lgamma` at `1`
-and `2`. `digamma` has no exact case. Every other value is inexact.
+The family's exact cases are at whole numbers, `gamma` and `beta` where
+the factorials they reduce to fit the significand limit and `lgamma` at
+`1` and `2`, and `beta` is exactly `0` where the sum of its arguments is
+a pole and neither argument is. `digamma` has no exact case. Every other
+value is inexact.
 
 ### The Gamma function and its logarithm
 
 `gamma(x + 1)` is `factorial(x)` for a whole number `x` and extends the
-factorial to every other value: `gamma(5)` is `= 24`, `gamma(0.5)^2` is
-`≈ 3.1415927`, and `gamma(-1.5)` is `≈ 2.3632718`. So `gamma` gives the
-factorial of a value that is inexact or not a whole number, and of a
-whole number past the significand limit: `gamma(20001)` is
-`≈ 1.8192063e+77337`, the value `factorial(20000)` cannot hold. The
-poles are zero and the negative whole numbers, where `gamma` and
-`lgamma` are errors. `lgamma` gives the logarithm of a Gamma value the
-exponent bound refuses: `lgamma(1e19)` is a value, while `gamma(1e19)`
-is refused as too large to compute.
-
-### The logarithmic derivative
-
-`digamma` is the derivative of `lgamma`, with the same poles:
-`digamma(1)` is `≈ -0.57721566`, minus the Euler–Mascheroni constant. An
-inexact argument that cannot be told from a pole is an error at the
-ceiling: `digamma(approx(-2))`.
+factorial to every other value. For a whole number whose factorial is
+past the significand limit it gives the value inexactly. The poles are
+zero and the negative whole numbers, where `gamma`, `lgamma` and
+`digamma` are errors. `lgamma` gives the logarithm of a Gamma value the
+exponent bound refuses.
 
 ### The Beta function
 
-`beta(a, b)` is `gamma(a) gamma(b) / gamma(a + b)`, and it is exact for
-positive whole numbers: `beta(2, 3)` is the exact `1/12`, and
-`beta(0.5, 0.5)` is `≈ 3.1415927`. A whole number at or below zero in
-either argument is a pole, an error. When the sum `a + b` is such a
-number and neither argument is, the value is exactly `0`, since the pole
-is in the denominator: `beta(-0.5, -0.5)` is `= 0`. Outside its exact
-cases, the magnitude of `beta` is the exponential of
-`lgamma(a) + lgamma(b) - lgamma(a + b)`, and its sign is decided from
-the arguments. The three logarithms are taken to the working digits plus
-the digits of the largest argument's whole part, so that their
-cancellation leaves the working digits. So `beta` has a value where
-`gamma` of an argument is refused as too large, as long as its own value
-fits the exponent bound and the digits the logarithms need fit the
-significand limit. `beta(1e17, 1.5)` is `≈ 2.8024956e-26`, while
-`gamma(1e17)` is refused as too large to compute. `beta(1e19, 1e19)` is
-refused as too small to compute, and `beta(1e20000, 2)` as past the
-significand limit. For whole numbers `n` and `k` with `k` from `0` to
-`n`, `1 / ((n + 1) beta(n - k + 1, k + 1))` is `binomial(n, k)`, and the
-same expression gives a binomial of values that are inexact or not whole
-numbers: `1 / (5.5 beta(4.5, 2))` is `≈ 4.5`, the binomial of `4.5` and
-`1`.
+A whole number at or below zero in either argument is a pole, an error.
+Outside its exact cases, the magnitude of `beta` is the exponential of
+`lgamma(a) + lgamma(b) - lgamma(a + b)`, the three logarithms taken to
+the precision of the pass plus the digits of the largest argument's
+whole part, so that their cancellation leaves the precision of the pass.
+So `beta` has a value where `gamma` of an argument is refused as too
+large, as long as its own value fits the exponent bound and the digits
+the logarithms need fit the significand limit. For whole numbers `n` and
+`k` with `k` from `0` to `n`, `1 / ((n + 1) beta(n - k + 1, k + 1))` is
+`binomial(n, k)`, and the same expression gives a binomial of values
+that are inexact or not whole numbers.
 
 ### What the family costs
 
-The family's functions are computed from a table of the ratios of
-consecutive Bernoulli numbers: `lgamma` and `digamma` are computed from
-those ratios, and the magnitude of `gamma` is the exponential of
-`lgamma`, with its sign decided from the argument. The table grows with
-the precision. The calculator builds it on first use, for the precision
-in force, and keeps it until a call needs a larger one. Outside their
-exact cases, `gamma`, `lgamma` and `digamma` pay for the table the first
-time. Huge and tiny arguments of `lgamma` and `digamma` are the
-exception: they take a shorter route and pay nothing. Every other call
-pays only where it needs `lgamma`, `gamma` or `beta` on the way to its
-own value:
+`lgamma` and `digamma` are computed from a table of the ratios of
+consecutive Bernoulli numbers, and the magnitude of `gamma` is the
+exponential of `lgamma`. The table grows with the precision. The
+calculator builds it on first use, for the precision in force, and keeps
+it until a call needs a larger one. Outside their exact cases, `gamma`,
+`lgamma` and `digamma` pay for the table the first time; huge and tiny
+arguments of `lgamma` and `digamma` take a shorter route and pay
+nothing. Every other call pays only where it needs `lgamma`, `gamma` or
+`beta` on the way to its own value:
 
 - `beta` pays through `lgamma` outside its exact cases, and a call that
   needs `beta` pays through `beta`.
-- `lowergammareg` and `uppergammareg` compute `lgamma` on the way to
-  their value outside their exact cases, except where their first
-  argument is `1`, so they pay through `lgamma`
-  ([Incomplete gamma](#incomplete-gamma)). `erf` and `erfc` are built on
-  `lowergammareg` and `uppergammareg`, so they pay through `lgamma` too,
-  apart from huge arguments ([Error functions](#error-functions)).
-- `incbetareg` computes `lgamma` of each parameter and of their sum
-  outside its exact cases, so it pays through `lgamma`. `incbeta` pays
-  through `beta` where it needs `beta` of its parameters: at an argument
-  of `1`, where it is `beta`, and where the calculator reaches its value
-  by subtraction from `beta` ([Incomplete beta](#incomplete-beta)).
-- `lowergamma` and `uppergamma` pay through `gamma` where they need
-  `gamma` of their first argument: `uppergamma` at an argument of `0`,
-  where it is `gamma`, and either of them where the calculator reaches
-  its value by subtraction from `gamma`
+- `lowergammareg` and `uppergammareg` pay through `lgamma` outside their
+  exact cases, except where their first argument is `1`
+  ([Incomplete gamma](#incomplete-gamma)); `erf` and `erfc`, built on
+  them, pay too, apart from huge arguments
+  ([Error functions](#error-functions)).
+- `incbetareg` pays through `lgamma` outside its exact cases. `incbeta`
+  pays through `beta` at an argument of `1`, where it is `beta`, and
+  where its value is reached by subtraction from `beta`
+  ([Incomplete beta](#incomplete-beta)).
+- `lowergamma` and `uppergamma` pay through `gamma`: `uppergamma` at an
+  argument of `0`, where it is `gamma`, and either of them where its
+  value is reached by subtraction from `gamma`
   ([Incomplete gamma](#incomplete-gamma)). `lowergamma(2.5, 1)` is
   computed directly and pays nothing, while `uppergamma(2.5, 1)` is
   `gamma(2.5)` less it and pays.
 
 A result certified at its first pass pays little at the default digits,
-since the table for that pass is small, while a result that runs to the
-ceiling pays noticeably for it the first time. `beta(0.5, 0.5) - pi()`
-is such a result, an exact cancellation that no pass certifies
-([Identities and cancellation](numbers.md#identities-and-cancellation)).
-The same expression again, or another that needs no larger table, pays
-nothing more ([What costs time](numbers.md#what-costs-time)).
+while a result that runs to the ceiling pays noticeably for it the first
+time.
 
-| You type                 | Exucal shows                                      | Note                                                   |
-| ------------------------ | ------------------------------------------------- | ------------------------------------------------------ |
-| `gamma(5)`               | `= 24`                                            | an exact case: `factorial(4)`                          |
-| `gamma(0.5)^2`           | `≈ 3.1415927`                                     |                                                        |
-| `gamma(-1.5)`            | `≈ 2.3632718`                                     |                                                        |
-| `gamma(20001)`           | `≈ 1.8192063e+77337`                              | the value `factorial(20000)` cannot hold               |
-| `gamma(0)`               | an error: a pole                                  |                                                        |
-| `gamma(1e19)`            | refused: too large to compute                     | the exponent bound                                     |
-| `lgamma(1e19)`           | `≈ 4.2749117e+20`                                 |                                                        |
-| `lgamma(1)`              | `= 0`                                             | an exact case                                          |
-| `lgamma(3)`              | `≈ 0.69314718`                                    | `ln(2)`, inexact                                       |
-| `digamma(1)`             | `≈ -0.57721566`                                   | minus the Euler–Mascheroni constant                    |
-| `digamma(approx(-2))`    | an error: the argument cannot be told from a pole | at the ceiling                                         |
-| `beta(0.5, 0.5)`         | `≈ 3.1415927`                                     |                                                        |
-| `beta(2, 3)`             | `≈ 0.083333333`                                   | exact, `1/12`, with more digits than shown             |
-| `beta(-0.5, -0.5)`       | `= 0`                                             | a pole in the denominator alone                        |
-| `beta(0, 1)`             | an error: a pole                                  |                                                        |
-| `beta(1e17, 1.5)`        | `≈ 2.8024956e-26`                                 | where `gamma(1e17)` is refused                         |
-| `beta(1e6, 1e6)`         | `≈ 3.6164047e-602063`                             |                                                        |
-| `beta(1e19, 1e19)`       | refused: too small to compute                     | the exponent bound                                     |
-| `beta(1e20000, 2)`       | refused: past the significand limit               | the digits the logarithms need                         |
-| `1 / (5.5 beta(4.5, 2))` | `≈ 4.5`                                           | the binomial of `4.5` and `1`                          |
-| `1 / (6 beta(4, 3))`     | `= 10`                                            | `binomial(5, 2)` through `beta`                        |
-| `beta(0.5, 0.5) - pi()`  | `≈ 0 (within 4e-4049 of zero)`                    | runs to the ceiling; pays for the table the first time |
+| You type                 | Exucal shows                        | Note                                                                                                                              |
+| ------------------------ | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `gamma(-1.5)`            | `≈ 2.3632718`                       |                                                                                                                                   |
+| `gamma(20001)`           | `≈ 1.8192063e+77337`                | the value `factorial(20000)` cannot hold                                                                                          |
+| `gamma(0)`               | an error: a pole                    |                                                                                                                                   |
+| `gamma(1e19)`            | refused: too large to compute       | the exponent bound                                                                                                                |
+| `lgamma(1e19)`           | `≈ 4.2749117e+20`                   |                                                                                                                                   |
+| `digamma(1)`             | `≈ -0.57721566`                     | minus the Euler–Mascheroni constant                                                                                               |
+| `beta(2, 3)`             | `≈ 0.083333333`                     | exact, `1/12`, with more digits than shown                                                                                        |
+| `beta(-0.5, -0.5)`       | `= 0`                               | a pole in the denominator alone                                                                                                   |
+| `beta(1e17, 1.5)`        | `≈ 2.8024956e-26`                   | where `gamma(1e17)` is refused                                                                                                    |
+| `beta(1e19, 1e19)`       | refused: too small to compute       | the exponent bound                                                                                                                |
+| `beta(1e20000, 2)`       | refused: past the significand limit | the digits the logarithms need                                                                                                    |
+| `1 / (5.5 beta(4.5, 2))` | `≈ 4.5`                             | the binomial of `4.5` and `1`                                                                                                     |
+| `beta(0.5, 0.5) - pi()`  | `≈ 0 (within 4e-4049 of zero)`      | runs to the ceiling ([Identities and cancellation](numbers.md#identities-and-cancellation)) and pays for the table the first time |
 
 ## Incomplete gamma
 
@@ -477,155 +348,96 @@ nothing more ([What costs time](numbers.md#what-costs-time)).
 functions, which split `gamma(s)` at `x` into the part below `x` and the
 part above it. `lowergammareg(s, x)` and `uppergammareg(s, x)` are their
 regularized forms, the same divided by `gamma(s)` so that they run from
-`0` to `1`, which statistics uses as probabilities. All take plain
-numbers, the order `s` positive and the argument `x` at or above zero.
-`lowergammareg(0.5, 0.5)` is `≈ 0.68268949`, the probability that a
-normal value lies within one standard deviation, and
-`uppergammareg(1/2, 1.96^2 / 2) / 2` is the tail beyond `1.96`,
-`≈ 0.024997895`. The exact cases are at `x = 0`: the lower forms are
-`= 0`, `uppergammareg` is `= 1`, and `uppergamma` is `gamma(s)`, exact
-where `gamma(s)` is. An order of `1` is not an exact case:
-`lowergammareg(1, x)` is `1 - exp(-x)` and `uppergammareg(1, x)` is
-`exp(-x)`, inexact for an `x` above zero. Every other value is inexact.
-A huge order or argument is refused as past the significand limit, since
-the logarithms are taken to the working digits plus the digits before
-the point of the order and of the argument: `lowergammareg(1e20000, 1)`.
+`0` to `1`. All take plain numbers, the order `s` positive and the
+argument `x` at or above zero. The exact cases are at `x = 0`: the lower
+forms are `= 0`, `uppergammareg` is `= 1`, and `uppergamma` is
+`gamma(s)`, exact where `gamma(s)` is. An order of `1` is not an exact
+case: `lowergammareg(1, x)` is `1 - exp(-x)` and `uppergammareg(1, x)`
+is `exp(-x)`, inexact for an `x` above zero. Every other value is
+inexact. An order or argument with more digits before the point than the
+significand limit holds is refused for its size.
 
-Apart from an order of `1`, an inexact value is computed by one of two
-routes: a series, which gives the lower function, or a continued
-fraction, which gives the upper. The calculator chooses the route by the
-order, the argument, the precision and which of the pair is asked for.
-The other function of the pair is `gamma(s)` less the one computed. For
-the regularized forms it is `1` less the one computed. How much work
-either route takes depends on the order and the argument together, and
-grows with the precision. Each route has a limit on its work, and where
-neither route is within its limit the calculator refuses the call rather
-than run it, a refusal of cost
-([Rules every built-in follows](#rules-every-built-in-follows)). Very
-large orders can be past both limits. The continued fraction is stepped
-up to the order one unit at a time, and the steps are limited, so at a
-very large order only the series is left: `uppergammareg(1e4, 1e6)` is a
-value, while `uppergammareg(1e5, 1e6)` is refused. The series' work
-grows with how far the argument lies past the order, as well as with the
-order and the precision: `uppergammareg(1e5, 1.1e5)` is a value, while
-`uppergammareg(1e5, 1.5e5)` is refused. `lowergammareg(1e6, 1e6)` is a
-value at the default digits and refused at a thousand display digits,
-and `lowergammareg(1e7, 1e7)` is refused at the default digits.
+How much work a value takes depends on the order and the argument
+together, and grows with the precision; past a limit on that work the
+call is refused, a refusal of cost
+([Rules every built-in follows](#rules-every-built-in-follows)). A very
+large order can be past the limit, and a smaller one with the argument
+far past it or at a high precision.
 
-| You type                             | Exucal shows                        | Note                                                    |
-| ------------------------------------ | ----------------------------------- | ------------------------------------------------------- |
-| `lowergammareg(0.5, 0.5)`            | `≈ 0.68268949`                      | within one standard deviation                           |
-| `uppergammareg(1/2, 1.96^2 / 2) / 2` | `≈ 0.024997895`                     | the tail beyond `1.96`                                  |
-| `lowergamma(2, 0)`                   | `= 0`                               | an exact case                                           |
-| `uppergammareg(2, 0)`                | `= 1`                               | an exact case                                           |
-| `uppergamma(2, 0)`                   | `= 1`                               | `gamma(2)`, exact                                       |
-| `uppergamma(2.5, 0)`                 | `≈ 1.3293404`                       | `gamma(2.5)`, inexact                                   |
-| `uppergammareg(1, 2)`                | `≈ 0.13533528`                      | `exp(-2)`                                               |
-| `lowergammareg(0, 1)`                | an error: the order is not positive |                                                         |
-| `lowergammareg(1, -1)`               | an error: the argument is negative  |                                                         |
-| `lowergammareg(1e20000, 1)`          | refused: past the significand limit | the digits the logarithms need                          |
-| `uppergammareg(1e4, 1e6)`            | `≈ 1.170002e-409956`                | the continued fraction                                  |
-| `uppergammareg(1e5, 1e6)`            | refused: past the significand limit | a limit of cost: only the series is left                |
-| `uppergammareg(1e5, 1.1e5)`          | `≈ 2.6554005e-206`                  | the argument a tenth past the order                     |
-| `uppergammareg(1e5, 1.5e5)`          | refused: past the significand limit | a limit of cost: the argument half again past the order |
-| `lowergammareg(1e6, 1e6)`            | `≈ 0.50013298`                      |                                                         |
-| `lowergammareg(1e6, 1e6)`            | refused: past the significand limit | at a thousand display digits: a limit of cost           |
-| `lowergammareg(1e7, 1e7)`            | refused: past the significand limit | a limit of cost                                         |
+| You type                    | Exucal shows                        | Note                                                              |
+| --------------------------- | ----------------------------------- | ----------------------------------------------------------------- |
+| `lowergammareg(0.5, 0.5)`   | `≈ 0.68268949`                      | a normal value within one standard deviation                      |
+| `uppergamma(2, 0)`          | `= 1`                               | `gamma(2)`, exact                                                 |
+| `uppergamma(2.5, 0)`        | `≈ 1.3293404`                       | `gamma(2.5)`, inexact                                             |
+| `lowergammareg(1e20000, 1)` | refused: past the significand limit | refused for size: the digits before the point                     |
+| `uppergammareg(1e4, 1e6)`   | `≈ 1.170002e-409956`                | a large argument at a moderate order                              |
+| `uppergammareg(1e5, 1e6)`   | refused: past the significand limit | a limit of cost: a very large order with the argument far past it |
+| `uppergammareg(1e5, 1.1e5)` | `≈ 2.6554005e-206`                  | the argument a tenth past the order                               |
+| `uppergammareg(1e5, 1.5e5)` | refused: past the significand limit | a limit of cost: the argument half again past the order           |
+| `lowergammareg(1e6, 1e6)`   | `≈ 0.50013298`                      |                                                                   |
+| `lowergammareg(1e6, 1e6)`   | refused: past the significand limit | at a thousand display digits: a limit of cost                     |
+| `lowergammareg(1e7, 1e7)`   | refused: past the significand limit | a limit of cost                                                   |
 
 ## Error functions
 
 `erf(x)` and `erfc(x)` are the error function and its complement, built
 on the incomplete gamma functions of order one half; both take a plain
-number. `erf(1)` is `≈ 0.84270079`. `erfc(10)` is `≈ 2.0884876e-45` at
-the first pass. `1 - erf(10)` reaches the same digits only after the
-retry loop has raised the precision enough to certify them. So a small
-tail is written with `erfc` rather than by subtracting `erf` from `1`:
-the probability that a normal value lies beyond `1.96` is
-`erfc(1.96 / sqrt(2)) / 2`, `≈ 0.024997895`. The exact cases are
-`erf(0)`, which is `= 0`, and `erfc(0)`, which is `= 1`; every other
-value is inexact. `erfc` of an argument past about `1.5e9`, whose value
-passes below `10^-(10^18)`, is refused as too small to compute, as the
-exponential of a large negative argument is.
+number. A small tail, the probability beyond a point, is written with
+`erfc` rather than as `1 - erf`, which reaches the same digits only
+after the retry loop has raised the precision enough to certify them.
+The exact cases are at zero; every other value is inexact. `erfc` of an
+argument past about `1.5e9` is refused as too small to compute.
 
-| You type                   | Exucal shows                  | Note                                    |
-| -------------------------- | ----------------------------- | --------------------------------------- |
-| `erf(1)`                   | `≈ 0.84270079`                |                                         |
-| `erfc(10)`                 | `≈ 2.0884876e-45`             | at the first pass                       |
-| `1 - erf(10)`              | `≈ 2.0884876e-45`             | the same digits, after more passes      |
-| `erfc(1.96 / sqrt(2)) / 2` | `≈ 0.024997895`               | the normal tail beyond `1.96`           |
-| `erf(0)`                   | `= 0`                         | an exact case                           |
-| `erfc(0)`                  | `= 1`                         | an exact case                           |
-| `erf(-1)`                  | `≈ -0.84270079`               | an odd function: `erf(-1)` is `-erf(1)` |
-| `erfc(2e9)`                | refused: too small to compute | the exponent bound                      |
+| You type      | Exucal shows                  | Note                               |
+| ------------- | ----------------------------- | ---------------------------------- |
+| `erfc(10)`    | `≈ 2.0884876e-45`             | at the first pass                  |
+| `1 - erf(10)` | `≈ 2.0884876e-45`             | the same digits, after more passes |
+| `erfc(2e9)`   | refused: too small to compute | the exponent bound                 |
 
 ## Incomplete beta
 
 `incbeta(a, b, x)` is the incomplete beta function, the part of
-`beta(a, b)` below `x`, all of it at `x = 1`, and `incbetareg(a, b, x)`
-is its regularized form, that part divided by `beta(a, b)` so that it
-runs from `0` to `1`. Both take positive `a` and `b` and an `x` within
-`[0, 1]`, all plain numbers. The parameters come first, in the order the
-incomplete gamma functions take theirs. For whole numbers `a` and `b`
-the regularized function is a polynomial in `x` of degree `a + b - 1`,
-and the calculator forms the polynomial exactly when all three of these
-hold:
+`beta(a, b)` below `x`, and `incbetareg(a, b, x)` is its regularized
+form, that part divided by `beta(a, b)` so that it runs from `0` to `1`.
+Both take positive `a` and `b` and an `x` within `[0, 1]`, all plain
+numbers. For whole numbers `a` and `b` the regularized function is a
+polynomial in `x` of degree `a + b - 1`, and the calculator forms the
+polynomial exactly when:
 
-- `x` is a fraction;
+- `x` is exact;
 - the degree is at most ten thousand, a cap on the work;
 - the polynomial's terms fit the significand limit.
 
-So `incbetareg(2, 3, 0.5)` is `= 0.6875`. The other exact cases are the
-ends: at `x = 0` both are `= 0`, and at `x = 1` `incbetareg` is `= 1`
-and `incbeta` is `beta(a, b)`, exact where that is. Every other value is
-inexact. Huge parameters are refused as past the significand limit,
-since the logarithms are taken to the working digits plus the digits
-before the point of the parameters: `incbetareg(1e20000, 2, 0.5)`.
-`incbetareg(v / 2, 1/2, v / (v + t^2)) / 2` is the one-sided tail of
-Student's t with `v` degrees of freedom beyond `t`, so
-`incbetareg(3/2, 1/2, 3/(3 + 2^2)) / 2` is `≈ 0.069662984`, the tail
-with three degrees of freedom beyond `2`.
+The other exact cases are the ends: at `x = 0` both are `= 0`, and at
+`x = 1` `incbetareg` is `= 1` and `incbeta` is `beta(a, b)`, exact where
+that is. Every other value is inexact. A parameter with more digits
+before the point than the significand limit holds is refused for its
+size.
 
-An inexact value is computed by a series in `x`, or by the same series
-for the swapped parameters in `1 - x`, which gives the part above `x`.
-The calculator chooses by `a`, `b`, `x` and the precision. In the second
-case the value wanted is `beta(a, b)` less the part above `x`. For
-`incbetareg` it is `1` less it. The median is the point where the
-regularized value is one half. A call with large parameters and `x` near
-the median can take more work than the limit on the series allows, in
-`x` and in `1 - x` alike, and is then refused, a refusal of cost
+A call with large parameters and `x` near the median, the point where
+the regularized value is one half, can take more work than the
+calculator allows and is then refused, a refusal of cost
 ([Rules every built-in follows](#rules-every-built-in-follows)). A
 higher precision moves the refusal to smaller parameters.
-`incbetareg(1e7, 1e7, 0.5)` is refused at the default digits, while
-`incbetareg(1e7, 1e7, 0.49)` is `≈ 1.3300101e-1740`, and
-`incbetareg(1e6, 1e6, 0.5)` is `≈ 0.5` at the default digits and refused
-at a thousand display digits.
 
-| You type                                | Exucal shows                                 | Note                                                           |
-| --------------------------------------- | -------------------------------------------- | -------------------------------------------------------------- |
-| `incbetareg(2, 3, 0.5)`                 | `= 0.6875`                                   | an exact case: a polynomial at a fraction                      |
-| `incbetareg(3/2, 1/2, 3/(3 + 2^2)) / 2` | `≈ 0.069662984`                              | Student's t, three degrees of freedom, beyond `2`              |
-| `incbetareg(2, 3, 0)`                   | `= 0`                                        | an end                                                         |
-| `incbetareg(2, 3, 1)`                   | `= 1`                                        | an end                                                         |
-| `incbeta(2, 3, 1)`                      | `≈ 0.083333333`                              | `beta(2, 3)`: exact, with more digits than shown               |
-| `incbetareg(5001, 5000, 1/2)`           | `≈ 0.49601068`                               | exact, with more digits than shown: the degree is ten thousand |
-| `incbetareg(5002, 5000, 1/2)`           | `≈ 0.49202215`                               | inexact: the degree is past ten thousand                       |
-| `incbetareg(0, 1, 0.5)`                 | an error: a parameter is not positive        |                                                                |
-| `incbetareg(1, 1, 2)`                   | an error: the argument lies outside `[0, 1]` |                                                                |
-| `incbetareg(1e20000, 2, 0.5)`           | refused: past the significand limit          | the digits the logarithms need                                 |
-| `incbetareg(1e6, 1e6, 0.5)`             | `≈ 0.5`                                      | the default digits                                             |
-| `incbetareg(1e6, 1e6, 0.5)`             | refused: past the significand limit          | at a thousand display digits: a limit of cost                  |
-| `incbetareg(1e7, 1e7, 0.5)`             | refused: past the significand limit          | the default digits: a limit of cost                            |
-| `incbetareg(1e7, 1e7, 0.49)`            | `≈ 1.3300101e-1740`                          | off the median                                                 |
+| You type                                | Exucal shows                        | Note                                                           |
+| --------------------------------------- | ----------------------------------- | -------------------------------------------------------------- |
+| `incbetareg(2, 3, 0.5)`                 | `= 0.6875`                          | an exact case: a polynomial at a fraction                      |
+| `incbetareg(3/2, 1/2, 3/(3 + 2^2)) / 2` | `≈ 0.069662984`                     | Student's t, three degrees of freedom, beyond `2`              |
+| `incbetareg(5001, 5000, 1/2)`           | `≈ 0.49601068`                      | exact, with more digits than shown: the degree is ten thousand |
+| `incbetareg(5002, 5000, 1/2)`           | `≈ 0.49202215`                      | inexact: the degree is past ten thousand                       |
+| `incbetareg(1e20000, 2, 0.5)`           | refused: past the significand limit | refused for size: the digits before the point                  |
+| `incbetareg(1e6, 1e6, 0.5)`             | `≈ 0.5`                             | the default digits                                             |
+| `incbetareg(1e6, 1e6, 0.5)`             | refused: past the significand limit | at a thousand display digits: a limit of cost                  |
+| `incbetareg(1e7, 1e7, 0.5)`             | refused: past the significand limit | the default digits: a limit of cost                            |
+| `incbetareg(1e7, 1e7, 0.49)`            | `≈ 1.3300101e-1740`                 | off the median                                                 |
 
 ## Functions defined in the file
 
-The definitions file defines functions of its own, such as `tempC` and
-`decibel` ([Functions](definitions.md#functions)). [Units](units.md)
-describes them
-([Temperature: differences and readings](units.md#temperature-differences-and-readings),
-[Logarithmic levels](units.md#logarithmic-levels)), and
+[Units](units.md) describes the functions the definitions file defines,
+such as `tempC` and `decibel`, and
 [Temperature and logarithmic levels as functions](quantities.md#temperature-and-logarithmic-levels-as-functions)
-says why a reading and a level are functions and not units.
+says why they are functions and not units.
 
 ## Not provided, and what to write instead
 
@@ -638,22 +450,19 @@ These functions are not provided:
   `chebyshev`;
 - the Bessel functions;
 - the polygamma functions beyond `digamma`;
-- `gamma` of a complex argument, since every value is real
+- `gamma` of a complex argument
   ([Real values only](numbers.md#real-values-only));
 - the statistical distributions as functions of their own.
 
-No definition can be typed into the app
-([What the app loads](definitions.md#what-the-app-loads)), so for some
-of these an expression over the functions provided stands in.
+For some of these an expression over the functions provided stands in.
 
 - A Chebyshev polynomial of the first kind is a cosine of a multiple of
-  an arccosine: `cos(3 acos(0.5))` is the third Chebyshev polynomial at
-  `0.5`, and `cosh(2 acosh(2))` is the second at `2`, an argument above
+  an arccosine, `cos(n acos(x))`, or `cosh(n acosh(x))` for an `x` above
   `1`.
-- A Legendre polynomial of a fixed degree is typed out:
-  `(3 * 0.5^2 - 1) / 2` is the second Legendre polynomial at `0.5`.
-- The common distributions are the regularized incomplete functions and
-  the complementary error function, each giving a cumulative probability.
+- A Legendre polynomial of a fixed degree is typed out as its formula,
+  `(3 x^2 - 1) / 2` for the second.
+- The common distributions are written with the regularized incomplete
+  functions and the complementary error function.
   - A normal value lies below `x` with probability
     `erfc(-x / sqrt(2)) / 2`.
   - A chi-squared value with `k` degrees of freedom lies below `x` with
@@ -662,16 +471,14 @@ of these an expression over the functions provided stands in.
     `uppergammareg(k + 1, m)`.
   - The probability of at most `k` successes in `n` trials, each a
     success with probability `p`, is `incbetareg(n - k, k + 1, 1 - p)`.
-  - Student's t lies beyond `t` with the probability
-    [Incomplete beta](#incomplete-beta) gives.
+  - Student's t with `v` degrees of freedom lies beyond `t` with
+    probability `incbetareg(v / 2, 1/2, v / (v + t^2)) / 2`.
 
 Nothing stands in for the others.
 
 | You type                    | Exucal shows   | Note                                             |
 | --------------------------- | -------------- | ------------------------------------------------ |
 | `cos(3 acos(0.5))`          | `≈ -1`         | the third Chebyshev polynomial at `0.5`          |
-| `cosh(2 acosh(2))`          | `≈ 7`          | the second Chebyshev polynomial at `2`           |
-| `(3 * 0.5^2 - 1) / 2`       | `= -0.125`     | the second Legendre polynomial at `0.5`          |
 | `erfc(-1.96 / sqrt(2)) / 2` | `≈ 0.9750021`  | a normal value below `1.96`                      |
 | `lowergammareg(3/2, 1)`     | `≈ 0.4275933`  | chi-squared, three degrees of freedom, below `2` |
 | `uppergammareg(3, 3)`       | `≈ 0.42319008` | at most two events at a Poisson mean of `3`      |

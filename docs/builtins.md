@@ -12,8 +12,7 @@ combinatorics, probability and physics.
 
 The built-ins follow these rules:
 
-- **Every built-in takes plain numbers, apart from the trigonometric functions and six that take any quantity; its entry names its exact cases, and every other result is inexact.**
-  A few calls are refused for their cost rather than for a value's size
+- **Every built-in takes plain numbers unless its entry says otherwise, and a call that would need more working precision than the significand limit holds is refused as past it**
   ([Rules every built-in follows](#rules-every-built-in-follows)).
 - **The elementary functions are exact at a few arguments and inexact everywhere else.**
   - `pi()` has no exact case ([Constants](#constants)).
@@ -22,12 +21,11 @@ The built-ins follow these rules:
     ([Exponential and logarithms](#exponential-and-logarithms)).
   - `sqrt`, `cbrt` and `pow` are exact at perfect powers and whole-number
     exponents ([Roots and powers](#roots-and-powers)).
-  - `sin`, `cos` and `tan` take an angle and are exact at zero
-    ([Trigonometric](#trigonometric)), and `asin`, `acos`, `atan` and
-    `atan2` return an angle
+  - `sin`, `cos` and `tan` are exact at zero ([Trigonometric](#trigonometric)),
+    and `asin`, `acos`, `atan` and `atan2` at the zero results
     ([Inverse trigonometric](#inverse-trigonometric)).
-  - The hyperbolic functions take plain numbers and are exact at zero,
-    `acosh` at one instead ([Hyperbolic](#hyperbolic)).
+  - The hyperbolic functions are exact at zero, `acosh` at one instead
+    ([Hyperbolic](#hyperbolic)).
 - **`approx` is the one built-in whose purpose is to make a value inexact**
   ([`approx`](#approx)).
 - **`abs`, `sign`, `floor`, `ceil`, `trunc`, `round`, `div` and `mod` are exact on exact arguments, and all but `abs` and `mod` are exact on an inexact argument whose error radius lies on one side of an edge**
@@ -37,8 +35,8 @@ The built-ins follow these rules:
   ([Integer functions](#integer-functions)).
 - **The Gamma family is exact at whole numbers, where `gamma` and `beta` are factorials that fit the significand limit, at `lgamma(1)` and `lgamma(2)`, and at `beta`'s exact zeros, and inexact everywhere else**, and is computed from a table of Bernoulli ratios built on first use
   ([Gamma family](#gamma-family)). The incomplete gamma and beta
-  functions and the error functions are built on the family and can be
-  refused for their cost ([Incomplete gamma](#incomplete-gamma),
+  functions and the error functions are built on the family
+  ([Incomplete gamma](#incomplete-gamma),
   [Error functions](#error-functions), [Incomplete beta](#incomplete-beta)).
 - **The functions the definitions file defines are not built-ins**
   ([Functions defined in the file](#functions-defined-in-the-file)).
@@ -62,14 +60,13 @@ Each entry gives its function's signature and names its exact cases
 every other result is inexact.
 
 A value the size limits cannot hold is a refusal
-([Values too big to hold](numbers.md#values-too-big-to-hold)), and so is
-a call that would take more work than the calculator allows: the
-incomplete gamma functions at large orders and arguments
-([Incomplete gamma](#incomplete-gamma)), and the incomplete beta
-functions at large parameters with the argument near the point where the
-value is one half ([Incomplete beta](#incomplete-beta)). The message of
-such a refusal says that the call is past the significand limit, though
-the limit there is one of cost rather than of size.
+([Values too big to hold](numbers.md#values-too-big-to-hold)). The
+significand limit also caps the working precision, so a call that would
+need more of it than the limit holds is refused as past the limit even
+where its result would fit: the incomplete gamma functions at large
+orders and arguments ([Incomplete gamma](#incomplete-gamma)), and the
+incomplete beta functions at large parameters with the argument near the
+point where the value is one half ([Incomplete beta](#incomplete-beta)).
 
 ## Constants
 
@@ -208,12 +205,17 @@ so it is exact once the whole error radius lies on one side of the edge;
 [Values at an edge](numbers.md#values-at-an-edge) says which of them
 still has an answer for a value that cannot be told from zero.
 
-| You type            | Exucal shows                                   | Note                                               |
-| ------------------- | ---------------------------------------------- | -------------------------------------------------- |
-| `round(1234, -2)`   | `= 1200`                                       | to the left of the point                           |
-| `round(sqrt(2), 3)` | `= 1.414`                                      | exact: the side of the edge is known               |
-| `abs(sqrt(2) - 2)`  | `≈ 0.58578644`                                 | inexact: the radius kept                           |
-| `floor(sqrt(2)^2)`  | an error: the argument cannot be told from `2` | the argument reaches across `2` at every precision |
+| You type                   | Exucal shows                                     | Note                                               |
+| -------------------------- | ------------------------------------------------ | -------------------------------------------------- |
+| `round(1234, -2)`          | `= 1200`                                         | to the left of the point                           |
+| `round(sqrt(2), 3)`        | `= 1.414`                                        | exact: the side of the edge is known               |
+| `abs(sqrt(2) - 2)`         | `≈ 0.58578644`                                   | inexact: the radius kept                           |
+| `floor(sqrt(2)^2)`         | an error: the argument cannot be told from `2`   | the argument reaches across `2` at every precision |
+| `sign(approx(0))`          | `= 0`                                            | `approx(0)` is exactly `0`                         |
+| `sign(sqrt(2) - sqrt(2))`  | an error: the argument cannot be told from zero  | at the ceiling                                     |
+| `trunc(sqrt(2) - sqrt(2))` | `= 0`                                            | the same on both sides of zero                     |
+| `round(2.5)`               | `= 2`                                            | a tie, to even in the default mode                 |
+| `round(approx(2.5))`       | an error: the argument cannot be told from `2.5` | a tie it cannot settle                             |
 
 ## Division
 
@@ -223,13 +225,15 @@ still has an answer for a value that cannot be told from zero.
 are exact on exact arguments. On an inexact argument `div` answers as
 the rounding functions do
 ([Magnitude, sign and rounding](#magnitude-sign-and-rounding)), and
-`mod` is inexact. A remainder that would need a significand past the
-significand limit is refused.
+`mod` is inexact, or an error where `div` is. A remainder that would
+need a significand past the significand limit is refused.
 
 | You type                   | Exucal shows                                                                           | Note                                     |
 | -------------------------- | -------------------------------------------------------------------------------------- | ---------------------------------------- |
 | `div(-7, 2)`               | `= -4`                                                                                 | floored                                  |
 | `mod(-7, 2)`               | `= 1`                                                                                  | the divisor's sign                       |
+| `mod(approx(4.5), 2)`      | `≈ 0.5`                                                                                | inexact                                  |
+| `div(approx(4), 2)`        | an error: the argument cannot be told from `4`                                         | the quotient straddles a whole number    |
 | `mod(-1, 1e20000)`         | refused: past the significand limit; the message suggests `approx(-1)` or decimal mode | the remainder has twenty thousand digits |
 | `mod(approx(-1), 1e20000)` | `≈ 1e+20000`                                                                           | the `1` absorbed into the error radius   |
 
@@ -355,28 +359,28 @@ forms are `= 0`, `uppergammareg` is `= 1`, and `uppergamma` is
 case: `lowergammareg(1, x)` is `1 - exp(-x)` and `uppergammareg(1, x)`
 is `exp(-x)`, inexact for an `x` above zero. Every other value is
 inexact. An order or argument with more digits before the point than the
-significand limit holds is refused for its size.
+significand limit holds is refused as past it.
 
-How much work a value takes depends on the order and the argument
-together, and grows with the precision; past a limit on that work the
-call is refused, a refusal of cost
+The working precision a value needs grows with the order and the
+argument together, and with the precision asked for; a call that needs
+more than the significand limit holds is refused as past it
 ([Rules every built-in follows](#rules-every-built-in-follows)). A very
 large order can be past the limit, and a smaller one with the argument
 far past it or at a high precision.
 
-| You type                    | Exucal shows                        | Note                                                              |
-| --------------------------- | ----------------------------------- | ----------------------------------------------------------------- |
-| `lowergammareg(0.5, 0.5)`   | `≈ 0.68268949`                      | a normal value within one standard deviation                      |
-| `uppergamma(2, 0)`          | `= 1`                               | `gamma(2)`, exact                                                 |
-| `uppergamma(2.5, 0)`        | `≈ 1.3293404`                       | `gamma(2.5)`, inexact                                             |
-| `lowergammareg(1e20000, 1)` | refused: past the significand limit | refused for size: the digits before the point                     |
-| `uppergammareg(1e4, 1e6)`   | `≈ 1.170002e-409956`                | a large argument at a moderate order                              |
-| `uppergammareg(1e5, 1e6)`   | refused: past the significand limit | a limit of cost: a very large order with the argument far past it |
-| `uppergammareg(1e5, 1.1e5)` | `≈ 2.6554005e-206`                  | the argument a tenth past the order                               |
-| `uppergammareg(1e5, 1.5e5)` | refused: past the significand limit | a limit of cost: the argument half again past the order           |
-| `lowergammareg(1e6, 1e6)`   | `≈ 0.50013298`                      |                                                                   |
-| `lowergammareg(1e6, 1e6)`   | refused: past the significand limit | at a thousand display digits: a limit of cost                     |
-| `lowergammareg(1e7, 1e7)`   | refused: past the significand limit | a limit of cost                                                   |
+| You type                    | Exucal shows                        | Note                                             |
+| --------------------------- | ----------------------------------- | ------------------------------------------------ |
+| `lowergammareg(0.5, 0.5)`   | `≈ 0.68268949`                      | a normal value within one standard deviation     |
+| `uppergamma(2, 0)`          | `= 1`                               | `gamma(2)`, exact                                |
+| `uppergamma(2.5, 0)`        | `≈ 1.3293404`                       | `gamma(2.5)`, inexact                            |
+| `lowergammareg(1e20000, 1)` | refused: past the significand limit | the digits before the point                      |
+| `uppergammareg(1e4, 1e6)`   | `≈ 1.170002e-409956`                | a large argument at a moderate order             |
+| `uppergammareg(1e5, 1e6)`   | refused: past the significand limit | a very large order with the argument far past it |
+| `uppergammareg(1e5, 1.1e5)` | `≈ 2.6554005e-206`                  | the argument a tenth past the order              |
+| `uppergammareg(1e5, 1.5e5)` | refused: past the significand limit | the argument half again past the order           |
+| `lowergammareg(1e6, 1e6)`   | `≈ 0.50013298`                      |                                                  |
+| `lowergammareg(1e6, 1e6)`   | refused: past the significand limit | at a thousand display digits                     |
+| `lowergammareg(1e7, 1e7)`   | refused: past the significand limit | a very large order                               |
 
 ## Error functions
 
@@ -411,12 +415,11 @@ polynomial exactly when:
 The other exact cases are the ends: at `x = 0` both are `= 0`, and at
 `x = 1` `incbetareg` is `= 1` and `incbeta` is `beta(a, b)`, exact where
 that is. Every other value is inexact. A parameter with more digits
-before the point than the significand limit holds is refused for its
-size.
+before the point than the significand limit holds is refused as past it.
 
 A call with large parameters and `x` near the median, the point where
-the regularized value is one half, can take more work than the
-calculator allows and is then refused, a refusal of cost
+the regularized value is one half, can need more working precision than
+the significand limit holds and is then refused as past it
 ([Rules every built-in follows](#rules-every-built-in-follows)). A
 higher precision moves the refusal to smaller parameters.
 
@@ -426,10 +429,10 @@ higher precision moves the refusal to smaller parameters.
 | `incbetareg(3/2, 1/2, 3/(3 + 2^2)) / 2` | `≈ 0.069662984`                     | Student's t, three degrees of freedom, beyond `2`              |
 | `incbetareg(5001, 5000, 1/2)`           | `≈ 0.49601068`                      | exact, with more digits than shown: the degree is ten thousand |
 | `incbetareg(5002, 5000, 1/2)`           | `≈ 0.49202215`                      | inexact: the degree is past ten thousand                       |
-| `incbetareg(1e20000, 2, 0.5)`           | refused: past the significand limit | refused for size: the digits before the point                  |
+| `incbetareg(1e20000, 2, 0.5)`           | refused: past the significand limit | the digits before the point                                    |
 | `incbetareg(1e6, 1e6, 0.5)`             | `≈ 0.5`                             | the default digits                                             |
-| `incbetareg(1e6, 1e6, 0.5)`             | refused: past the significand limit | at a thousand display digits: a limit of cost                  |
-| `incbetareg(1e7, 1e7, 0.5)`             | refused: past the significand limit | the default digits: a limit of cost                            |
+| `incbetareg(1e6, 1e6, 0.5)`             | refused: past the significand limit | at a thousand display digits                                   |
+| `incbetareg(1e7, 1e7, 0.5)`             | refused: past the significand limit | the default digits                                             |
 | `incbetareg(1e7, 1e7, 0.49)`            | `≈ 1.3300101e-1740`                 | off the median                                                 |
 
 ## Functions defined in the file

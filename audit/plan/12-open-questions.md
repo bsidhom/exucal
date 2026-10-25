@@ -1372,6 +1372,28 @@ decision, are listed after the answers.
   rules section used to list has its example in an entry. The page goes from 831 lines to
   678. §7's built-ins entry, work order 07 and principles.md are amended.
 
+- **The review of the built-ins page, third part (2026-10-25).** One instruction, applied
+  across the page. The owner: "double check that there isn't any unnecessary fluff on the
+  page or content which is properly owned elsewhere. The goal of this pass is to strictly
+  shorten and simplify the doc. If your edits in aggregate would increase doc size, don't
+  apply them. (Note that some rewrites do require increasing verbiage in some places in
+  order to remove it elsewhere, and it's fine as long as it results in a net negative
+  line/word count and simplifies document flow.)" Settled, for this page and as the
+  reading of the rule above for every page: a pass that shortens lands only as a net cut
+  of lines and words; a rule is stated in the prose and its examples sit in the table
+  beside it, never in both; a reason, a gloss or a mechanism the reader does not need
+  goes, and so does a table row that shows nothing a reader needs or that the owning page
+  already shows. For the page: the mechanisms of the incomplete functions (the two routes,
+  the swapped series), which the developer page owns and whose words F-448 keeps out of
+  the user page, are replaced by the loose statements of the regimes, the tables carrying
+  the examples with their notes; the reason the logarithms need the arguments' digits is
+  said once, in the Beta sub-section; the inline examples that a row repeats, the filler
+  lead-ins, the glosses of owned terms, the second sub-heading of the Gamma family and the
+  rows the quantities, numbers and units pages show are gone; and the family's exact cases
+  now include `beta`'s exact zeros, which lie at non-whole arguments. The page goes from
+  678 lines and 6,356 words to 485 lines and 4225 words, 831 lines before the review. Work
+  order 07 is amended.
+
 ### The review's other corrections
 
 Applied on 2026-10-13 with the answers above; none needed a decision.

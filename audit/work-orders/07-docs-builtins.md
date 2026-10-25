@@ -163,7 +163,12 @@ sections in order; the preamble maps onto the first section.
   `sin(pi() radian)`) is dropped, as is the table under "Functions
   defined in the file"; and the exponential entry gains `exp` at the
   exponent bound and the incomplete entries the refusal of a huge order
-  or parameter, each with its example.
+  or parameter, each with its example. Shortened again on 2026-10-25
+  (plan §12.3): the routes and the swapped series leave the page
+  (F-448), the regimes stated loosely with the tables' examples; a
+  rule's examples sit in its table, not in the prose as well; the
+  glosses, reasons and rows another page owns are gone; the page is 485
+  lines.
 - **Constants.** `pi()` (bullet 1).
 - **Exponential and logarithms.** Bullet 2 as it stands; the exact
   cases of `log` both ways and `b` checked first, and those of `log10`,

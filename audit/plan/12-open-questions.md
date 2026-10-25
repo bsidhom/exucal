@@ -1442,7 +1442,9 @@ decision, are listed after the answers.
   `div(approx(4), 2)`, the division entry saying that `mod` errs where `div` does. The
   division modes and the consistency of `div` and `mod` are issue #237, filed 2026-10-25
   with the Boute reference, future work for `devdocs/future.md` (work order 18); the page
-  documents today's `div` and `mod` only. The page is 488 lines and 4282 words.
+  documents today's `div` and `mod` only. The page is 494 lines and 4349 words after the
+  reading of the changed passages, which defined the working precision where the rule is
+  stated and had the incomplete entries link the rule rather than restate it.
 
 ### The review's other corrections
 

@@ -1,49 +1,57 @@
 # Exucal
 
-Exucal is a calculator that runs in the browser and guarantees that
-it computes exactly wherever it can, or else shows only the digits it
-has certified, both in its arithmetic and in its functions. It offers
-the elementary functions and some special functions, and it keeps
-track of units through every calculation and conversion so that a
-mismatch of units is an error and never a number.
+Exucal is a calculator that runs in the browser. It guarantees that a
+result is exact wherever it can be, for arithmetic and functions
+alike. Where it shows fewer digits than a result has, every digit
+shown is certified and the last is correctly rounded. Where it cannot
+certify as many digits as you ask for, it still shows them, with a
+note saying how many are certified. It offers the elementary functions
+and some special functions. It keeps track of units through every
+calculation and conversion, so that a mismatch of units is an error
+and never a number.
 
 The pages of the user documentation, in reading order:
 
-- [Getting started](getting-started.md): a tour by example through a
-  first calculation; conversions; unit lists, one measure written in
-  several units such as feet and inches; readings on a scale such as
-  degrees Celsius; inexact values; and a settings change. It ends with
-  what you see when something fails, whether an error or a refusal of
-  a value too big to hold.
-- [Numbers](numbers.md): exact and inexact values; the digits you can
-  trust, and how the calculator certifies them; comparison and
-  equality; values that cannot be told from a zero or a pole; exact
-  mode, the default, and decimal mode, which rounds every step as a
-  hand calculator does; `approx`, the one function whose purpose is to
-  make a value inexact; rounding; the size limits; and how the
-  calculator writes a number.
-- [Quantities](quantities.md): units, dimensions, kinds and
-  conformance; what a conversion into one unit, into a unit list or
-  into a function answers with; and why a temperature reading is a
-  function and not a unit.
+- [Getting started](getting-started.md): a tour by example, through a
+  first calculation, conversions, unit lists, readings, inexact values,
+  a settings change and what you see when something fails. A unit list
+  gives one measure in several units, such as feet and inches. A
+  reading is a value on a scale, such as degrees Celsius. A failure is
+  an error, or a refusal of a value too big to hold.
+- [Numbers](numbers.md): exact and inexact values, and the digits you
+  can trust. How the calculator certifies a digit, how it compares
+  values, and what happens at an edge such as a division by zero or a
+  pole. The two modes: exact mode, the default, and decimal mode,
+  which rounds every step as a hand calculator does. `approx`, the one
+  function whose purpose is to make a value inexact. The rounding
+  modes, the size limits that refuse a value too big to hold, and how
+  the calculator writes a number.
+- [Quantities](quantities.md): units, dimensions and kinds; and
+  conformance, the test two quantities must pass to be added or
+  converted. A kind keeps apart quantities that would otherwise look
+  alike, such as an angle and a plain number. What a conversion gives,
+  whether into one unit, a unit list or a function such as the one
+  behind a temperature reading. Why such a reading needs a function
+  and not a unit: a reading on a scale is not a multiple of anything.
 - [The expression language](expressions.md): how a number, a name, an
-  operator and a call are each typed and how they combine, and what
-  goes into the calculator's two fields, one for the quantity you have
-  and one for what to measure it in.
+  operator and a call are each typed, and how they combine. What goes
+  into the calculator's two fields, one for the quantity you have and
+  one for what to measure it in.
 - [The definition language](definitions.md): the format of the
-  definitions file, the text file that the calculator loads as it
-  starts and that defines every unit it knows, and the semantics of
-  each of its six forms of definition. A definition is a primitive, a
-  prefix, a unit, a unit list, a function or an inverse.
+  definitions file and the semantics of its six forms of definition.
+  The definitions file is a text file loaded as the calculator starts.
+  It defines every unit the calculator knows. A definition is a
+  primitive, a prefix, a unit, a unit list, a function or an inverse.
 - [Units](units.md): a guide to what the definitions file defines, by
   system and by family, and which conversion factors are exact.
 - [Settings](settings.md): the settings, each by what it sets, and how
   one setting limits the range of another.
 - [Built-in functions](builtins.md): the functions the calculator
-  computes in code, by family, with the exact cases of each and what is
-  not provided.
+  itself provides, by family, as against those the definitions file
+  defines; the cases where each is exact; and what is not provided.
 - [The app](app.md): installing, which is optional; offline use;
-  updates and the build ID; the settings panel; copying a result; and
-  which of the two fields an error marks.
+  updates and the build ID; the settings panel, as against the settings
+  themselves; copying a result; and which of the two fields an error
+  marks.
 
 The [developer documentation](../devdocs/README.md) is in `devdocs/`.

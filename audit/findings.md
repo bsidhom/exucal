@@ -2612,7 +2612,7 @@ link they write to the old name targets the new one.
 - Sources: `src/app-shell.ts:168-185`, `255-272` (D9's reading); `devdocs/architecture.md#The shell and its parts`
 - Proposed call: `app.md` "Offline use" states them (D9's new page, D9 L165-265), and the shell sentence gains the Retry button, why the user decides when, and a link there (D9 L267-275); low confidence: reasoned from code, not run.
 - Related: B-023, F-170, F-180, F-251
-- Decision: Stands; low confidence: the session reads `src/app-shell.ts`; follows Q-057 and Q-007; amended by F-493 (the service worker named as such where offline use is explained).
+- Decision: Stands; low confidence: the session reads `src/app-shell.ts`; follows Q-057 and Q-007; amended by F-493 (the service worker named as such where offline use is explained). Amended 2026-10-26 (plan §12.3, the review of the app page): `app.md` says in one sentence that the page says so and offers to try again when the units file cannot be loaded, and that the app never retries on its own; the loading message is not mentioned and nothing is quoted.
 
 #### F-170. The load-failure message shows the internal kind "(fetchFailed)"
 
@@ -2623,7 +2623,7 @@ link they write to the old name targets the new one.
 - Finding: "The unit definitions could not be loaded (fetchFailed)." shows an internal kind name, where §12 q6 keeps internal kind names out of the docs (reasoned from code, not run). No page states the loading and failure messages ("Loading units…"; "… Check your connection and try again." or "… This is a bug in the app, not in what you typed.", with a Retry button; the app never retries on its own, `src/app-shell.ts:168-185, 255-272`: D9 (F-169)).
 - Proposed call: app.md describes the failure and the Retry button without quoting the parenthesis (D9 L196-197); whether the app keeps the kind in its text for bug reports or moves it to the console is a code decision (D9 (Q-057); the code side is D9 (B-023)).
 - Related: Q-057, B-023, F-169
-- Decision: Stands; follows Q-057 (ok: the app keeps it; the page does not quote the parenthesis).
+- Decision: Stands; follows Q-057 (ok: the app keeps it; the page does not quote the parenthesis). Amended 2026-10-26 (plan §12.3, the review of the app page): the failure is described in one sentence, nothing of it quoted.
 
 #### F-171. The privacy fact has no user-side statement
 
@@ -2657,7 +2657,7 @@ link they write to the old name targets the new one.
 - Finding: The update check is the footer's, not a setting (`src/app-footer.ts:142-146`), and `docs/app.md` owns it (§6.5, C57; §12 q22); D9 tags the paragraph stale, update. It holds as far as it goes (context D9 report) but omits that the build is plain text also when the service worker failed to register (`src/app-footer.ts:159-166`) and that following the "update to …" link reloads every open page of the app (`src/service-worker-updates.ts:5-16`, `:187-195`); the build is a build ID, a commit hash, not a number (`src/build-id.ts:1-14`). It duplicates `devdocs/offline.md:40-70` (§9.1), which keeps the mechanism (§12 q24).
 - Proposed call: Delete from `docs/settings.md`; `docs/app.md` restates it with both corrections (D9's and V8's drafts).
 - Related: Q-022, B-053, F-174, F-175, F-180, F-492
-- Decision: Stands; follows Q-022 (A: "build ID"; the section "Updates and the build ID") and F-494.
+- Decision: Stands; follows Q-022 (A: "build ID"; the section "Updates and the build ID") and F-494. Amended 2026-10-26 (plan §12.3, the review of the app page): the paragraph's two omissions are not restored; `app.md` says only that clicking the build ID checks for a new version, that the app also checks on its own, and that a new version is offered as a link, never interrupts, and reloads the app when followed.
 
 #### F-174. The footer's rarer words are documented nowhere; offline.md lists a subset
 
@@ -2672,7 +2672,7 @@ link they write to the old name targets the new one.
 - Conflict: where the words live: D9 (Q7, L321) has `app.md` quote every word verbatim and the devdocs bullet keep the mapping from status to word, words included; V8 (L55, L109, L261) lists the words once, in `docs/app.md`, and has `offline.md` name the statuses and defer the words to `src/app-footer.ts`.
 - Proposed call: **doc wrong** (the page lists a subset of deliberate states that both units read from `src/app-footer.ts`); settle the destination by §12 q24 (a devdocs section keeps the mechanism and links the docs owner), which decides whether the mapping repeats the words.
 - Related: F-173
-- Decision: Stands (doc wrong); follows Q-007 (ok: `app.md` quotes every footer word verbatim) and §12 q24 (the devdocs bullet keeps the mapping from status to word); F-494 for "update".
+- Decision: Stands (doc wrong); follows Q-007 (ok: `app.md` quotes every footer word verbatim) and §12 q24 (the devdocs bullet keeps the mapping from status to word); F-494 for "update". Amended 2026-10-26 (plan §12.3, the review of the app page): `app.md` quotes no footer word; whether `devdocs/offline.md` lists the words with its mapping or leaves them to `src/app-footer.ts` is work order 23's choice, since such detail need not be captured elsewhere.
 
 #### F-175. What the build ID is has no user-side statement
 
@@ -2684,7 +2684,7 @@ link they write to the old name targets the new one.
 - Sources: the user-facing part of `devdocs/offline.md#Build ID` (the footer names the build; twelve digits; the tooltip; `-dirty`), which then opens with a link to `docs/app.md` and keeps the derivation (`vite-plugin-build-id.ts`, git alone, `unknown`, why every commit is a new build) as mechanism and intent (V8 L263-271).
 - Proposed call: State it in app.md (D9 L201-205; V8 L155); the term, build ID or the build, is the terminology draft's (V8 (Q-022)).
 - Related: Q-022, F-173, F-492
-- Decision: Stands; follows Q-022 (A).
+- Decision: Stands; follows Q-022 (A). Amended 2026-10-26 (plan §12.3, the review of the app page): what the build ID is stays unstated; `app.md` says only that the footer shows the build ID of the running version, the identifier being opaque to a user.
 
 #### F-176. The sheet's mechanics leave docs/settings.md for docs/app.md
 
@@ -2695,7 +2695,7 @@ link they write to the old name targets the new one.
 - Finding: The first paragraph restates the sheet down to the handle, the keyboard's Done key and the steppers (`src/settings-panel.ts:56-101`; the mechanics hold, context D9 report); §7's settings page keeps only where the settings are and how a change applies (§6.5, §12 q3). §9.1's duplication with `devdocs/settings.md#The sheet` resolves the same way: those sections stay as design and open with a link to `docs/app.md` (V5). D9 did not read `devdocs/settings.md#The sheet` (D9 L59, hedged); V5 did. D4's opening still keeps the reset links on the settings page (D4 L162-167), which D9's `docs/app.md` draft also carries (D9 L228-243).
 - Proposed call: One sentence in `docs/settings.md` (where the settings are; a change applies as it is made) with a link to `docs/app.md#The settings sheet`, which takes the mechanics (D9's draft); `devdocs/settings.md#The sheet` opens with that link (V5 L209); the owner picks one page for the reset links.
 - Related: F-180, F-488
-- Decision: Stands: one sentence in `docs/settings.md` with a link to `docs/app.md#The settings panel` (F-488), which takes the mechanics; the session of `app.md` keeps the reset links in one place; `devdocs/settings.md#The panel` opens with the link in its own rewrite (Q-008).
+- Decision: Stands: one sentence in `docs/settings.md` with a link to `docs/app.md#The settings panel` (F-488), which takes the mechanics; the session of `app.md` keeps the reset links in one place; `devdocs/settings.md#The panel` opens with the link in its own rewrite (Q-008). Amended 2026-10-26 (plan §12.3, the review of the app page): the reset links are `docs/settings.md#Defaults and resets`'s alone and `app.md` does not mention them; `app.md#The settings panel` keeps only how the panel opens, that every change applies at once, and how it closes.
 
 #### F-177. The sheet's "About these settings" link: undocumented, and an absolute URL
 
@@ -2707,7 +2707,7 @@ link they write to the old name targets the new one.
 - Sources: D9's draft "The settings sheet" (L239-243); V8's added sentence for `security.md#The page` on the one absolute URL, a link with nothing fetched from it (L295).
 - Proposed call: State the link in app.md and add V8's sentence to `security.md#The page`; once the pages ship with the app (§12 q31) the link becomes local and the sentence goes (D9 (Q-007), V8 (Q-115)).
 - Related: Q-007, Q-115, B-069, F-342
-- Decision: Stands; follows Q-115 (ok) and Q-007; amended by F-488 ("the panel's foot").
+- Decision: Stands; follows Q-115 (ok) and Q-007; amended by F-488 ("the panel's foot"). Amended 2026-10-26 (plan §12.3, the review of the app page): `app.md` does not mention the link; `devdocs/security.md#The page` keeps its sentence on the one absolute URL (work order 25).
 
 #### F-178. The copy button's feedback is undocumented
 
@@ -2718,7 +2718,7 @@ link they write to the old name targets the new one.
 - Gap: The two-sheets icon becomes a check mark for a moment once the text is on the clipboard, or a cross in the error colour when the clipboard refused it, and a live region says "Copied" or "Couldn't copy" for a screen reader (`src/copy-button.ts:5-15, 105-118, 142-145`; reasoned from code, not run).
 - Sources: D9's draft section (L245-254), which names the check mark and the cross but not the screen reader's words; the copy path in `devdocs/architecture.md#The converter and its lines`.
 - Proposed call: State it in app.md "Copying a result", with the paste-back principle linked to `numbers.md` (§12 q11); V8 left this section to others (V8 L132).
-- Decision: Stands; follows F-457 ("pastes back"); low confidence: the session reads `src/copy-button.ts`.
+- Decision: Stands; follows F-457 ("pastes back"); low confidence: the session reads `src/copy-button.ts`. Amended 2026-10-26 (plan §12.3, the review of the app page): the feedback is described in general terms, the icon showing for a moment whether the copy succeeded, with no icon named and no word quoted.
 
 #### F-179. The empty state and the fields' app-specific behaviour are undocumented
 
@@ -2730,7 +2730,7 @@ link they write to the old name targets the new one.
 - Sources: D9's draft section (L256-264); `devdocs/architecture.md#The converter and its lines`.
 - Proposed call: State it in app.md without quoting the hint, whose wording frames conversion first against §12 q2: D9 (Q-056) proposes "Type an expression, such as `sqrt(2)` or `3 ft`, and, to convert it, the unit you want, such as `in` or `ft;in`." (a code change, D9 (B-022)).
 - Related: Q-056, B-022
-- Decision: Stands; follows Q-056 (ok: B-022 in the code phase; the page describes the hint without quoting it).
+- Decision: Stands; follows Q-056 (ok: B-022 in the code phase; the page describes the hint without quoting it). Amended 2026-10-26 (plan §12.3, the review of the app page): the page names the labels, says that a hint shows while the have is blank, that autocomplete, autocorrect and spell-checking are off, and which field an error marks, in one paragraph.
 
 #### F-180. docs/app.md does not exist (§9.3); D9 and V8 drafted it independently
 
@@ -2742,7 +2742,7 @@ link they write to the old name targets the new one.
 - Conflict: D9 drafts the whole page (Installing; Offline use; Updates and the build ID; The settings sheet; Copying a result; The two fields); V8, with no D9 report (V8 L6, L322), drafts three sections (Installing; Working offline; Updates and the build) and leaves the sheet and copying to others. They differ on: (1) the section names both units' devdocs edits link to ("Offline use", "Updates and the build ID" in D9 (F-251, F-403); "Working offline", "Updates and the build" in V8 (F-172, F-175, F-171); §7 says "updates and the build number"); (2) scope: D9 L97 gives the page the fields' app-specific behaviour, V8's opening (L137) sends "what the two fields do" to the other pages; (3) the periodic check runs "while it stays in view" (D9 L208; V8's own O4, L54) vs "while it stays open" (V8 L149); (4) the footer's words: D9's draft omits the bare "update" that D9 (F-174) and V8 (L158) list, and writes "bypassed" and "worker …" with a "reload" link where V8 quotes "bypassed · reload" and "worker … · reload"; (5) V8's page links down to `devdocs/offline.md` and `devdocs/security.md` (L145, L165), which D9 drops from docs/ under §9.2 (D9 (F-134)). V8 alone adds the privacy sentence (V8 (Q-028)) and that the app "still works online" after "worker failed".
 - Proposed call: `docs/app.md` owns these facts, with one line in the index, getting started ending with a link to it. Write the page to §7's six sections from D9's draft (the decision on `app.md` is D9's output, §10; V8 offered its sections to D9, V8 L132), folding in V8's word-by-word list and, if V8 (Q-028) is accepted, the privacy sentence; settle (1) with the build-ID term (V8 (Q-022)), (3) against `src/register-service-worker.ts`, (4) against `src/app-footer.ts:183-222` (D9 (Q-007) wants every word verbatim), (5) against §9.2.
 - Related: F-173
-- Decision: Stands: `docs/app.md` from D9's draft with V8's word list and the privacy sentence (Q-028); follows Q-022 ("Updates and the build ID"), F-488 ("The settings panel"), F-493, F-494, Q-057, Q-007; (3) settled against `src/register-service-worker.ts` (F-403); (5) the privacy sentence links `devdocs/security.md#The page`, as V8 has it (plan §12.3, R-1), and nothing else on the page links down: V8's link to `devdocs/offline.md` is not taken; the page is written after `settings.md` (Q-008).
+- Decision: Stands: `docs/app.md` from D9's draft with V8's word list and the privacy sentence (Q-028); follows Q-022 ("Updates and the build ID"), F-488 ("The settings panel"), F-493, F-494, Q-057, Q-007; (3) settled against `src/register-service-worker.ts` (F-403); (5) the privacy sentence links `devdocs/security.md#The page`, as V8 has it (plan §12.3, R-1), and nothing else on the page links down: V8's link to `devdocs/offline.md` is not taken; the page is written after `settings.md` (Q-008). Amended 2026-10-26 (plan §12.3, the review of the app page): the page landed as a short map of about 75 lines, in general terms, with V8's word list dropped and the privacy sentence kept; §7's entry describes it as it is.
 
 ### Findings owned by other pages that touch this one
 

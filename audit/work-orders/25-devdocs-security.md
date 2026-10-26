@@ -51,7 +51,8 @@ definitions file, both from its origin and served from the precache
 once installed; it calls no third-party service; its only requests
 after loading are the checks for a new version, to its own origin, and
 they carry no local data (stated as the code has them, without
-contradicting `docs/app.md`'s sentence, R-2); and it carries one
+contradicting `docs/app.md`'s sentence, R-2, which the review of
+2026-10-26 cut to its first three statements); and it carries one
 absolute URL, the panel's link to the user docs, until the pages ship
 with the app (Q-115, B-069).
 

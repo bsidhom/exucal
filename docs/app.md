@@ -17,8 +17,8 @@ fields, [Numbers](numbers.md) says what a result means, and
 
 Exucal is a progressive web app (PWA): a browser that installs web apps
 can put it on the home screen or the desktop, where it opens in a
-window of its own. Nothing comes from an app store, and installing
-changes nothing in the app.
+window of its own. Nothing comes from an app store, and none of the
+app's own behavior changes when it is installed.
 
 ## Offline use
 

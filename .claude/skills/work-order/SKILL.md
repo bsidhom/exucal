@@ -122,6 +122,13 @@ Read nothing else in the corpus or the tree.
 - **When the work order and the code disagree,** or a fact cannot be
   checked: write only what you verified, never invent a fix outside
   your scope, and put the question to the owner in the review notes.
+  When a fact the page needs is not in what the work order names, in a
+  file it does not name or in the running app, ask the owner before you
+  read or run anything more, naming the fact and where it would come
+  from; the owner may give the fact, allow the reading or point away
+  from it (decided in the review of the app page, 2026-10-26). If no
+  answer comes, write the page without the fact and leave the question
+  in the review notes.
 - **One pass.** Write the page whole, under the headings section 4 of
   your work order fixes, in the order it gives; keep every heading
   another page links. Write it as a narrative for a technical reader

@@ -65,15 +65,17 @@ rounded. The mode is a setting too, and the other mode is
 [decimal mode](numbers.md#the-two-modes): every step is rounded to the
 digits shown, as a hand calculator does, and the rounded value is held
 as exact. So `1/3` is `= 0.33333333` there, and the rounding shows in
-`1/3 * 3`.
+`1/3 * 3`. In decimal mode the digits shown already write a value
+entire, so a fraction would add nothing, and neither notation is
+used.
 
-| You have  | You want | Exucal shows   | Setting            |
-| --------- | -------- | -------------- | ------------------ |
-| `1/3`     |          | `≈ 0.33333333` | the defaults       |
-| `1/3`     |          | `= 1/3`        | the ratio notation |
-| `1/3`     |          | `= 0.33333333` | decimal mode       |
-| `1/3 * 3` |          | `= 1`          | the defaults       |
-| `1/3 * 3` |          | `= 0.99999999` | decimal mode       |
+| You have  | You want | Exucal shows   | Mode    | Notation |
+| --------- | -------- | -------------- | ------- | -------- |
+| `1/3`     |          | `≈ 0.33333333` | exact   | digits   |
+| `1/3`     |          | `= 1/3`        | exact   | ratio    |
+| `1/3`     |          | `= 0.33333333` | decimal | not used |
+| `1/3 * 3` |          | `= 1`          | exact   | digits   |
+| `1/3 * 3` |          | `= 0.99999999` | decimal | not used |
 
 The calculator shows only digits it has **certified**, checked to be
 right. When the first computation certifies fewer than the display
@@ -153,13 +155,14 @@ is not zero kelvin, so no factor turns the one into the other. A level
 in decibels is the logarithm of a ratio, further still from a factor.
 So `tempC(20)` is the temperature that twenty degrees Celsius denotes,
 `= 293.15 K`, and `decibel(20)` is the ratio that twenty decibels
-denotes, `= 100`. Each function has an inverse, so its name can be the
-want, and the calculator then recovers the argument that gives the
-have: `300 K` into `tempF` is `= tempF(80.33)`, a reading on the
-Fahrenheit scale. The functions are in
+denotes, `= 100`. These functions have inverses, so each of them can
+be the want. A function without an inverse cannot be. With a function
+as the want, the calculator recovers the argument at which the function
+equals the have: `300 K` into `tempF` is `= tempF(80.33)`, a reading on
+the Fahrenheit scale. The functions are described in
 [Temperature: differences and readings](units.md#temperature-differences-and-readings)
 and [Logarithmic levels](units.md#logarithmic-levels), and the
-conversion is in
+conversion is described in
 [Conversion into a function](quantities.md#conversion-into-a-function).
 
 | You have      | You want | Exucal shows     |
@@ -212,12 +215,12 @@ defaults is `≈ 39.370079 in`:
 - Switching the [mode](settings.md#mode) to decimal mode rounds the
   value to the digits shown and holds it as exact, `= 39.370079 in`.
 
-| You have | You want | Exucal shows         | Setting               |
-| -------- | -------- | -------------------- | --------------------- |
-| `1 m`    | `in`     | `≈ 39.370079 in`     | the defaults          |
-| `1 m`    | `in`     | `≈ 39.3700787402 in` | twelve display digits |
-| `1 m`    | `in`     | `= (5000/127) in`    | the ratio notation    |
-| `1 m`    | `in`     | `= 39.370079 in`     | decimal mode          |
+| You have | You want | Exucal shows         | Display digits | Mode    | Notation |
+| -------- | -------- | -------------------- | -------------- | ------- | -------- |
+| `1 m`    | `in`     | `≈ 39.370079 in`     | 8              | exact   | digits   |
+| `1 m`    | `in`     | `≈ 39.3700787402 in` | 12             | exact   | digits   |
+| `1 m`    | `in`     | `= (5000/127) in`    | 8              | exact   | ratio    |
+| `1 m`    | `in`     | `= 39.370079 in`     | 8              | decimal | not used |
 
 ## When something fails
 

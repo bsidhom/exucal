@@ -23,7 +23,7 @@ import {
  * hour while it stays in view, but never within `CHECK_INTERVAL` of the
  * last check: an installed app is usually resumed rather than reloaded, and
  * would otherwise not hear of a new version until it was closed and opened
- * again. The user can check at once from the settings (`checkForUpdate`).
+ * again. The user can check at once from the footer's build ID (`checkForUpdate`).
  */
 
 /** The least time between two checks for an update, in milliseconds. */

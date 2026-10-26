@@ -4,32 +4,19 @@ Exucal is a calculator built to be exact wherever it can be and
 explicit wherever it cannot. A result that can be exact is the exact
 value. One that cannot is shown to the digits the calculator has
 checked, with a note wherever it could not check every digit asked
-for. The tour below has eight stops and a map of where to go next.
-Each stop is something to type, what the calculator answers and, in a
-sentence or two, what the answer means, with a link to the page that
-explains it in full. Its table gives what you type in each field and
-the result as the calculator shows it, from its `=` or `≈` on. Every
-example was run at the default settings, which show eight digits.
+for.
 
-- [Your first calculation](#your-first-calculation): the two fields,
-  an exact product, and two inexact functions.
-- [Reading `=`, `≈` and a note](#reading---and-a-note): what the sign
-  before a result says, and what a note says.
-- [Your first conversion](#your-first-conversion): feet into inches,
-  the line under it, and the copy button.
-- [Lists of units](#lists-of-units): a meter in feet and inches, and
-  seconds as hours, minutes and seconds.
-- [Functions and readings](#functions-and-readings): a sine, a Celsius
-  reading, and a kelvin temperature read in Fahrenheit.
-- [Approximating a value](#approximating-a-value): `approx`, and what
-  making a value inexact buys.
-- [Changing a setting](#changing-a-setting): the same conversion under
-  more digits, the ratio notation and decimal mode.
-- [When something fails](#when-something-fails): a mismatch, a value
-  too big to hold, and a division by a value that cannot be told from
-  zero.
-- [Where to go next](#where-to-go-next): the reference pages, by what
-  each answers.
+On this page:
+
+- [Your first calculation](#your-first-calculation)
+- [Reading `=`, `≈` and a note](#reading---and-a-note)
+- [Your first conversion](#your-first-conversion)
+- [Lists of units](#lists-of-units)
+- [Functions and readings](#functions-and-readings)
+- [Approximating a value](#approximating-a-value)
+- [Changing a setting](#changing-a-setting)
+- [When something fails](#when-something-fails)
+- [Where to go next](#where-to-go-next)
 
 ## Your first calculation
 
@@ -40,19 +27,18 @@ be left blank ([The two fields](app.md#the-two-fields)). Type
 `2 kg * 3 m/s^2` in the have and leave the want blank. The answer
 appears as you type, as an output line: your expression as the
 calculator writes it, then the sign `=`, then the result, so the
-screen reads `2 kg × 3 m / s^2 = 6 m kg / s^2`. The unit of the result
-is written in the units every other unit is defined from, here the
-meter, the kilogram and the second. The definitions file is the file
-that defines every unit the calculator knows. The units come in the
-order the file declares them, which is why the meter comes before the
-kilogram
-([How dimensions are written in messages](quantities.md#how-dimensions-are-written-in-messages)).
+screen reads `2 kg × 3 m / s^2 = 6 m kg / s^2`. With the want blank,
+the result is written in the
+[primitives](quantities.md#primitives-dimensions-and-kinds), the units
+every other unit is defined from, such as the meter, the kilogram and
+the second.
 
 The product is exact: an exact value is one the calculator holds as a
 fraction, as it holds `6`. `exp(1)` and `sqrt(2)` call two of the
 built-in functions ([Built-in functions](builtins.md)), and neither
 value is a fraction, so neither is exact. The calculator computes
-digits of each and shows eight, behind `≈`
+digits of each and shows eight of them, the default number of
+[display digits](settings.md#display-digits), behind `≈`
 ([Exact and inexact values](numbers.md#exact-and-inexact-values)).
 
 | You have         | You want | Exucal shows     |
@@ -70,13 +56,31 @@ and shown entire, and `≈` says that digits were left out or that a step
 of the computation was inexact
 ([Exact and inexact values](numbers.md#exact-and-inexact-values)).
 
+That is the digits notation, the default. The
+[ratio notation](settings.md#notation-and-ratio-width), a setting,
+writes an exact value as the fraction itself, `= 1/3`. The fraction is
+the whole value, so the sign is `=`. Both notations belong to exact
+mode, the default arithmetic, in which an exact value is never
+rounded. The mode is a setting too, and the other mode is
+[decimal mode](numbers.md#the-two-modes): every step is rounded to the
+digits shown, as a hand calculator does, and the rounded value is held
+as exact. So `1/3` is `= 0.33333333` there, and the rounding shows in
+`1/3 * 3`.
+
+| You have  | You want | Exucal shows   | Setting            |
+| --------- | -------- | -------------- | ------------------ |
+| `1/3`     |          | `≈ 0.33333333` | the defaults       |
+| `1/3`     |          | `= 1/3`        | the ratio notation |
+| `1/3`     |          | `= 0.33333333` | decimal mode       |
+| `1/3 * 3` |          | `= 1`          | the defaults       |
+| `1/3 * 3` |          | `= 0.99999999` | decimal mode       |
+
 The calculator shows only digits it has **certified**, checked to be
-right. The digits asked for are the
-[display digits](settings.md#display-digits), a setting. When the
-first computation certifies fewer of them, the calculator computes
-again at more digits. When that is not enough, a note in parentheses
-says how far to trust the result: how many of its digits are
-certified, or that it is zero within a bound the note gives.
+right. When the first computation certifies fewer than the display
+digits, the calculator computes again at more digits. When that is not
+enough, a note in parentheses says how far to trust the result: how
+many of its digits are certified, or that it is zero within a bound
+the note gives.
 `sqrt(2)^2 * 1.000000025` shows `≈ 2`, which is `2.0000000` with its
 zeros dropped, and the note "7 of 8 digits are certified". The value
 is `2.00000005` on paper, exactly halfway between `2.0000000` and
@@ -91,7 +95,6 @@ gives. How small that bound gets depends on the
 
 | You have                  | You want | Exucal shows                        |
 | ------------------------- | -------- | ----------------------------------- |
-| `1/3`                     |          | `≈ 0.33333333`                      |
 | `sqrt(2)^2 * 1.000000025` |          | `≈ 2 (7 of 8 digits are certified)` |
 | `sqrt(2)^2 - 2`           |          | `≈ 0 (within 4e-4049 of zero)`      |
 
@@ -102,8 +105,9 @@ Type `3 ft` in the have and `in` in the want. The answer is
 centimeters and a foot as twelve inches. Under it stands the
 reciprocal line, the conversion in the opposite direction, which
 gives one inch as a multiple of what you typed:
-`in ≈ 0.027777778 × 3 ft`. A conversion into one unit always answers
-with the two lines
+`in ≈ 0.027777778 × 3 ft`. A conversion into a unit you asked for
+always answers with the two lines. A blank want gives one line, as the
+first calculation showed
 ([How a conversion is answered](quantities.md#how-a-conversion-is-answered)).
 A button at the end of each line copies its result as text that pastes
 back into the have, `36 in` or `0.027777778 * 3 ft`
@@ -120,8 +124,9 @@ number of each unit but the last, and the rest in the last. `1 m` into
 `ft;in` is `≈ 3 ft + 3.3700787 in`. The units must run from the
 largest to the smallest, since each unit after the first counts what
 is left over from the one before it, so `in;ft` is an error to ask
-for. The definitions file also defines some lists under a name, and
-the name alone as the want means the list: `3661 s` into `time` is
+for. The [definitions file](quantities.md), which defines every unit
+the calculator knows, also defines some lists by name, and the name
+alone as the want means the list: `3661 s` into `time` is
 `= 1 hr + 1 min + 1 s`, exact and shown entire. A list has no
 reciprocal line ([Unit lists](quantities.md#unit-lists)).
 [Unit lists defined in the file](units.md#unit-lists-defined-in-the-file)
@@ -140,22 +145,28 @@ the degree is defined through `pi()`, an inexact value, so the argument
 is inexact before the sine is taken
 ([Trigonometric](builtins.md#trigonometric)).
 
-A temperature reading is a function, not a unit. A unit is a factor
-that a quantity is a multiple of, and zero degrees Celsius is not zero
-kelvin, so no factor turns the one into the other. `tempC(20)` is the
-temperature that twenty degrees Celsius denotes, `= 293.15 K`. The
-function has an inverse, so its name can be the want, and the
-calculator then recovers the argument that gives the have: `300 K` into
-`tempF` is `= tempF(80.33)`, a reading on the Fahrenheit scale. The
-functions are in
-[Temperature: differences and readings](units.md#temperature-differences-and-readings),
-and the conversion is in
+A temperature reading is a function, not a unit, and so is a level in
+decibels. A quantity is a number times its unit, so converting into
+another unit multiplies by one factor: a unit is linear. A temperature
+scale is affine, an offset as well as a factor: zero degrees Celsius
+is not zero kelvin, so no factor turns the one into the other. A level
+in decibels is the logarithm of a ratio, further still from a factor.
+So `tempC(20)` is the temperature that twenty degrees Celsius denotes,
+`= 293.15 K`, and `decibel(20)` is the ratio that twenty decibels
+denotes, `= 100`. Each function has an inverse, so its name can be the
+want, and the calculator then recovers the argument that gives the
+have: `300 K` into `tempF` is `= tempF(80.33)`, a reading on the
+Fahrenheit scale. The functions are in
+[Temperature: differences and readings](units.md#temperature-differences-and-readings)
+and [Logarithmic levels](units.md#logarithmic-levels), and the
+conversion is in
 [Conversion into a function](quantities.md#conversion-into-a-function).
 
 | You have      | You want | Exucal shows     |
 | ------------- | -------- | ---------------- |
 | `sin(30 deg)` |          | `≈ 0.5`          |
 | `tempC(20)`   |          | `= 293.15 K`     |
+| `decibel(20)` |          | `= 100`          |
 | `300 K`       | `tempF`  | `= tempF(80.33)` |
 
 ## Approximating a value
@@ -196,31 +207,23 @@ defaults is `≈ 39.370079 in`:
 - Raising the [display digits](settings.md#display-digits) from eight
   to twelve shows more of the same exact value, `≈ 39.3700787402 in`.
 - Choosing the
-  [ratio notation](settings.md#notation-and-ratio-width) writes an
-  exact value as a fraction when the fraction is short enough,
-  `= (5000/127) in`, with `=`, since the fraction is the whole value.
-- Switching the [mode](settings.md#mode) from exact mode, the default,
-  to decimal mode rounds every step to the digits shown, as a hand
-  calculator does. The rounded value is held as exact, so every answer
-  in decimal mode is `=`, here `= 39.370079 in`. The rounding shows in
-  `1/3 * 3`, which is `= 1` in exact mode and `= 0.99999999` in decimal
-  mode ([The two modes](numbers.md#the-two-modes)).
+  [ratio notation](settings.md#notation-and-ratio-width) writes the
+  exact value as a fraction, `= (5000/127) in`.
+- Switching the [mode](settings.md#mode) to decimal mode rounds the
+  value to the digits shown and holds it as exact, `= 39.370079 in`.
 
-| You have  | You want | Exucal shows         | Setting               |
-| --------- | -------- | -------------------- | --------------------- |
-| `1 m`     | `in`     | `≈ 39.370079 in`     | the defaults          |
-| `1 m`     | `in`     | `≈ 39.3700787402 in` | twelve display digits |
-| `1 m`     | `in`     | `= (5000/127) in`    | the ratio notation    |
-| `1 m`     | `in`     | `= 39.370079 in`     | decimal mode          |
-| `1/3 * 3` |          | `= 1`                | the defaults          |
-| `1/3 * 3` |          | `= 0.99999999`       | decimal mode          |
+| You have | You want | Exucal shows         | Setting               |
+| -------- | -------- | -------------------- | --------------------- |
+| `1 m`    | `in`     | `≈ 39.370079 in`     | the defaults          |
+| `1 m`    | `in`     | `≈ 39.3700787402 in` | twelve display digits |
+| `1 m`    | `in`     | `= (5000/127) in`    | the ratio notation    |
+| `1 m`    | `in`     | `= 39.370079 in`     | decimal mode          |
 
 ## When something fails
 
 A failure is a message in place of a result: a refusal when a size
-limit stops the result, as the stop before showed, and an error
-otherwise. Three shapes are common, and these are examples of them,
-not an inventory.
+limit is passed, as `3^1000000000` showed, and an error otherwise.
+Here are some common shapes of failure:
 
 - A mismatch is an error. `1 m + 1 s` cannot be added, since a length
   and a time do not conform, that is, they measure different things,

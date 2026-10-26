@@ -251,7 +251,7 @@ export interface UpdateChecks {
   ifDue(): void;
   /**
    * Checks at once, however recent the last check, and resolves to whether
-   * the check went through: the user's check, from the settings.
+   * the check went through: the user's check, from the footer's build ID.
    */
   now(): Promise<boolean>;
 }

@@ -71,8 +71,9 @@ of the computation was inexact
 ([Exact and inexact values](numbers.md#exact-and-inexact-values)).
 
 The calculator shows only digits it has **certified**, checked to be
-right. The digits asked for are the display digits, a setting. When
-the first computation certifies fewer of them, the calculator computes
+right. The digits asked for are the
+[display digits](settings.md#display-digits), a setting. When the
+first computation certifies fewer of them, the calculator computes
 again at more digits. When that is not enough, a note in parentheses
 says how far to trust the result: how many of its digits are
 certified, or that it is zero within a bound the note gives.
@@ -84,8 +85,9 @@ that bound reaches across the halfway point however small it gets, so
 no amount of computing settles the eighth digit. `sqrt(2)^2 - 2` is
 zero on paper, but the root was computed to a finite number of digits,
 so the difference is zero only within a tiny bound, which the note
-gives. How small that bound gets depends on the precision limit, a
-setting ([Digits you can trust](numbers.md#digits-you-can-trust)).
+gives. How small that bound gets depends on the
+[precision limit](settings.md#precision-limit), a setting
+([Digits you can trust](numbers.md#digits-you-can-trust)).
 
 | You have                  | You want | Exucal shows                        |
 | ------------------------- | -------- | ----------------------------------- |
@@ -166,7 +168,8 @@ known only within a bound ([approx](numbers.md#approx)).
 Making a value inexact buys something: the exact arithmetic never
 rounds, so a value too big to hold exactly is refused even when a few
 digits of it would do. `3^1000000000` is a whole number of hundreds of
-millions of digits, past the significand limit, the setting that
+millions of digits, past the
+[significand limit](settings.md#significand-limit), the setting that
 bounds how big an exact value may be. The calculator refuses it,
 answering with a message that names the limit rather than with the
 number ([Values too big to hold](numbers.md#values-too-big-to-hold)).
@@ -190,16 +193,18 @@ The cog in the top right corner opens the settings panel
 what the settings do to one conversion, `1 m` into `in`, which at the
 defaults is `≈ 39.370079 in`:
 
-- Raising the display digits from eight to twelve shows more of the
-  same exact value, `≈ 39.3700787402 in`.
-- Choosing the ratio notation writes an exact value as a fraction when
-  the fraction is short enough, `= (5000/127) in`, with `=`, since the
-  fraction is the whole value.
-- Switching from exact mode, the default, to decimal mode rounds every
-  step to the digits shown, as a hand calculator does. The rounded
-  value is held as exact, so every answer in decimal mode is `=`, here
-  `= 39.370079 in`. The rounding shows in `1/3 * 3`, which is `= 1` in
-  exact mode and `= 0.99999999` in decimal mode.
+- Raising the [display digits](settings.md#display-digits) from eight
+  to twelve shows more of the same exact value, `≈ 39.3700787402 in`.
+- Choosing the
+  [ratio notation](settings.md#notation-and-ratio-width) writes an
+  exact value as a fraction when the fraction is short enough,
+  `= (5000/127) in`, with `=`, since the fraction is the whole value.
+- Switching the [mode](settings.md#mode) from exact mode, the default,
+  to decimal mode rounds every step to the digits shown, as a hand
+  calculator does. The rounded value is held as exact, so every answer
+  in decimal mode is `=`, here `= 39.370079 in`. The rounding shows in
+  `1/3 * 3`, which is `= 1` in exact mode and `= 0.99999999` in decimal
+  mode ([The two modes](numbers.md#the-two-modes)).
 
 | You have  | You want | Exucal shows         | Setting               |
 | --------- | -------- | -------------------- | --------------------- |

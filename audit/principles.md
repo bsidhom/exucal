@@ -138,6 +138,22 @@ is new before it is handed over. Within a page, the section that owns a
 concept states it, the page's overview states it once, and no other
 section or overview line restates it (the review of 2026-10-25).
 
+**A user page describes the interface in general terms (the review of
+the app page, 2026-10-26; plan §12.3).** A page about the app's surface
+is a short map of what a user meets, not an account of how it works.
+It describes the interface in general terms and quotes none of the
+interface's own text, no label, message or footer word, except where a
+reader must find a control by its label, as the fields "You have" and
+"You want"; so the page need not change whenever a label does. It
+states no implementation detail: not how the offline copy works, beyond
+the browser support offline use needs; not the form or the purpose of
+an identifier such as the build ID, which a user takes as opaque; not
+when or how often the app checks for a new version, which may change.
+A detail cut from a user page on this rule need not be captured in the
+developer docs either, unless they need it for their own reasons. The
+settings' details are the settings page's alone, linked as a page and
+never drilled into from another page.
+
 **Inexact, not approximate (F-451).** "Inexact" names a value with a
 nonzero radius, everywhere, headings included ("Exact and inexact
 values", "which units are inexact", "the digits an inexact value is

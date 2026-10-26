@@ -64,6 +64,12 @@ it to the whole text, not only to the sentence that prompted it.
   concept gets a link and at most a clause; the words go to the page's
   own facts. A reader meets a restatement as padding, and a reviewer
   cuts it.
+- Describe an interface in general terms, as a user meets it, and quote
+  its text only where the reader must find a control by its label; the
+  page then need not change when a label does. Give no implementation
+  detail on a user-facing page: the mechanism behind a feature is the
+  developer docs' at most, and a detail cut on this rule need not be
+  kept anywhere.
 
 ## 2. Sentences
 

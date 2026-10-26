@@ -1,13 +1,11 @@
 # Exucal
 
-Exucal is a calculator that runs in the browser and makes one
-guarantee: it computes exactly wherever it can, or else shows only the
-digits it has certified, in its arithmetic and in its functions alike,
-the elementary ones and the special ones that matter most in
-combinatorics, probability and physics. Through every calculation and
-conversion it keeps track of units and of kinds, the markers that keep
-an angle apart from a plain number, so that a mismatch is an error and
-never a number.
+Exucal is a calculator that runs in the browser and guarantees that
+it computes exactly wherever it can, or else shows only the digits it
+has certified, both in its arithmetic and in its functions. It offers
+the elementary functions and some special functions, and it keeps
+track of units through every calculation and conversion so that a
+mismatch of units is an error and never a number.
 
 The pages of the user documentation, in reading order:
 

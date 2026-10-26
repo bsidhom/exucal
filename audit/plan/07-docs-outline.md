@@ -269,20 +269,30 @@ sentence that restates nothing of the guarantee (the review of
   lacks and what to write, never what may come; the deferred classes
   are described in `devdocs/future.md` only, Q-010, Q-011)
 
-**`docs/app.md` — The app (guide).** What is specific to the web app
-(§12, questions 3 and 22), in six sections (D9's scope, F-180), its
-opening stating the portable format of the first goal, the browser,
-where the app installs and works offline (§12.3, 2026-10-14):
-- Installing
-- Offline use (the service worker named once as what lets the app be
-  served offline, F-493; the loading and failure messages, F-169; the
-  privacy sentence, Q-028, linking `devdocs/security.md#The page`, R-1
-  and R-2)
-- Updates and the build ID (Q-022; every footer word quoted, Q-007;
-  "a new version" and "update", F-494, the heading keeping the noun,
-  R-8)
-- The settings panel (F-488; the mechanics and the reset links, F-176)
-- Copying a result (pastes back, F-457; the button's feedback, F-178)
+**`docs/app.md` — The app (guide).** A short map of what is specific to
+the web app (§12, questions 3 and 22), in six sections (D9's scope,
+F-180), its opening stating the portable format of the first goal, the
+browser, where the app installs and works offline (§12.3, 2026-10-14).
+Cut in review to about seventy lines, in general terms, quoting none of
+the interface's text but the two field labels, with no implementation
+detail and no settings detail (section 12.3, 2026-10-26):
+- Installing (a progressive web app; nothing from an app store; none of
+  the app's own behavior changes when it is installed)
+- Offline use (works offline once loaded, in a browser with service
+  workers, F-493 as amended; a failure to load the units file described
+  in one sentence, F-169, F-170; the privacy sentence, Q-028, linking
+  `devdocs/security.md#The page`, R-1 and R-2)
+- Updates and the build ID (the build ID identifies the running version
+  and checks for a new version when clicked, nothing of its form, F-175
+  as amended; the app checks on its own, no schedule given; a new
+  version offered as a link and never interrupting; no footer word
+  quoted, Q-007 as amended; "a new version" and "update", F-494, the
+  heading keeping the noun, R-8)
+- The settings panel (F-488; opening with the result in view, every
+  change applying at once, closing; nothing of the settings, F-176 and
+  F-177 as amended)
+- Copying a result (what the button copies and that it pastes back,
+  F-457, with one two-row table; the icon's feedback described, F-178)
 - The two fields (the labels named beside have and want, F-471; the
   hint described, not quoted, Q-056; which field an error marks, F-179)
 

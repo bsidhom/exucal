@@ -248,7 +248,7 @@ they change say so. Nothing is pending now.
 - **Q-019. "plain number" or "dimensionless" in devdocs.** Decision: A. "Dimensionless" should be preferred where it is not too clunky, but "plain number" is sometimes clearer/simpler. The important thing is that these should be considered _synonyms_, with the word "kind" used any time we are attaching semantics to a particular class of values (as of now, only angles are treated specially with kinds).
   Applied: A, with the note as a **rule**: "dimensionless" and "plain number" are synonyms, "dimensionless" preferred where it is not clunky and "plain number" where it is clearer (and wherever the code's rules and messages are quoted), defined once per page as neither dimension nor kind; "kind" is used whenever semantics attach to a class of values (today only angles). Amends question 20 above and plan §8 (the "plain number" row); F-460, F-461 follow.
 - **Q-022. "build number" or "build ID".** Decision: A
-  Applied: A: "build ID" in both corpora, the footer's label "Build" quoted where the footer is described, and `docs/app.md`'s section "Updates and the build ID". Amends plan §5 C57, §7 (the `app.md` scope line) and §3's note on the build number; F-173, F-175, F-251, F-492 follow.
+  Applied: A: "build ID" in both corpora, the footer's label "Build" quoted where the footer is described, and `docs/app.md`'s section "Updates and the build ID". Amends plan §5 C57, §7 (the `app.md` scope line) and §3's note on the build number; F-173, F-175, F-251, F-492 follow. Amended 2026-10-26 (section 12.3): the label "Build" is not quoted on `docs/app.md`, which says only that the footer shows the build ID of the running version.
 - **F-431. A pass's grid, its precision, and the working digits.** Decision: ok
   Applied: ok: devdocs say "the working grid" for the grid a pass settles onto, "working precision" for a pass's precision and "working digits" for the decimal-mode setting alone; docs say "the digits an inexact value is kept to" (with Q-004's "grid", named once); never "working precision" for the grid; #172 renames the code. A new row of plan §8; F-015 follows.
 - **F-436. "neighbor" and "the neighbor rule".** Decision: ok
@@ -288,7 +288,7 @@ they change say so. Nothing is pending now.
 - **F-491. The probe's functions.** Decision: ok. As I've noted elsewhere, I don't necessarily plan to extend the probe to arbitrary, expensive special functions, which might be impractical to satisfy to a high precision with good UI responsiveness. This is why we have follow-up work to make the UI responseive even during long-running computations.
   Applied: ok: "the four elementary functions" (never "the costliest"); the sheet's `PROBE_LINE` is worded the same way in the code change of Q-006 (B-017). The owner's note is recorded in the owner's words, not as a decision (section 12.3, R-6): there is no plan to extend the probe to the expensive special functions, which might be impractical to satisfy to a high precision with good responsiveness; keeping the interface responsive during long computations is the scheduler's work (#118, future work). Amends plan §9.4's probe row (D4's "the four costliest elementary functions" is not used); F-128, F-278, Q-006 follow.
 - **F-493. After "service worker" is named once in `docs/app.md`.** Decision: other: I'm not sure exactly how we are bringing up the term "service worker" in user docs. This _feels_ like an implementation detail that many users need not understand, but which is necessary to get the app working offline robustly. It might be worth a brief mention, but in that case, we should call it what it is ("service worker") rather than only informally describe what it does. However, we should also clearly call out that it allows the doc to be served offline in user docs at the time we introduce this term. The devdocs should use "service worker" consistently.
-  Applied: the docs name the service worker as what it is, "the service worker", once in `docs/app.md` where it is introduced, saying there that it is what lets the app be served offline, and keep the term after that (D9's wording, not V8's "the app"); the devdocs say "service worker" consistently. A new row of plan §8; F-172, F-174, F-180 follow.
+  Applied: the docs name the service worker as what it is, "the service worker", once in `docs/app.md` where it is introduced, saying there that it is what lets the app be served offline, and keep the term after that (D9's wording, not V8's "the app"); the devdocs say "service worker" consistently. A new row of plan §8; F-172, F-174, F-180 follow. Amended 2026-10-26 (section 12.3): `docs/app.md` names service workers once, as the browser support offline use needs, and says nothing of the copy or how it is served.
 - **F-494. "a new version" and "update".** Decision: other: I think I want B, but I want to clarify: "a new version" describes a new deployment that could be pulled, and "update" is always a verb to describe what a user (or page refresh) does.
   Applied: B, with the clarification: "a new version" is a new deployment that could be pulled; "update" is always a verb for what a user, or a page refresh, does; "deploy" stays devdocs-only. Headings and labels keep the noun ("Updates and the build ID", Q-022's section; `devdocs/offline.md`'s "Update checks"), and prose follows the rule (section 12.3, R-8). A new row of plan §8; F-173, F-180 follow.
 
@@ -325,7 +325,7 @@ they change say so. Nothing is pending now.
 - **Q-006. The "certified" code change: what rides with it, and when.** Decision: ok
   Applied: ok: the "certified" change (`src/outcome.ts`) carries `MODE_LINES.exact` ("Every digit shown is certified, found at rising precision; …") and `PROBE_LINE` worded as F-491 decides ("the four elementary functions"), lands before `docs/numbers.md` is written (section 9), and the devdocs quotes follow it. B-068, B-017, B-025, B-026 are the code side.
 - **Q-007. Quoting the app's messages and words in hand-written pages.** Decision: ok
-  Applied: ok: examples, never a catalogue: `numbers.md` quotes the two size refusals, getting started two or three messages as examples of their shapes, `app.md` every footer word verbatim, devdocs name the function and paraphrase, quoting only where the exact text is the point; the generated catalogue (question 6) is the complete list.
+  Applied: ok: examples, never a catalogue: `numbers.md` quotes the two size refusals, getting started two or three messages as examples of their shapes, `app.md` every footer word verbatim, devdocs name the function and paraphrase, quoting only where the exact text is the point; the generated catalogue (question 6) is the complete list. Amended 2026-10-26 (section 12.3): `app.md` quotes none of the footer's words and none of the interface's text but the fields' labels; it describes the interface in general terms.
 - **Q-017. The scratch build's figures in `#Why the exponent bound stays at 10^18`.** Decision: ok
   Applied: ok: the six-pass table (digits) and the qualitative finding stay; the scratch build's per-size milliseconds go. This item's own answer governs that section where Q-016's rule would otherwise let a rough timing stay. F-202 follows.
 - **Q-020. The title of `devdocs/functions.md`.** Decision: ok. Separately, rename the user page `docs/functions.md` to `docs/builtins.md`, titled "Built-in functions", so that it matches `devdocs/builtins.md`. §7's outline follows, and so does every link to the old name: the root `README.md`, `docs/README.md`, the link in `devdocs/builtins.md`, and two comments in `src/units.txt`. After that, "functions.md" names only `devdocs/functions.md`, "Defined functions".
@@ -1445,6 +1445,47 @@ decision, are listed after the answers.
   documents today's `div` and `mod` only. The page is 494 lines and 4349 words after the
   reading of the changed passages, which defined the working precision where the rule is
   stated and had the incomplete entries link the rule rather than restate it.
+
+- **The review of the app page (2026-10-26).** The page's review notes (#238) put seven
+  questions to the owner, answered the same day, and the owner then reviewed the page in
+  three rounds. The answers: the reset links are the settings panel's alone and leave the
+  page; the page links the settings page once, as a whole, and names no setting; the build
+  ID is opaque, a label that identifies the build, with nothing of its form or its purpose,
+  the page saying only that clicking it checks for a new version and that a new version is
+  offered; every settings detail leaves the page; B-053's two comments are fixed now, with
+  no change of behavior; the checks for a new version run "on its own at some schedule",
+  with no rate, "because that is subject to change"; and the example tables match the
+  interface, "You have" and "You want", not the other pages' headers. On the whole: "I want
+  to minimize copying text from the UI verbatim and attempting to keep that up to date with
+  this page, so let's keep things general where possible", then "This should be a pretty
+  short and simple doc overall, but it's bloated with a lot of implementation details. Some
+  of those details don't even _necessarily_ need to live in developer docs or be captured
+  elsewhere." On the page: "You don't need to explain what the footer is. Just say what it
+  contains."; "This entire section (the doc as a whole really) is too detailed. There are
+  also way too many parentheticals and qualifiers. [...] Users will know that a build id
+  identifies the build, and that's all they need. [...] I'm not even convinced we should
+  necessarily discuss the service worker in such detail except to say that the offline
+  functionality will not work if the user's browser does not support service workers."; and
+  on installing, "installed web apps may have preferential treatment with respect to cache
+  retention. None of the _app-specific_ behavior changes when installed." Settled, for this
+  page and as a rule for every user page (principles.md and the house style): a page about
+  the app's surface is a short map in general terms; it quotes none of the interface's text
+  but a label a reader must find a control by (the fields' "You have" and "You want"); it
+  gives no implementation detail, and a detail cut on this rule need not be captured in the
+  developer docs either; the settings' details are the settings page's alone, linked as a
+  page; the build ID is opaque; the check schedule is unstated. For the page: cut from about
+  170 lines to about 75; the footer-word table, the quoted loading and failure messages, the
+  panel's layout, the reset links, the stepping buttons and the build ID's form are gone;
+  the privacy sentence stays (R-2) without its closing clause, which the readings found to
+  overstate ("sends that host nothing"), "Nothing you type leaves the device" carrying it;
+  "installing changes nothing in the app" reads "none of the app's own behavior changes when
+  it is installed". Amends §7's app entry, work order 08, plan §8's rows for F-492 and
+  F-493, the decisions of F-169, F-170 and F-173 to F-180, the applied lines of Q-007, Q-022
+  and F-493 (section 12.1) and Q-115's decision, and work orders 23 and 25, whose pages keep
+  or drop the footer's words and the status mapping as they see fit. On process, the owner
+  also ruled that when a fact a page needs is not in what its work order names, the session
+  asks before reading another file or running the app for it (the `work-order` skill,
+  section 3), since the owner may give the fact or point away from it.
 
 ### The review's other corrections
 

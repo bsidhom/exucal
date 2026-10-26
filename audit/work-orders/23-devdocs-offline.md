@@ -38,23 +38,30 @@ is the concept map in `audit/plan/07-docs-outline.md`, `§8` is
 ## 2. The reader, and what earlier pages taught
 
 The reader is a developer who has read `docs/app.md` (installing,
-offline use, updates and the build ID, the settings panel; every word
-the footer can show, quoted there verbatim) and
+offline use, updates and the build ID, the settings panel, in general
+terms and quoting none of the footer's words, as decided in its review,
+2026-10-26) and
 `devdocs/architecture.md` (the shell and the footer component). Each
 part of this page opens with a link to the `docs/app.md` section that
 owns the user's side (`#offline-use`, `#updates-and-the-build-id`,
 `#installing`) and keeps the mechanism: the registration, the checks
 and their constants, the mapping from `WorkerStatus` to the footer's
-word, which stays here (Q-007: `app.md` quotes the words, this page
-says where each comes from), the build ID's source, the icons' sources.
+word, which stays here if this page wants it (Q-007 as amended
+2026-10-26: `app.md` quotes none of the words; the review said such
+detail need not be captured elsewhere either, so list the words with
+the mapping or leave them to `src/app-footer.ts`), the build ID's
+source, the icons' sources.
 
 ## 3. Rules that bind the page, applied to the drafts
 
 - **The user's side is `docs/app.md`'s (F-172, F-173, F-174, F-175).**
-  What a user does and sees (tapping the build ID, the footer's words
-  as a list to search, what the build ID is for a user) is stated in
-  `app.md`; this page links those sections and keeps the mechanism and
-  the mapping. D9's "Update checks" and "The worker's status" bullets
+  What a user does and sees is stated in `app.md` in general terms
+  (clicking the build ID checks for a new version; a new version is
+  offered as a link; offline use needs a browser with service workers);
+  the footer's words and what the build ID is are not stated there
+  (the review of the app page, 2026-10-26). This page links those
+  sections and keeps the mechanism; it may keep the mapping and the
+  words, or leave them to the code. D9's "Update checks" and "The worker's status" bullets
   (D9 L293, L295) are the base, since they name the constants and keep
   the mapping; V8's edits of the opening and the two bullets (V8
   L251-261) give the `WorkerStatus` list the mapping walks.
@@ -100,7 +107,8 @@ says where each comes from), the build ID's source, the icons' sources.
   (V8 L255, "build ID"); the "service worker's status" bullet from D9
   L295 with V8 L261's `WorkerStatus` list (installing, bypassed, ready,
   downloading, waiting, and the rest as the type has them), each
-  mapped to the footer's word, the words being `app.md`'s to list; the
+  mapped to the footer's word, or the words left to the code, since
+  `app.md` lists none (2026-10-26); the
   other four bullets stay (D9 L291); the platform behaviour nothing in
   the tree confirms stays as stated (F-404).
 - **Build ID.** V8 L263-271: the user's side linked at
@@ -153,7 +161,7 @@ None.
 
 - Each part opens with its `docs/app.md` link and keeps mechanism
   only; the mapping from `WorkerStatus` to the footer's word is here
-  and the user's words are `app.md`'s.
+  or left to the code, and `app.md` quotes no footer word.
 - "build ID", "service worker", "a new version" throughout; the
   intervals by their constants; "yet" gone from the build ID's
   sentence; `#Icons` matches `layout.md`.

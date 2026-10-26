@@ -142,7 +142,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D8: the two quotes stay as the foundation's examples, the catalogue being the complete list. D9: getting started quotes two or three messages as examples of the shapes (a mismatch, a size refusal, an edge), claiming no completeness, and links the generated catalogue once it exists; `app.md` quotes every footer word verbatim, so that a user can search for the one they see, and names the service worker once, the mapping from status to word staying in `devdocs/offline.md`. D4: devdocs name the function and paraphrase, quoting only where the exact text is the point (the refusal lines, which the tests pin). The answers agree: examples, never a catalogue.
 - Settled by: —
 - Blocks: `docs/getting-started.md#When something is refused`; `docs/numbers.md#Values too big to hold`; `docs/app.md#Updates and the build number`; `devdocs/settings.md#The probe`.
-- Decision: ok [plan §12.1]
+- Decision: ok [plan §12.1] Amended 2026-10-26 (plan §12.3, the review of the app page): `app.md` quotes none of the footer's words and none of the interface's text but the fields' labels; the other pages' examples stand as decided.
 
 ### Q-008. devdocs edits that link docs pages not yet written: when to apply
 
@@ -1336,4 +1336,4 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: V8 and D9: it becomes a relative, local link once the documents ship with the app (§12 question 31); `devdocs/security.md#The page` can then drop its sentence about it. Nothing changes before the question 31 work.
 - Settled by: F-177
 - Blocks: nothing.
-- Decision: ok: the "About these settings" link becomes local when the pages ship with the app (question 31); nothing before. [plan §12.1, section 8 of the sheet] #191 closes when `docs/settings.md` lands, with this refactor (the owner on 2026-10-12, plan §12.2, item 9).
+- Decision: ok: the "About these settings" link becomes local when the pages ship with the app (question 31); nothing before. [plan §12.1, section 8 of the sheet] #191 closes when `docs/settings.md` lands, with this refactor (the owner on 2026-10-12, plan §12.2, item 9). Amended 2026-10-26 (plan §12.3, the review of the app page): `docs/app.md` does not mention the link; the settings page and the developer docs own it.

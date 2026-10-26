@@ -12,6 +12,30 @@ bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `D9 (L165-265)` is `audit/reports/D9/fable.md`, lines 165 to 265. `§7`
 is `audit/plan/07-docs-outline.md`, `§8` is `audit/plan/08-terminology.md`.*
 
+## 0. Amended after the review (2026-10-26)
+
+The page landed as a short map of about 75 lines (plan §12.3, the
+review of the app page, 2026-10-26), and sections 3, 4, 5, 7 and 10
+below are read with these rulings, which win where they differ: the
+page describes the interface in general terms and quotes none of its
+text but the fields' labels "You have" and "You want"; it gives no
+implementation detail, and such detail need not be captured in the
+developer docs either; the settings' details are the settings page's
+alone, linked once as a page, so the reset links, the stepping buttons
+and the "About these settings" link are not mentioned (F-176, F-177 as
+amended); the build ID is opaque, the page saying only that the footer
+shows it and that clicking it checks for a new version (F-175 as
+amended); the footer's words are not quoted (F-174, Q-007 as amended);
+the checks run on the app's own schedule, with no rate given; the
+service worker is named once, as the browser support offline use needs
+(F-493 as amended); the loading and failure messages are described in
+one sentence (F-169, F-170); the privacy sentence stays (R-1, R-2)
+without its closing clause; and "installing changes nothing in the app"
+reads "none of the app's own behavior changes when it is installed".
+The example tables are headed "You have" and "You want", the fields'
+labels. The links are to `expressions.md`, `numbers.md` and
+`settings.md` as pages and to `devdocs/security.md#the-page`.
+
 ## 1. The page and its place in the order
 
 - **Page.** `docs/app.md`, titled "The app": what is specific to the web
@@ -48,10 +72,11 @@ says only what the app as a web page does: how it installs, how it
 works offline, how it updates and names its build, how the settings
 panel behaves on a phone and a wider screen, what the copy button
 does, and what the two fields do beyond reading an expression. It
-links the owners and restates nothing: `numbers.md#how-numbers-are-written`
-for the paste-back principle, `settings.md#where-the-settings-are-and-how-a-change-applies`
-and `#defaults-and-resets` for the settings, `expressions.md#evaluation-order-and-error-locations`
-for which field an error points at.
+links the owners and restates nothing: `numbers.md` for what a result
+means, `settings.md` for the settings, once and as a page (its section
+"Where the settings are and how a change applies" was dropped in its
+own review, and the reset links are its "Defaults and resets"), and
+`expressions.md` for what to type (amended 2026-10-26).
 
 ## 3. Rules that bind the page, applied to the drafts
 
@@ -207,16 +232,19 @@ B-023 (the parenthesis not quoted), B-053 (comments only), B-069 (the
 "About these settings" link stays an absolute URL until the pages ship
 with the app; the page states the link, not its target's form).
 
-## 10. Done when
+## 10. Done when (amended 2026-10-26)
 
 - The six sections exist under their headings, in order, each stating
-  the app's behaviour and linking the reference for everything else.
+  the app's behaviour in general terms and linking the reference for
+  everything else; the page is short, about 75 lines.
 - No "sheet", no "deploy", no "build number", no "reads back", no
   "refused", no issue number, no "update" as a noun outside the
   heading; one link under `devdocs/`, the privacy sentence's to
   `devdocs/security.md#The page`.
-- Every footer word is quoted as the code has it; the hint and the
-  failure message are described, not quoted.
-- The pull request names what the session read in the three source
-  files and any question for the owner, and changes nothing outside
-  this file.
+- No interface text is quoted but the fields' labels; the footer's
+  words, the loading and failure messages and the hint are described
+  or left out; no implementation detail, no settings detail, no form
+  of the build ID, no schedule of the checks.
+- The pull request names what the session read in the source files
+  and any question for the owner, and changes nothing outside this
+  file but what the review asked for.

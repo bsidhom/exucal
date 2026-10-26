@@ -1,15 +1,5 @@
 # Exucal
 
-Exucal is a calculator that runs in the browser. It guarantees that a
-result is exact wherever it can be, for arithmetic and functions
-alike. Where it shows fewer digits than a result has, every digit
-shown is certified and the last is correctly rounded. Where it cannot
-certify as many digits as you ask for, it still shows them, with a
-note saying how many are certified. It offers the elementary functions
-and some special functions. It keeps track of units through every
-calculation and conversion, so that a mismatch of units is an error
-and never a number.
-
 The pages of the user documentation, in reading order:
 
 - [Getting started](getting-started.md): a tour by example, through a

@@ -56,6 +56,7 @@ import {
   powerSide,
   roundTo,
   scaled,
+  scaledWithin,
   sign,
   subtract,
   toRational,
@@ -935,6 +936,69 @@ test("a power refused is told by its decimal exponent, not by the check that fai
     pow(dec("7"), edge, MAX_SIGNIFICAND_LIMIT_BITS),
     predicted(dec("7"), edge),
   );
+});
+
+test("one value is refused with one count however it is written: the canonical form is sized as its power is", () => {
+  // `2^-30000` and `0.5^30000` are one value, stored as `5^30000 ×
+  // 10^-30000`. The first is refused by the size of its canonical form
+  // and the second by the size of its power, and the two counts are the
+  // truth (devdocs/numbers.md, "The significand limit"; an earlier
+  // version named 69,659 bits for the first and 69,658 for the second).
+  const limit = 1 << 16;
+  const truth = bitLength(5n ** 30000n);
+  assert.equal(truth, 69658);
+  const refused: Refusal = {
+    kind: "tooLarge",
+    inexact: "fits",
+    need: { kind: "bound", bits: truth },
+  };
+  assertRefused(pow(dec("2"), -30000n, limit), refused);
+  assertRefused(pow(dec("0.5"), 30000n, limit), refused);
+  assertRefused(pow(dec("4"), -15000n, limit), refused);
+  assertRefused(pow(dec("0.25"), 15000n, limit), refused);
+  assertRefused(
+    divide(ONE, unwrap(pow(dec("2"), 30000n, limit)), limit),
+    refused,
+  );
+  // The edge of the default limit does not move: `5^28225` has 65,537
+  // bits and `5^28224` fits.
+  assert.equal(bitLength(5n ** 28225n), 65537);
+  assertError(pow(dec("2"), -28225n, limit), "tooLarge");
+  assert.ok(pow(dec("2"), -28224n, limit).ok);
+  // The predicted size is the truth or a bit over it, never under: for
+  // numerators of several shapes over a power of two, over a power of
+  // five, which only shifts the numerator, and over both.
+  const predictedBits = (num: bigint, den: bigint): number => {
+    const result = scaledWithin(rational(num, den), 0n, 1);
+    assert.ok(!result.ok && result.error.kind === "tooLarge");
+    assert.equal(result.error.need.kind, "bound");
+    return result.error.need.kind === "bound" ? result.error.need.bits : 0;
+  };
+  const numerators = [1n, 3n, 7n, 2n ** 61n - 1n, 3n ** 200n, 10n ** 40n + 1n];
+  const denominators = [
+    2n ** 1n,
+    2n ** 7n,
+    2n ** 1000n,
+    2n ** 4321n,
+    5n ** 3n,
+    5n ** 777n,
+    2n ** 500n * 5n ** 20n,
+    2n ** 20n * 5n ** 500n,
+  ];
+  for (const num of numerators) {
+    for (const den of denominators) {
+      const formed = bitLength(abs(at(num, den, 0n).significand.num));
+      const predicted = predictedBits(num, den);
+      assert.ok(
+        predicted === formed || predicted === formed + 1,
+        `${num}/${den}: predicted ${predicted}, formed ${formed}`,
+      );
+    }
+  }
+  // A numerator of one over a power of two is sized exactly.
+  for (const k of [1n, 2n, 3n, 10n, 1000n, 28224n]) {
+    assert.equal(predictedBits(1n, 2n ** k), bitLength(5n ** k));
+  }
 });
 
 test("powerRefusal tells a power past the bound from one within it, and says nothing within a hair of it", () => {

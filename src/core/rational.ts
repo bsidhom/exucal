@@ -483,9 +483,12 @@ export function trunc(r: Rational): Rational {
 /**
  * `log2 n` for a positive `n`, rounded up: taken on the top 53 bits of
  * `n` and the count below them, with a margin above a double's rounding,
- * so that a bit count predicted from it is never below the truth.
+ * so that a bit count predicted from it is never below the truth. The
+ * canonical form's size is predicted from it too (`canonicalBits` in
+ * scaled.ts), so that one integer has one predicted size however it is
+ * reached.
  */
-function log2Above(n: bigint): number {
+export function log2Above(n: bigint): number {
   const below = Math.max(0, bitLength(n) - 53);
   return Math.log2(Number(n >> BigInt(below))) + below + 2 ** -40;
 }

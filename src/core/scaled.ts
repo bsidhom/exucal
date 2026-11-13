@@ -98,7 +98,7 @@ import {
   ONE as ONE_FRACTION,
   ZERO as ZERO_FRACTION,
   bitLength,
-  log2Above,
+  bitsOfPowerProduct,
   compare as compareFractions,
   exactRoot as exactRootOfFraction,
   invert as invertFraction,
@@ -445,15 +445,14 @@ export function scaledWithin(
  * `normalize` would form it, which is the truth or a bit over it: the
  * numerator times the `5^k` or the `2^k` that a denominator's twos or
  * fives past its tens move into it. The denominator only shrinks. A power
- * of two only shifts the numerator, so its bits are added exactly. For a
- * power of five the bits are `floor(log2 |num| + k log2 5) + 1`, with the
- * logarithms rounded up as `pow` of rational.ts rounds them, and that of
- * a numerator of one exactly zero. So `1/2^k` is sized by the expression
- * that sizes `5^k` as a power, and `2^-30000` and `0.5^30000`, one
- * value by two routes, are refused with one count. (An earlier version
- * added the numerator's bit length to the power's bits rounded up, a bit
- * over the truth for a numerator of one, so that the two refusals named
- * 69,659 and 69,658 bits.)
+ * of two only shifts the numerator, so its bits are added exactly. A
+ * power of five is sized by `bitsOfPowerProduct` of rational.ts, the
+ * function that sizes a power in `pow`. So `1/2^k` is sized as `5^k`
+ * is, and `2^-30000` and `0.5^30000`, one value by two routes, are
+ * refused with one count. (An earlier version added the numerator's bit
+ * length to the power's bits rounded up, a bit over the truth for a
+ * numerator of one, so that the two refusals named 69,659 and 69,658
+ * bits.)
  */
 function canonicalBits(significand: Rational): number {
   const { num, den } = significand;
@@ -463,8 +462,7 @@ function canonicalBits(significand: Rational): number {
   const fives = fivesIn(den, BigInt(bitLength(den)) / 2n);
   const tens = min(twos, fives);
   if (twos === tens) return bitLength(magnitude) + Number(fives - tens);
-  const log2 = magnitude === 1n ? 0 : log2Above(magnitude);
-  return Math.floor(log2 + Number(twos - tens) * log2Above(5n)) + 1;
+  return bitsOfPowerProduct(magnitude, 5n, twos - tens);
 }
 
 /** The bits `s`'s significand takes in its larger part, measured: the need of a value that exists. */

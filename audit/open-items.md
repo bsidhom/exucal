@@ -1070,7 +1070,7 @@ and can be decided as its page comes up. Listed under the first page each one bl
 - Proposed answer: D4: the pages keep the true size and say "about"; the overshoot is A5's to look at in `src/core/rational.ts`.
 - Settled by: F-051 (the need `bound` is "a prediction a bit or so over the truth"), F-012; A1's confirmed statement A1 report (`canonicalBits` is an upper bound within a bit, `src/core/scaled.ts:448-459`) and A5 report. The pages give the storage cost, the message the prediction, by design.
 - Blocks: nothing.
-- Decision: ok [plan §12.1, section 8 of the sheet]
+- Decision: ok [plan §12.1, section 8 of the sheet] Reversed by the owner on 2026-11-13 (plan §12.3, the review of work order 11's pull request): the gap is not by design. `0.5^30000` was refused with "about 69,658 bits" and `2^-30000`, the same stored value, with "about 69,659", and one value must be refused with one count however it is written. #244 sizes the power and the canonical form with one function (`bitsOfPowerProduct`), so both say "about 69,658 bits"; the pages' figure stands. One estimator for every exact result is #245.
 
 ### Q-092. `pow`'s base `-1`: special only for an exact exponent that cannot be formed
 

@@ -282,7 +282,9 @@ F-384, F-408, F-474.
   cost at the ceiling's edge; Q-047).
 - What an open issue tracks: B-003 with #79, B-006 with #88, B-009 with
   #92.
-- B-013 (69,659 against 69,658), by design (Q-091); B-014 (Q-041).
+- B-014 (Q-041). B-013 (69,659 against 69,658) left this list on
+  2026-11-13: the owner reversed Q-091 in the review of work order 11's
+  pull request, and #244 fixed it outside the batches (plan §12.3).
 - Renames the owner has not scheduled: the code's "working digits"
   (#172, F-431), which stays with the code; no code identifier changes
   for a page's term (F-475: identifiers are quoted as they are).

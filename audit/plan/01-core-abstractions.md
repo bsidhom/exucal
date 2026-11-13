@@ -298,9 +298,9 @@ Size limits and refusals
   on the working grid and the result settled (N4); a built-in that works
   at an argument's own bits refuses there. Any result, exact or inexact,
   is still held to the exponent bound (N22). A dyadic denominator is
-  stored with fives (`2^-30000` costs 69,658 bits; the refusal says
-  "about 69,659", and the pages keep the true size and say "about",
-  Q-091). The refusal is one error kind, `tooLarge`, always carrying a
+  stored with fives (`2^-30000` costs 69,658 bits, and the refusal says
+  "about 69,658 bits" however the value is written, Q-091 as reversed on
+  2026-11-13 and #244). The refusal is one error kind, `tooLarge`, always carrying a
   reach (`fits` or `exceeds`) and a need (`exact`, `bound` or
   `unknown`); the retry loop never retries it, and one first raised at a
   later pass ends the loop with the best earlier result. The kinds tell

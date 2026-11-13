@@ -1572,7 +1572,10 @@ the exponent bound:
 
 The written bound is never typed back as the result. Rounding it up at
 either edge therefore loses only the fact that the value is even closer
-to zero than the line says, which the line does not claim to know.
+to zero than the line says, which the line does not claim to know. The
+two edges are treated differently, the bound clamped at the bottom and
+written past the exponent bound at the top
+([#243](https://github.com/bsidhom/exucal/issues/243)).
 
 | You type                  | Exucal shows                        | Note                                                  |
 | ------------------------- | ----------------------------------- | ----------------------------------------------------- |
@@ -2328,8 +2331,8 @@ further on.
   gcds, which run on operands within the limit. The predicted size is
   the larger of the two parts' bit sums, which is the true size or one
   bit over it. So `x / x` is one and `(a/b) * (b/a)` is one, and
-  `3^32767 * 7^21845` is refused with 113,262 bits, with nothing formed
-  (`multiplyWithin`, `divideWithin`).
+  `3^32767 * 7^21845` is refused with about 113,262 bits, with nothing
+  formed (`multiplyWithin`, `divideWithin`).
 - **A sum** is refused on the size of its unreduced sum, Henrici's form
   with the common factor of the denominators taken out first
   (`addWithin`), since the sum is never formed. `1/3^32767 + 1/7^21845`
@@ -2339,11 +2342,13 @@ further on.
   over it. `2^65535` is a value at the default and `2^65536` is not.
 - **A canonical form** is sized too, before it is made, for a quotient
   or a power whose fraction fits, since a denominator's twos become
-  fives in the numerator (`scaledWithin`). `2^-30000` is refused with
-  about 69,659 bits, the prediction's count, one over the 69,658 stored,
-  and `2^-28000` stays a value. A product and a sum of canonical
-  significands need no such check, since their denominators are coprime
-  to ten.
+  fives in the numerator (`scaledWithin`). The numerator times `5^k` is
+  sized by the function that sizes a power (`bitsOfPowerProduct`). So
+  `2^-30000`, `0.5^30000` and `1 / 2^30000`, three spellings of one
+  stored value, are each refused with about 69,658 bits, the size of
+  `5^30000`, and `2^-28000` stays a value. A product and a sum of
+  canonical significands need no such check, since their denominators
+  are coprime to ten.
 - **A sum's alignment** is predicted the same way: the shift is sized
   before it runs ([Sums and alignment](#sums-and-alignment)). A
   literal's digits are measured as they are typed.
@@ -2353,6 +2358,11 @@ further on.
   They refuse by those bits whether the argument is exact or not, so
   `sin(approx(1e999999999) radian)` is refused as
   `sin(1e999999999 radian)` is.
+
+The predictions do not share one arithmetic: a power and a canonical
+form are sized by a logarithm, a product and a quotient by sums of bit
+lengths. Sizing every exact result with one estimator is an open
+question ([#245](https://github.com/bsidhom/exucal/issues/245)).
 
 `evaluate()` asserts the limit on every node's result. The pipeline
 asserts it on two quotients that it forms outside the evaluator: the
@@ -2372,9 +2382,10 @@ all take the context, since a prediction needs the limit.
 | `2^65536`           | past the significand limit, about 65,537 bits  |
 | `3^32767 * 7^21845` | past the significand limit, about 113,262 bits |
 | `2^-28000`          | `≈ 1.4458439e-8429`                            |
-| `2^-30000`          | past the significand limit, about 69,659 bits  |
+| `2^-30000`          | past the significand limit, about 69,658 bits  |
+| `0.5^30000`         | past the significand limit, about 69,658 bits  |
 | `1 / 2^28224`       | `≈ 5.3629331e-8497`                            |
-| `1 / 2^28225`       | past the significand limit                     |
+| `1 / 2^28225`       | past the significand limit, about 65,537 bits  |
 
 A prediction itself forms nothing larger than the operands of its gcds,
 which are within the limit. For a product or a quotient it runs after
@@ -2405,19 +2416,21 @@ unchanged. Nothing above the refusing function infers the reach from the
 expression's shape, so a function that learns to reach further changes
 its own refusal and its own test.
 
-The message names the subexpression and the bits ("of 113,262 bits", "of
-about 69,659 bits"; nothing where the need is unknown). On `fits` it
-suggests two things to try: decimal mode, or `approx` around the
-subexpression's first operand, so that the part is computed to the
-digits asked for and shown with `≈`. The evaluator names that operand: a
-binary operator's left operand, a power's base, or a call's first
-argument. On `exceeds` the message says that the value passes the limit
-however it is computed, and suggests nothing. Whether to raise the limit
-is left to the user, who can judge from the bits. `approx` around the
-refused subexpression itself would come too late, since the node is
-refused before `approx` sees it. Around an operand it works, because an
-inexact operand makes the result inexact. The suggestion states what the
-operation expects to work, and is not a promise.
+The message names the subexpression and the bits: "of 66,439 bits" for a
+literal of twenty thousand sevens, whose need is `exact`, "of about
+69,658 bits" for `2^-30000`, whose need is `bound`, and nothing where
+the need is unknown. On `fits` it suggests two things to try: decimal
+mode, or `approx` around the subexpression's first operand, so that the
+part is computed to the digits asked for and shown with `≈`. The
+evaluator names that operand: a binary operator's left operand, a
+power's base, or a call's first argument. On `exceeds` the message says
+that the value passes the limit however it is computed, and suggests
+nothing. Whether to raise the limit is left to the user, who can judge
+from the bits. `approx` around the refused subexpression itself would
+come too late, since the node is refused before `approx` sees it. Around
+an operand it works, because an inexact operand makes the result
+inexact. The suggestion states what the operation expects to work, and
+is not a promise.
 
 Exact mode refuses at the node and never rounds an exact result on its
 own to stay within the limit. The alternative is to round the result at

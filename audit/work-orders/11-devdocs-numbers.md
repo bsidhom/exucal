@@ -423,7 +423,9 @@ received bullets' places, which work order 18 checks.
   shell section does not keep the table's design.
 - **Documented as today's behaviour, no wait:** B-003 (#79), B-006
   (#88), B-007 (`log`'s exact cases), B-008 (the reciprocal line),
-  B-011 (the schedule's edge), B-013 (69,658).
+  B-011 (the schedule's edge). B-013 is fixed by #244 (Q-091 as
+  reversed on 2026-11-13, plan §12.3): the page quotes "about 69,658
+  bits" for `2^-30000` and `0.5^30000` alike.
 
 ## 10. Done when
 

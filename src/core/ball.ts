@@ -290,8 +290,8 @@ export type BallError =
 /**
  * The bits of a radius's exponent up to which its exact value is formed as
  * a `Scaled` for a comparison, `2^16`: every radius of the working sizes,
- * and a power of two of that size costs a canonical form of a few tens of
- * thousands of bits, once per comparison.
+ * and a power of two of that size costs a canonical form of up to about
+ * 150,000 bits (`5^65536` has 152,170), once per comparison.
  */
 const FORMABLE_RADIUS_BITS = 1 << 16;
 

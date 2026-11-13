@@ -1384,15 +1384,17 @@ for four reasons:
 - **Cost.** The kernel squares once per bit of the argument's magnitude,
   and each squaring works at the working bits plus that many bits. So
   the cost of `exp` grows at least as the square of the bit length of
-  the argument's magnitude. In a scratch build with the bound raised
-  (and `MOST_MAGNITUDE` in `fixed-exp.ts` raised to match), the first
-  pass of `exp` at 32 digits takes milliseconds for `exp(1e100)` and
-  seconds once the argument has a few thousand digits. These are rough,
-  illustrative figures. The probe is the timing of the device that
-  recommends the limits
-  ([Probe budget and "Measure this device"](../docs/settings.md#probe-budget-and-measure-this-device)).
-  Anything past about `exp(1e500)` would exceed its default budget for
-  one pass, on every keystroke.
+  the argument's magnitude. The kernel's exponential can be timed alone,
+  in a scratch copy with its guard on the argument's magnitude raised
+  (`MOST_MAGNITUDE` in `fixed-exp.ts`). At the first pass of 32 display
+  digits it takes about a millisecond for an argument of `1e100`, tens
+  of milliseconds for `1e999`, about a second for `1e3000` and over ten
+  seconds for `1e9000`. These are rough, illustrative figures from one
+  machine. The probe is the timing of the device that recommends the
+  limits
+  ([Probe budget and "Measure this device"](../docs/settings.md#probe-budget-and-measure-this-device)),
+  and its default budget is 50 ms for one pass. An argument of about a
+  thousand digits already spends that budget, on every keystroke.
 - **Soundness.** Parts of the number type are rigorous only within the
   bound. `log2Bounds` and `decimalExponentOfLog2` take the exponent
   through the 128-bit `log2 10`, which is sized for an exponent at the
@@ -1436,6 +1438,20 @@ of 65,536 bits:
 |    4 |                   346 |                  `1e+654` | a factor of `e^(10^654)`  |                   345 |
 |    5 |                   682 |                  `1e+318` | a factor of `e^(10^318)`  |                   681 |
 |    6 |                 1,354 |                  `1e-354` | a relative `1e-354`       |                   all |
+
+The diagram illustrates the first and the last row of the table. Each
+bar is laid over the 1,000 digits of the argument `1e999`. On the left
+are the digits that the pass keeps, and on the right is the span that
+the radius covers. At the sixth pass the grid holds more digits than the
+argument has, so the radius lies beyond the argument's last digit.
+
+```
+argument  1e999 = 1 000 … 000 (999 digits beyond the leading one)
+pass 1    ├── 52 digits kept ──┤├──────── radius 1e+948 ────────┤
+pass 6    ├───────────── 1,354 digits kept ─────────────┤ radius 1e-354
+exponent  the result's decimal exponent is 1e999 × log10 e, a number of
+          999 digits: known to 51 digits at pass 1, to all at pass 6
+```
 
 With the bound as it is, `exp(approx(1e999))` is refused at the first
 pass, since its whole ball lies past the bound. The table shows what a

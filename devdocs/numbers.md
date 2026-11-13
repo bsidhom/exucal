@@ -23,7 +23,7 @@ magnitude costs nothing to hold. `1e999999999` is stored as the fraction
 To **form** a value is to build the integer of its full size, as a
 billion digits would be built for `1e999999999`. An operation forms a
 power of ten only where it has to, as when it aligns the two operands of
-a sum. The significand limit bounds every integer that is formed
+a sum. The significand limit bounds the size of every exact result
 ([The significand limit](#the-significand-limit)).
 
 The definitions file holds no irrational literal. The circle constant is
@@ -72,25 +72,26 @@ The design here differs in its mechanism:
 - digits certified by recomputing at rising precision, up to a ceiling;
 - a refusal, never a wrong answer, for a value the limits cannot hold.
 
-The decisions, each with the section that carries it:
+The design rests on these decisions, each described in the section
+linked:
 
 - **Four core types, each adding one concept.** The fraction, the power
-  of ten, the radius and the ball are separate types. The kernel's
-  fixed-point number stands beside them. Each type has alternatives that
-  are ruled out, with the reasons ([The types](#the-types)).
+  of ten, the radius and the ball are separate types. The fixed-point
+  number of the kernel, the routines that compute the inexact functions,
+  stands beside them. Each type has alternatives that are ruled out,
+  with the reasons ([The types](#the-types)).
 - **The exact operations never round an exact value.** The radius of an
   inexact result follows the elementary rules of error propagation. The
-  rules read each operand's magnitude from bounds that are rigorous,
-  though loose in their last bits, so no rule builds an integer of a
-  value's full size ([Exact operations](#exact-operations)).
-- **The kernel is binary, and the base changes only at its boundary.**
-  The kernel is the set of fixed-point routines that compute the inexact
-  functions. A value enters it as a fixed-point integer with an error
-  count and leaves rounded onto a decimal grid
+  rules read each operand's magnitude from the coarse bounds, which are
+  rigorous though loose in their last bits, so no rule forms a value
+  ([Exact operations](#exact-operations)).
+- **The kernel is binary, and the base changes only at its boundary.** A
+  value enters the kernel as a fixed-point integer with an error count
+  and leaves rounded onto a decimal grid
   ([The kernel's boundary](#the-kernels-boundary)).
-- **A root or a power takes the exact case first.** The kernel's root
-  comes next, and last log space, `exp(y ln x)` on the kernel
-  ([Roots and powers](#roots-and-powers)).
+- **A root or a power takes the exact case first.** The kernel's root is
+  the second choice. The third is log space, where a power `x^y` is
+  computed as `exp(y ln x)` ([Roots and powers](#roots-and-powers)).
 - **The exponent bound is on the value.** A refusal at it needs the
   whole ball past the edge ([The exponent bound](#the-exponent-bound)).
 - **A digit is shown only when both ends of the ball round to it**
@@ -99,7 +100,7 @@ The decisions, each with the section that carries it:
   ceiling is four times the sum of the precision limit and ten
   ([Working precision and the schedule](#working-precision-and-the-schedule)).
 - **Every inexact result is settled onto the working grid.** The grid is
-  a little finer than the pass's precision, and an exact value is never
+  a little finer than the pass's precision, and an exact result is never
   settled ([Settling](#settling)).
 - **Exact mode adds no rounding the user did not ask for**
   ([Exact mode](#exact-mode)).
@@ -107,15 +108,16 @@ The decisions, each with the section that carries it:
   The rounding is correct for the rounding mode. The rounded value has a
   radius of zero, and no later step knows that it was rounded
   ([Decimal mode](#decimal-mode)).
-- **The significand limit bounds what is formed.** The size of every
-  exact result is predicted before the result is built
+- **The significand limit bounds every exact result.** The size of a
+  result is predicted before the result is built
   ([The significand limit](#the-significand-limit)).
 - **`approx` is a function that widens a radius and never narrows one**
   ([approx](#approx)).
-- **A value that cannot be computed is a `Result` error.** It is never
-  an exception, with one known breach in a root's verification
-  ([Failures](#failures)).
-- **The display forms no power of ten** ([Formatting](#formatting)).
+- **A failure that the user's input can cause is a `Result` error.** It
+  is never an exception. A violated precondition throws, and one known
+  breach remains in a root's verification ([Failures](#failures)).
+- **Formatting never forms a value's power of ten**
+  ([Formatting](#formatting)).
 
 ## The types
 
@@ -174,13 +176,18 @@ form is **canonical**, one form per value:
 Equal values then have equal representations, and `equals` is
 structural.
 
-A value has exactly one such form because each part of it is forced. The
-fraction in lowest terms is unique. The denominator the rule allows is
-the denominator of that fraction with every two and five taken out, so
-it is fixed too. With the denominator fixed, the exponent is the largest
-that leaves the numerator a whole number, and the numerator is then the
-one integer that completes the value. The implementation rests on one
-invariant, lowest terms, kept by construction:
+A value has exactly one such form, because each part of the form is
+forced in turn:
+
+1. The value is a fraction, and a fraction has one form in lowest terms.
+2. The canonical denominator is that fraction's denominator with every
+   factor of two and five taken out. So it is fixed.
+3. With the denominator fixed, the exponent is the largest for which the
+   numerator is still a whole number.
+4. The numerator is then the one integer that completes the value.
+
+The implementation rests on one invariant, lowest terms, which it keeps
+by construction:
 
 - `rational` is the one constructor that reduces.
 - Every operation of `rational.ts` preserves lowest terms by its own
@@ -192,10 +199,12 @@ invariant, lowest terms, kept by construction:
 
 The constructor `scaled(significand, exp)` strips the numerator's
 trailing zeros into the exponent and moves the denominator's factors of
-two and five out (`1/6` is `5/3 × 10^-1`). It counts a denominator's
-fives by dividing by `5^(2^k)`, from the largest such power worth trying
-downward. That takes a logarithmic number of divisions, where one
-division per factor is a quadratic loop on a significand full of tens.
+two and five out (`1/6` is `5/3 × 10^-1`). It counts the factors of five
+in an integer by dividing by `5^(2^j)` once for each `j`, from the
+largest such power that could divide the integer down to `5` itself, and
+reads the count off in binary. That takes a logarithmic number of
+divisions. One division per factor would be a quadratic loop on an
+integer with many factors of ten.
 
 The canonical form is internal. `format`, `roundTo`, `toRational` and
 the ratio notation are functions of the value, so `2.54`, `254/100` and
@@ -203,13 +212,14 @@ the ratio notation are functions of the value, so `2.54`, `254/100` and
 digits commutes with the power of ten, so rounding and formatting work
 on the significand and then add `exp` to the exponent. The digits of
 `1e999999999`, of its square and of `exp(1e6)` are written without
-forming any of those values. The decimal exponent of any value is the
+forming any of those values. The **decimal exponent** of a value `v` is
+`floor(log10 |v|)`, the exponent the display writes. It is the
 significand's decimal exponent plus `exp`, which is exact and cheap to
 compute.
 
-The exponent is a type of its own between the fraction and the ball,
-rather than a field on `Rational`, because it changes what the type
-promises. With an exponent, `add` and `subtract` can fail:
+The exponent has a type of its own, `Scaled`, between the fraction and
+the ball. It is not a field on `Rational`, because it changes what the
+type promises. With an exponent, `add` and `subtract` can fail:
 `1e999999999 + 1` cannot be aligned without forming a number of a
 billion digits. The fraction's other users need sums that cannot fail
 that way. The exponent is not a field of the ball either. A midpoint
@@ -231,10 +241,11 @@ anyway ([The kernel's boundary](#the-kernels-boundary)). Three
 alternatives are ruled out:
 
 - An exponent of each base, a binary one beside the decimal one. A
-  kernel result and a literal would both enter exactly, and settling
-  would stay a shift. But the mixed base leaks into every operation that
-  brings the two together. A sum of two large exponents of different
-  bases needs a rebase in log space. A comparison of two such exponents
+  kernel result and a literal would both enter exactly, and rounding
+  onto a grid would be a shift. But the mixed base leaks into every
+  operation that brings the two together. A sum of a value with a large
+  binary exponent and a value with a large decimal exponent needs a
+  change of base through a logarithm. A comparison of two such values
   cannot be decided without forming one of them. Certification and the
   radius need the `log2 10` constant. The display has to fold the binary
   power into the significand before it can write a digit.
@@ -245,38 +256,29 @@ alternatives are ruled out:
   literals would no longer parse exactly, the display would need a
   conversion, and nothing a calculator user types is binary.
 
-Only the kernel uses binary. The one decimal base has a price. Each
-settle, the rounding of an inexact result onto the working grid
-([Settling](#settling)), takes a division where a binary base would take
-a shift. That division costs several times a shift, and it is small
-against the cost of a whole settle ([Formatting](#formatting)).
-
-Two other shapes for decimal mode are ruled out. A second number type
-beside `Rational`, with the core generic over the two, doubles the
-numeric surface of every built-in. Decimal mode as a rounding step in
-the evaluator, over the fraction with no exponent, caps a value at the
-digits the significand limit holds, about 19,700 at the default.
-`exp(100000)` and `gamma(20001)` would then fail in the mode that exists
-to represent them. With the exponent, a decimal-mode value is a decimal
-float, and the cost of the exponent is confined to `scaled.ts`.
+Only the kernel uses binary. The one decimal base has a price. Rounding
+an inexact result onto a decimal grid takes a division, where a binary
+base would take a shift ([Settling](#settling)). That division costs
+several times a shift, and it is a small part of the cost of the whole
+rounding.
 
 ### `Radius`
 
 `Radius` (`radius.ts`) is an upper bound on an error: on the distance
 between a computed midpoint and the true value. The bound is absolute.
 It is a distance in the midpoint's own units, not a fraction of the
-midpoint. A radius is a coarse binary magnitude, `significand × 2^exp`,
-with a normalized 30-bit `bigint` significand and a `bigint` exponent.
-Beside those magnitudes the type has one distinguished value,
-`unbounded`.
+midpoint. A radius is a low-precision binary magnitude,
+`significand × 2^exp`, with a normalized 30-bit `bigint` significand and
+a `bigint` exponent. Beside those magnitudes the type has one
+distinguished value, `unbounded`.
 
 Every operation on radii rounds up, so a radius is always a true bound.
 Rounding to 30 bits loosens a bound by a relative `2^-29`, far below the
 slack the propagation rules add. The radius is binary because the kernel
-is binary. It is coarse so that carrying it through an expression costs
-almost nothing and its size never grows. The exact value of a bounded
-radius is a rational (`radiusUpper`), computed when a comparison needs
-it and never stored.
+is binary. It has low precision so that carrying it through an
+expression costs almost nothing and its size never grows. The exact
+value of a bounded radius is a rational (`radiusUpper`), computed when a
+comparison needs it and never stored.
 
 `unbounded` is the radius of a value whose error has no known bound. It
 does not mean that the value is infinite, or that the error is. The
@@ -284,11 +286,11 @@ midpoint of such a ball is still a finite number, a best estimate, and
 only the statement of how far it may lie from the true value is missing.
 The number type has no infinite value at all: a magnitude too large to
 hold is refused ([The exponent bound](#the-exponent-bound)). No
-operation creates an unbounded radius today. The value exists for a
-built-in that returns a result before a rule for its error is written,
-and every operation carries it through: a result computed from an
-unbounded operand is unbounded. The one exception is a product with an
-exact zero, which is exactly zero.
+operation creates an unbounded radius. The value exists so that a
+built-in can return a result for which no rule for the error has been
+written. Every operation carries an unbounded radius through: a result
+computed from an unbounded operand is unbounded. The one exception is a
+product with an exact zero, which is exactly zero.
 
 A float64 is ruled out for the radius, although it has precision to
 spare, because of range. The product rule scales an absolute radius by
@@ -327,8 +329,8 @@ Every kernel routine has the same shape:
 
 1. The caller converts the argument, a ball, to a `Fixed`: a binary
    fixed-point number that carries a bound on its own error. The number
-   of fraction bits comes from the precision of the current pass, plus a
-   guard.
+   of fraction bits is the **working bits** of the current pass: the
+   bits that the pass's precision needs, plus 32 guard bits (`bitsFor`).
 2. The routine reduces the argument to a value of order one. The
    exponential halves its argument repeatedly, for example, and the sine
    subtracts a multiple of `pi/2`.
@@ -373,19 +375,22 @@ carried through the series, and no separate bound on the function's
 derivative is needed. The truncation bound of a series is taken at the
 upper end of the argument's interval.
 
-The point is fixed rather than floating so that a routine can choose its
-result's `bits` after its argument reduction. A result of magnitude
-`2^k` is then given as many significant bits as an argument of order one
-has. A routine whose result is small or large states its scale this way:
-`sin` near zero, `exp` of a large negative argument and a root of a tiny
-argument are examples. `shiftFixed` moves the binary point, exactly.
+The point is fixed, not floating: no operation renormalizes a value, and
+a value's `bits` change only where a routine says so. Sums and products
+are then plain integer operations at a known scale, and the error count
+keeps one unit through a whole series. A routine chooses its result's
+`bits` after its argument reduction, so that a result of magnitude `2^k`
+gets as many significant bits as an argument of order one has. A routine
+whose result is small or large states its scale this way: `sin` near
+zero, `exp` of a large negative argument and a root of a tiny argument
+are examples. `shiftFixed` moves the binary point, exactly.
 
 After its reduction every routine works on values of order one, so the
-absolute error count is also a relative error. The count grows by at
-least one ulp per operation. Every routine is therefore given 32 guard
-bits (`GUARD_BITS`) beyond the bits its precision needs. The guard is
-counted in bits because the error count grows in bits: a series of a
-thousand terms spends ten of them.
+absolute error count is also a relative error. The count grows by about
+an ulp per operation, so a series of a thousand terms loses about ten
+bits to it. The 32 guard bits of the working bits (`GUARD_BITS`) are the
+headroom for that growth. They are counted in bits because the error
+count grows in bits.
 
 Three alternatives are ruled out. A ball at every step of the kernel, as
 Arb does, is uniform with the value type. It costs a radius operation
@@ -393,8 +398,8 @@ per arithmetic operation and a second representation to reason about
 inside every series. Two integer endpoints cost twice the arithmetic and
 a rounding direction to choose per operation. Guard digits with no error
 count, the classic approach, are not rigorous and could not produce a
-radius at all. The integer count is the cheapest design that yields a
-proof, and its rules are the textbook ones.
+radius at all. Of the four designs, the integer count costs the least
+that still yields a proof, and its rules are the textbook ones.
 
 ### `Floating`
 
@@ -458,33 +463,37 @@ propagation. For operands `a` and `b` with radii `ra` and `rb`:
 
 [Error bounds for the four operations](#error-bounds-for-the-four-operations)
 derives each rule and says how it is evaluated. When both radii are zero
-each rule gives zero, so exact operands give an exact result. An integer
-power of an inexact base applies the product rule by repeated squaring,
-and each product is settled before the next. To settle a product is to
-round it onto the **working grid**, the decimal digits a pass keeps its
-inexact midpoints to, and to add the rounding to the radius
-([Settling](#settling)).
+each rule gives zero, so exact operands give an exact result.
+
+The rules need the magnitudes `|a|` and `|b|`, and they read them from
+the **coarse bounds**: a lower and an upper bound on a midpoint's
+magnitude, taken from its leading bits and its exponent. The coarse
+bounds are rigorous, since the true magnitude always lies between the
+two. They are coarse only in that they lie a relative `2^-30` or so
+apart. Every later mention of the coarse bounds means these two.
+
+An integer power of an inexact base applies the product rule by repeated
+squaring, and each product is settled before the next. To settle a
+product is to round it onto the **working grid**, the decimal digits a
+pass keeps its inexact midpoints to, and to add the rounding to the
+radius ([Settling](#settling)).
 
 A divisor whose ball contains zero, without being exactly zero, cannot
-be divided by, since the true quotient may have either sign. The error
-is `unresolved`, a kind of its own beside `divisionByZero`: the retry
-loop retries after `unresolved` and never after `divisionByZero`.
-`1 / (sqrt(2)^2 - 2)` reports it. `unresolved` carries the **edge**, the
-point that the value's ball reaches across and that the result depends
-on (`Edge`: a point, `"pole"`, or `"bound"`). The message says that the
-value cannot be told, at this precision, from that edge. Whether a
-divisor contains zero is decided as every comparison of a midpoint with
-a radius is decided ([Comparison](#comparison)). A midpoint that the
-bounds cannot tell from the radius counts as within it, so the answer is
-`unresolved` rather than a quotient of the wrong sign.
-
-A ball of unbounded radius ([`Radius`](#radius)) follows rules of its
-own in a quotient and a product. As a divisor with a nonzero midpoint it
-divides, and the quotient is unbounded. As a divisor with a zero
-midpoint it is `unresolved`. An exact zero times an unbounded value is
-exactly zero, because an unbounded radius stands for an unknown error on
-a finite value, not for an infinite value. In every other operation an
-unbounded operand makes the result unbounded.
+be divided by. Its possible values come arbitrarily close to zero, so
+the quotient has no bound. The error is `unresolved`, distinct from
+`divisionByZero`: the retry loop retries after `unresolved` and never
+after `divisionByZero`. `1 / (sqrt(2)^2 - 2)` reports it. `unresolved`
+carries the **edge**: the place that the value's ball reaches across and
+that the result depends on. An `Edge` is a number, or one of the markers
+`"pole"` and `"bound"`. The message says that the value cannot be told,
+at this precision, from that edge. Whether a divisor contains zero is
+decided as every comparison of a midpoint with a radius is decided
+([Comparison](#comparison)). When the coarse bounds cannot tell whether
+the midpoint's magnitude exceeds the radius, the ball counts as
+containing zero. The answer is then `unresolved`, never a quotient with
+a false bound. A divisor of unbounded radius ([`Radius`](#radius))
+divides when its midpoint is nonzero, and the quotient is unbounded.
+With a zero midpoint it is `unresolved`.
 
 `rational.ts` reduces each result with the smallest gcds the operands
 allow. Each rule is a textbook one:
@@ -502,13 +511,13 @@ So a quotient is reduced where it is formed, by those two gcds, and
 nothing reduces it again. The rules are correct only for operands in
 lowest terms, the invariant that the one reducing constructor keeps
 ([The types](#the-types)). The gcd is Lehmer's (Knuth's Algorithm L). It
-takes its steps on the leading bits in doubles and applies their
-cofactors to the `bigint`s about twenty-six bits at a time, after
-stripping the common power of two. It is still quadratic, but about
-forty times cheaper than Euclid's at 65,536 bits;
-[Benchmarks](benchmarks.md) holds the figures. A half-gcd is
-subquadratic but gains only above `2^16` bits, and is left for a larger
-limit.
+first strips the common power of two. It then takes its steps on the
+leading bits, in doubles, and applies the steps' cofactors to the
+`bigint`s about twenty-six bits at a time. It is still quadratic, but
+about forty times cheaper than Euclid's at 65,536 bits
+([Benchmarks](benchmarks.md) holds the figures). A half-gcd is
+subquadratic, but it gains only above 65,536 bits, so it does not pay at
+the default limit.
 
 ### Error bounds for the four operations
 
@@ -534,29 +543,33 @@ result and the true result.
 Each bound holds for every pair of true values within the two intervals,
 so the result's interval contains every result the true values can give.
 
-A ball evaluates these bounds on the coarse `Radius` type, and every
+A ball evaluates these bounds on the 30-bit `Radius` type, and every
 step of the evaluation errs on the safe side:
 
-- In a numerator, `|a|` and `|b|` are replaced by upper bounds on the
-  midpoints' magnitudes.
+- In a numerator, `|a|` and `|b|` are replaced by the upper coarse
+  bounds on the midpoints' magnitudes.
 - Each sum and each product of radii is rounded up to 30 bits.
-- In the quotient's divisor, `|b|` is replaced by a lower bound,
-  `|b| - rb` is rounded down, and the division is rounded up
+- In the quotient's divisor, `|b|` is replaced by the lower coarse
+  bound, `|b| - rb` is rounded down, and the division is rounded up
   (`divideRadius`).
 
 A radius computed this way is at or above the bound derived above, so it
 is still a true bound. It is looser by a relative `2^-29` or so for each
 rounding in the rule, a handful in all.
 
-The bounds on a midpoint's magnitude come from `log2Bounds`. It returns
-a lower and an upper bound on `log2 |mid|`. Both are rigorous: the true
-logarithm always lies between them. They are loose only in that they lie
-up to `2^-30` from it. `log2Bounds` reads the significand's logarithm
-from the top bits of its numerator and denominator, through a double,
-and adds the exponent's share, `exp × log2 10`, through a 128-bit
-fraction. A magnitude is therefore read from a few leading bits and the
-exponent, and no rule forms the value. The radius of
-`1e999999999 * sqrt(2)` costs what the radius of `10 * sqrt(2)` costs.
+The coarse bounds come from `log2Bounds`, which returns a lower and an
+upper bound on `log2 |mid|`. The true logarithm always lies between the
+two, and each lies within `2^-30` of it. `log2Bounds` reads the
+significand's logarithm from the top bits of its numerator and
+denominator, through a double, and adds the exponent's share,
+`exp × log2 10`, through a 128-bit fraction. A magnitude is therefore
+read from a few leading bits and the exponent, and no rule forms the
+value. The radius of `1e999999999 * sqrt(2)` costs what the radius of
+`10 * sqrt(2)` costs. `powerOfTenRadius(k)` gives a radius at or above
+`10^k` in the same way, without forming the power, for `|k|` below
+`2^90`. Every site that needs only the radius of a power of ten uses it:
+the power that a root takes off, `lnScaled`, the unit that `approx`
+adds, and the half unit of a settle.
 
 The kernel applies the same three bounds to `Fixed` values. The
 arithmetic is on integers, and the error counts are in ulps. Where the
@@ -583,8 +596,7 @@ states that a sum of two exact values that cannot be aligned within the
 significand limit is refused in exact mode, and
 [The two modes](../docs/numbers.md#the-two-modes) gives its decimal-mode
 counterpart, the correctly rounded sum. A sum with an inexact operand is
-never refused for its alignment. Its smaller operand is absorbed into
-the radius, as described below.
+never refused for its alignment.
 
 To add `m1 × 10^e1` and `m2 × 10^e2`, the two significands are first
 brought to one exponent. Let `Δe = e1 - e2` be the difference of the
@@ -598,32 +610,51 @@ by the operands and the mode:
 
 - **Two exact operands in exact mode.** The sum is refused as `tooLarge`
   (`1e999999999 + 1`), because an exact value is never rounded.
-- **At least one inexact operand,** which only exact mode has. The
+- **At least one inexact operand.** Only exact mode has such a sum. The
   result is inexact in any case, and the evaluator would settle it next,
   so the operands are settled first instead:
   - Each inexact operand is rounded onto the working grid.
   - An exact operand with more digits than the grid is rounded onto the
     grid too, and the rounding is added to the radius, as `approx` would
-    add it (`onGrid` in `ball.ts`). So `(1 + 1/3^41300) + sqrt(2)` keeps
-    its digits, although its first alignment passes the limit. An exact
-    operand already on the grid stays exact and costs nothing.
+    add it (`onGrid` in `ball.ts`). In `(1 + 1/3^41300) + sqrt(2)` the
+    exact operand cannot be aligned with the root as it stands. Rounded
+    onto the grid it can, and the sum is `≈ 2.4142136`. An exact operand
+    already on the grid stays exact and costs nothing.
   - If the two then align within the limit, they are added exactly.
-  - If they still do not align, their exponents differ by more than the
-    limit's digits less twice the grid's digits. The smaller operand
-    then lies below the last working digit of the larger. It is absorbed
-    into the radius, as a floating-point sum absorbs a small addend:
-    `sqrt(2) + 1e999999999` is `≈ 1e+999999999`, with the root inside
-    the radius.
+    - If they still do not align, the result is the larger operand, and
+      the whole magnitude of the smaller operand is added to the radius.
+      The result is a true bound whatever the two sizes are.
+      `sqrt(2) + 1e999999999` is `≈ 1e+999999999`, with the root inside
+      the radius.
 - **Two exact operands in decimal mode.** The sum is decided without
-  being formed (`decimalSumApart`), by the **neighbor rule**. The
-  smaller operand lies below half a unit in the larger operand's last
-  digit. In a nearest mode the result is the larger operand. In a
-  directed mode it is the larger operand or its neighbor at those
-  digits, on the side that the smaller operand's sign gives.
+  being formed (`decimalSumApart`), by the **neighbor rule**. Both
+  operands have at most the step's digits, and by the argument below
+  their magnitudes differ by far more than those digits. So the smaller
+  operand lies below half a unit in the last of the larger operand's
+  digits. In a nearest mode the result is the larger operand. In a
+  directed mode it is the larger operand or the next value of the same
+  number of digits, on the side that the smaller operand's sign gives.
+
+Two values that cannot be aligned lie far apart, by this argument:
+
+1. A value on a grid of `g` digits is an integer of at most `g` digits
+   times a power of ten.
+2. Aligning two such values multiplies one of the integers by `10^n`,
+   for `n` the difference of the two powers of ten. The alignment fails
+   only when the `g + n` digits of that product pass the digits that the
+   significand limit holds.
+3. The magnitudes of the two values then differ by more than the limit's
+   digits less twice `g`.
+
+At the default settings that difference is more than eleven thousand
+digits at any pass, far beyond the working grid of the larger operand,
+so the dropped operand adds nothing visible to the radius. In decimal
+mode `g` is the step's digits, and the settings keep the limit's digits
+above eight times that count.
 
 The operands are settled first only after `tooLarge`. A sum that aligns
-and whose value passes the exponent bound is held to the bound as a
-product is ([The exponent bound](#the-exponent-bound)).
+and whose value passes the exponent bound is tested against the bound as
+a product is ([The exponent bound](#the-exponent-bound)).
 
 | You type (decimal mode, eight display digits) | Exucal shows             | Note             |
 | --------------------------------------------- | ------------------------ | ---------------- |
@@ -647,14 +678,14 @@ on the other value does. Every comparison in the core is written on two
 primitives: `compare` on `Scaled`, which always decides, and `position`
 on `Ball`, which places a ball against a point.
 
-`compare` on `Scaled` always decides, and cheaply. It compares the
-signs, then the decimal exponents, and only when those are equal the
-aligned significands. A value's decimal exponent is the decimal exponent
-of its significand, found from the digit counts and one comparison, plus
-`exp`. With equal decimal exponents the alignment's shift is bounded by
-the significands' own digit counts and never by the significand limit.
-`1e999999999` compares with `1`, with `1.0000000001e999999999` and with
-a kernel result without any of them being formed.
+`compare` is cheap. It compares the signs, then the decimal exponents,
+and only when those are equal the aligned significands. The
+significand's decimal exponent is found from its digit counts and one
+comparison. With equal decimal exponents the alignment's shift is
+bounded by the significands' own digit counts and never by the
+significand limit. `1e999999999` compares with `1`, with
+`1.0000000001e999999999` and with a kernel result without any of them
+being formed.
 
 `position` in `ball.ts` is the one comparison of a ball with a point.
 The built-ins' domain checks, the logarithm's test of its base against
@@ -705,34 +736,41 @@ ball whose end lies exactly on the point (`touchingAbove`,
 
 A kernel routine runs on `Fixed` values of order one after its argument
 reduction. The base changes at the kernel's boundary, in two
-conversions, one in and one out. Both are sized against the
-**hard bound**, the largest value the significand limit can be set to
-(`MAX_SIGNIFICAND_LIMIT_BITS`;
-[The significand limit](#the-significand-limit) gives its value and its
-reasons).
+conversions, one in and one out. The conversion in is sized against the
+**hard bound**: `2^20` bits, the largest value the significand limit can
+be set to (`MAX_SIGNIFICAND_LIMIT_BITS`,
+[The significand limit](#the-significand-limit)).
 
-- **In.** `fixedFromScaled(s, bits)` is one division:
-  `(num × 2^bits) / (den × 10^-exp)` for a negative `exp`, and
-  `(num × 10^exp × 2^bits) / den` otherwise. It requires that the
-  value's power of ten can be formed within four times the hard bound. A
-  value past that is a precondition failure, and every routine that
-  takes such a value bounds it first
+- **In.** `fixedFromScaled(s, bits)` converts a `Scaled` value `s`, with
+  significand `num/den` and exponent `exp`, to a `Fixed` with `bits`
+  fraction bits. It is one division: `(num × 2^bits) / (den × 10^-exp)`
+  for a negative `exp`, and `(num × 10^exp × 2^bits) / den` otherwise.
+  It requires that the value's power of ten can be formed within four
+  times the hard bound. A value past that is a precondition failure, and
+  every routine that takes such a value bounds it first
   ([Huge and tiny arguments](builtins.md#huge-and-tiny-arguments)).
 
   Four times the hard bound is enough for the largest value a built-in
-  hands the kernel at any limit the settings allow. Such a value has a
-  significand within a significand limit of `S` bits and a magnitude
-  between `2^-S` and `2^S`, which the built-ins' own bounds ensure. Its
-  power of ten then has at most `2S` bits, so one part of the fraction
-  that the conversion forms has a little over `3S` bits. At the hard
-  bound `H`, where `S` equals `H`, that is a little over `3H`: `4H`
-  holds it and `3H` would not.
+  hands the kernel, at any limit the settings allow:
+
+  1. Such a value has a significand within the significand limit, `S`
+     bits, and a magnitude between `2^-S` and `2^S`. The built-ins' own
+     bounds ensure the second.
+  2. The significand's own magnitude also lies between `2^-S` and `2^S`,
+     so the power of ten lies between `2^-2S` and `2^2S`: it has at most
+     `2S` bits.
+  3. The conversion first writes the value as a plain fraction, with the
+     power of ten multiplied into the numerator or the denominator. That
+     part then has up to `S + 2S` bits, a little over `3S` after
+     rounding up.
+  4. `S` is at most the hard bound `H`. The part needs a little over
+     `3H` bits at most, which `4H` holds and `3H` would not.
 
   A nonzero value below half an ulp at the bits asked for is returned as
   zero within one ulp. The coarse bounds decide this without forming the
   value, and the division's rounding would give the same result. The
-  conversion therefore takes an argument of any exponent within its
-  precondition, however small, and a log-space power with a tiny
+  conversion therefore accepts a value of any magnitude below its
+  precondition, however close to zero. A log-space power with a tiny
   exponent reaches the kernel as zero within an ulp.
 
 - **Out.** `fixedToBall(f, digits)` rounds `value × 2^-bits` to nearest
@@ -757,15 +795,18 @@ reasons).
 
   A `Floating` leaves through `floatingToBall` in `digits.ts`. When its
   exponent can be formed within the significand limit, it leaves
-  exactly, through `floatingToFixed`. Otherwise it leaves in log space.
-  The decimal exponent is `floor(exp × log10 2 + log10 significand)` and
-  the leading digits are `10^fraction`, both computed with `lnFixed` and
-  `expFixed` at the working bits plus the bit length of the exponent
+  exactly, through `floatingToFixed`. Otherwise it leaves through a
+  logarithm and an exponential. The decimal exponent is the integer part
+  of `exp × log10 2 + log10 significand`, and the leading digits are ten
+  to the power of the fractional part. Both are computed with `lnFixed`
+  and `expFixed` at the working bits plus the bit length of the exponent
   plus a margin. The computation's error is carried in the kernel's
   error counts and added to the radius. This conversion costs a
   logarithm and an exponential at those bits. `ln 2` and `ln 10` come
   from their memos, whose margin covers the exponent's bits at every
   pass ([Memoized constants](#memoized-constants)).
+
+### Large and small results
 
 `expFixed` renormalizes after each squaring of its squaring loop: it
 keeps the significand to the working bits and moves the rest into the
@@ -775,23 +816,25 @@ at the exponent bound. A negative argument runs the same loop with the
 exponent going negative, and no value with a million fraction bits is
 built.
 
-An argument whose interval is wider than one takes another route. The
-result is zero within the exponential of the interval's signed upper
-end, and nothing is halved or squared. The upper end is formed exactly,
-and its exponential's value plus its error bounds the exponential of
-every value in the interval. So `exp(approx(1e60) - approx(1e60))` at
-the first pass of 32 display digits, which is `0` within about `2e9`,
-costs milliseconds. Squaring the whole interval instead would double the
-bit length of a relative error of `e^(2 × 10^9)` at every step.
+An argument whose radius is one half or more takes another route. The
+result is zero within the exponential of the interval's upper end, and
+nothing is halved or squared. The upper end is formed exactly, and its
+exponential's value plus its error bounds the exponential of every value
+in the interval. For example, at the first pass of 32 display digits the
+working grid has 52 digits. `approx(1e60)` then has a radius of about
+`1e9`, and `approx(1e60) - approx(1e60)` is `0` within about `2e9`. Its
+exponential is answered in milliseconds. Squaring the whole interval
+instead would double the bit length of a relative error of
+`e^(2 × 10^9)` at every step.
 
 The other functions with large results inherit the exponential's range.
 `sinh` and `cosh` are computed from `E = e^|x|`. For an exponent beyond
 half the working bits, the reciprocal `1/E` lies below an ulp of `E`, so
-it is added to the error and never computed. `tanh` saturates, and no
-exponential is computed for it. A power in log space goes through
-`expFixed`. A large decibel is an exact power of ten, held in the
-exponent: `decibel(1e30)` is refused at the exponent bound by the exact
-power, before any exponential is reached.
+it is added to the error and never computed. For an argument that large,
+`tanh` is `±1` within a bound, answered without an exponential. A power
+in log space goes through `expFixed`. A large decibel is an exact power
+of ten, held in the exponent: `decibel(1e30)` is refused at the exponent
+bound by the exact power, before any exponential is reached.
 
 ### Memoized constants
 
@@ -814,10 +857,10 @@ schedule plus a margin of 256 bits (`MEMO_MARGIN`), whatever precision
 that first request asks for. Every request at or below that size is cut
 from the memo, and every request the retry loop can make is at or below
 it. The cut (`truncateFixed`) converts the error count to the new ulps,
-rounded up, and adds one for the bits dropped: `ceil(error / 2^k) + 1`.
-Rounding the count down would lose up to an ulp. For example,
-`3/4 ± 2/4` cut to whole units is `0 ± 2` and not `0 ± 1`, since the
-interval reaches `5/4`.
+rounded up, and adds one for the bits dropped: `ceil(error / 2^k) + 1`
+for a cut of `k` bits. Rounding the count down would lose up to an ulp.
+For example, `3/4 ± 2/4` cut to whole units is `0 ± 2` and not `0 ± 1`,
+since the interval reaches `5/4`.
 
 A request at a higher ceiling, after the precision limit is raised,
 replaces the stored value. A request at a lower ceiling leaves it. Each
@@ -829,7 +872,7 @@ largest precision limit, which follows from the hard bound
 ([The significand limit](#the-significand-limit)). The core keeps no
 global state apart from such memos. A memo of a pure function of its
 precision cannot change any result of the core, and `lazy` in
-`parser.ts` is state of the same kind.
+`parser.ts` is similar state.
 
 The margin serves two purposes:
 
@@ -841,7 +884,7 @@ The margin serves two purposes:
   The margin holds them, so `ln 2` and `ln π` are served from their
   memos inside an `lgamma` at the ceiling pass.
 
-Two kinds of request ask for more bits than the memo holds:
+Two requests ask for more bits than the memo holds:
 
 - the reduction of an argument at or above `2^256`, which is taken up to
   the significand limit and refused past it;
@@ -865,16 +908,13 @@ and the bits they ask for
 describes that memo and its footprint).
 
 Stored digits of `pi` or `e` are ruled out. Chudnovsky's series computes
-`pi` to any precision the settings allow in a time nobody notices. As a
-rough, illustrative figure, a thousand digits take a fraction of a
-millisecond and a hundred thousand digits take a few hundred
-milliseconds. A Machin formula is slower by a small factor, and spigot
-algorithms are quadratic and buy nothing. Stored digits compress to no
-better than their entropy, about 0.42 bytes a digit. Ten thousand digits
-would add some 4 KB to a payload of a few tens of kilobytes compressed,
-for a range that costs milliseconds to compute. Stored digits buy
-nothing at any precision a user will set, since the constants are
-computed on demand and memoized.
+`pi` quickly. As a rough, illustrative figure, a thousand digits take a
+fraction of a millisecond and a hundred thousand digits take a few
+hundred milliseconds. A Machin formula is slower by a small factor, and
+spigot algorithms are quadratic and buy nothing. Stored digits compress
+to no better than their entropy, about 0.42 bytes a digit. Ten thousand
+digits would add some 4 KB to a payload of a few tens of kilobytes
+compressed, for a range that costs milliseconds to compute.
 
 ## Roots and powers
 
@@ -902,16 +942,11 @@ Otherwise `rootBall` takes the root on the kernel, in five steps. With
    scaled significand lies within a factor of `2^n` of one. Under the
    root that scaling is a plain power of two, which step 5 takes back
    out.
-3. It converts the scaled significand to a `Fixed`. A fixed-point number
-   with `b` fraction bits holds a value near `2^-d` to only `b - d`
-   significant bits, and the scaled significand can lie below one, by
-   fewer than `n` bits. So a significand that lies `d` bits below one is
-   converted at `d` bits more than the working bits. The conversion
-   rounds by at most half an ulp. At those bits half an ulp is at most
-   `2^-b` of the value, for `b` the working bits, which is the relative
-   accuracy a value of order one has at the working bits. No significant
-   bit of the argument is lost. A `d` above the working bits goes to log
-   space instead, the third case below.
+3. It converts the scaled significand to a `Fixed`, at the working bits
+   plus as many bits as the significand lies below one. The extra bits
+   keep every significant bit of the argument, as argued below. A
+   significand more than the working bits below one goes to log space
+   instead.
 4. It takes the root there (`sqrtFixed`, `rootFixed`).
 5. It scales the root back by the power of two, hands the kernel's value
    back through `fixedToBall`
@@ -926,17 +961,35 @@ argument gives an inexact root with a bound. `sqrt(1e999999999)` is
 rather than running a gcd, and `shiftRadius` moves the radius's
 exponent.
 
+Step 3 adds bits for this reason, with `B` the working bits:
+
+- A fixed-point number with `B` fraction bits holds a value near `2^-d`
+  to only `B - d` significant bits.
+- The scaled significand can lie below one, by `d` bits for some `d`
+  less than `n`.
+- Converted at `B + d` bits, it is rounded by at most half an ulp, which
+  is `2^-(B + d + 1)`. The significand is at least `2^-(d + 1)`, so the
+  rounding is at most `2^-B` of it.
+- A value of order one has that relative accuracy at the working bits,
+  so no significant bit of the argument is lost.
+
 The kernel has two roots: the square root, and the root of any degree.
 
 The square root is Newton's iteration on the reciprocal square root. It
 uses multiplications only, and the precision doubles at each step. An
 integer square root by division would cost about ten times `pi`'s whole
 series at a hundred thousand digits, since V8 divides big integers in
-quadratic time. The result is verified by squaring. With `s` the
-computed root and `D` a bound on the distance of `s^2` from the
-argument, the error is at most `D s / (2 s^2 - D)`, about `D / 2s`. The
-looser bound `D / s` would double the argument's error at each of the
-eight square roots that the logarithm's reduction takes
+quadratic time. The result is verified by squaring. Let `s` be the
+computed root, `a` any value in the argument's interval, and `D` a bound
+on `|s^2 - a|`:
+
+- `|s - sqrt(a)|` equals `|s^2 - a| / (s + sqrt(a))`.
+- `sqrt(a)` is at least `s - D / s`, so the divisor is at least
+  `2s - D / s`.
+- The error is therefore at most `D s / (2 s^2 - D)`, about `D / 2s`.
+
+The looser bound `D / s` would double the argument's error at each of
+the eight square roots that the logarithm's reduction takes
 ([The elementary routines](builtins.md#the-elementary-routines)).
 
 The root of any degree up to `2^32` (`ROOT_DEGREE_LIMIT`) is Newton's
@@ -945,13 +998,21 @@ cost is logarithmic in the degree, and it never forms an integer of
 `degree × bits` bits.
 
 The error of either root is verified by raising the result back to the
-power, and is not read off the iteration. For `y^n = a (1 + ε)` with
-`|ε| <= 1/2`, the bound is `|y - a^(1/n)| <= (4 |ε| / n) y`. The
-distance is taken over the whole of the argument's interval, so the
+power, and is not read off the iteration. For the root of degree `n`,
+let `y` be the computed root of `a`, and write `y^n = a (1 + ε)`. For
+`|ε| <= 1/2`:
+
+- `y - a^(1/n)` equals `a^(1/n) ((1 + ε)^(1/n) - 1)`.
+- By the mean value theorem, `|(1 + ε)^(1/n) - 1|` is at most
+  `2 |ε| / n`.
+- `a^(1/n)` is at most `2y`.
+- So `|y - a^(1/n)|` is at most `(4 |ε| / n) y`.
+
+`ε` is bounded over the whole of the argument's interval, so the
 argument's own error enters the same bound. The degree limit has two
 causes. The first guess is good to `2^-52`, and Newton's step overshoots
 unless `n × 2^-52` stays well below one. The verification needs
-`n × 2^-bits` below one half.
+`n × 2^-bits` below one half, for a kernel at `bits` bits.
 
 Three cases go to one helper, `rootInLogSpace`, which computes `x^(1/n)`
 as `exp(ln x / n)`:
@@ -960,15 +1021,15 @@ as `exp(ln x / n)`:
   `10^30`-th);
 - a significand whose remainder's power of ten does not fit the
   significand limit;
-- a significand scaled so far below one that its exponent, less the
-  degree's multiple, passes the working bits. The conversion would turn
-  it to zero within an ulp and report a false `unresolved`
-  (`(7^-8000)^(1/99999)` is `≈ 0.85583783`).
+- a scaled significand that lies more than the working bits below one
+  (step 3). The conversion would turn it to zero within an ulp and
+  report a false `unresolved`. `(7^-8000)^(1/99999)` is such a root, and
+  it is `≈ 0.85583783`.
 
-The helper returns `undefined` for one outcome of the log-space power
-(`powLogSpace`, described below), `unresolved` at zero, and for no
-other. `rootBall` then applies its own handling of a ball around zero.
-The remaining cases of `rootBall`:
+`rootInLogSpace` hands one outcome back to `rootBall` unanswered: an
+`unresolved` at zero from the log-space power (`powLogSpace`, described
+below). `rootBall` then handles the ball around zero itself. `rootBall`
+has these remaining cases:
 
 - A negative ball under an odd degree gives the negated root of its
   magnitude.
@@ -984,24 +1045,28 @@ The remaining cases of `rootBall`:
   an unbounded radius. The sign of its midpoint decides
   `negativeRadicand`.
 
-A root of degree three or more of a wide positive ball still throws in
-the kernel's verification
+A root of degree three or more still throws in the kernel's verification
+when its argument is a positive ball whose radius is large against its
+midpoint, as in `cbrt(3e24 + (approx(2e51) - approx(2e51)))`
 ([#79](https://github.com/bsidhom/exucal/issues/79)).
 
-`powBall(b, n, context)` raises a ball to a `bigint` power `n`, by one
-of two routes. An exact base takes the exact power, which its size
-prediction holds to the significand limit
-([The significand limit](#the-significand-limit)). An inexact base takes
-exponentiation by squaring, with each product settled, so `sqrt(2)^1000`
-costs one or two multiplications per bit of its exponent at the working
-precision. For an inexact base only the magnitude of the result needs a
-guard. The classifier of [The exponent bound](#the-exponent-bound)
-provides it: it holds a result to the bound by the logarithm of its
-magnitude. A base whose ball contains zero is tested against the top
-edge only. A base with a zero midpoint takes its result's radius from
-the radius's logarithm times `n`, not by squaring. A negative `n`
-inverts by the division rule, so a negative power of a ball around zero
-is `unresolved`.
+`powBall(b, n, context)` raises a ball to a `bigint` power `n`:
+
+- An exact base takes the exact power, which its size prediction keeps
+  within the significand limit
+  ([The significand limit](#the-significand-limit)).
+- An inexact base takes exponentiation by squaring, with each product
+  settled. `sqrt(2)^1000` costs one or two multiplications per bit of
+  its exponent, at the working precision. Before the loop runs, the
+  result's magnitude is tested against the exponent bound through its
+  logarithm ([The exponent bound](#the-exponent-bound) describes the
+  test).
+- A base whose ball contains zero is tested against the top of the bound
+  only.
+- A base with a zero midpoint takes its result's radius from the
+  radius's logarithm times `n`, not by squaring.
+- A negative `n` inverts by the division rule, so a negative power of a
+  ball around zero is `unresolved`.
 
 `powRationalBall(b, p/q, context)` serves both `^` and the built-in
 `pow`. It takes the first of three routes that applies:
@@ -1012,18 +1077,22 @@ is `unresolved`.
 2. The root of the power, when `x^p` fits the significand limit. The
    root comes last so that the one inexact step is the last step. This
    route also serves a negative base under an odd root.
-3. `exp(y ln x)` on the kernel (`powLogSpace`), for a bounded base that
-   is positive as a rational and for any bounded exponent. A negative
-   base under an odd root with an odd numerator is negated by symmetry.
-   `lnScaled` scales the base to order one before the conversion. It
-   takes the logarithm at the working bits plus the magnitudes of the
-   exponent and of the logarithm, so that their product keeps the
-   working bits, and `expFixed` takes the exponential.
+3. `exp(y ln x)` on the kernel, with `y = p/q` (`powLogSpace`), for a
+   bounded base that is positive as a rational and for any bounded
+   exponent. A negative base under an odd root with an odd numerator is
+   negated by symmetry. `lnScaled` scales the base to order one before
+   the conversion. It takes the logarithm at more than the working bits:
+   it adds the bits of the exponent's magnitude and of the logarithm's
+   magnitude, so that their product still has the working bits.
+   `expFixed` then takes the exponential.
 
-So `2^0.1234567` and `pow(10, 2.3456789)` are values with a radius.
-`2^1234567` fits no significand limit. `10^23456789` is exact and cheap,
-a pure power of ten, but its root of degree `10^7` leaves `10^3456789`
-for the significand, which the limit does not hold. Log space gives up
+Two examples take the third route. `2^0.1234567` is `2^(1234567/10^7)`.
+Its power `2^1234567` has over a million bits, more than the hard bound,
+so the second route is closed at any setting. `pow(10, 2.3456789)` is
+`10^(23456789/10^7)`. Its power `10^23456789` is exact and cheap, a pure
+power of ten. But its root of degree `10^7` leaves `10^3456789` in the
+significand, which the limit does not hold, so the root goes to log
+space. Both results are values with a radius. Log space gives up
 exactness only where no exact result was reachable. A base that
 straddles zero and whose power does not fit stays `tooLarge`, since the
 result over its interval does not fit either. `^` and `pow` still
@@ -1044,29 +1113,29 @@ grammar cannot form, as the last two rows below show
 
 [Values too big to hold](../docs/numbers.md#values-too-big-to-hold)
 states the bound, that it is on the value's magnitude and not on the
-canonical form, and what a refusal at it needs. The bound is enforced at
-two kinds of site: a check on the exponent wherever exponents combine,
-and a classifier in the functions whose result is an exponential.
+canonical form, and what a refusal at it needs. The bound is enforced in
+two ways: by a check on the exponent wherever exponents combine, and by
+a classifier in the functions whose result is an exponential.
 
-A value is within the bound when its decimal exponent,
-`floor(log10 |v|)`, lies within `±MAX_EXPONENT`, which is `10^18`. That
-exponent is the one the display writes. Zero is within the bound at any
+A value is within the bound when its decimal exponent lies within
+`±MAX_EXPONENT`, which is `10^18`. Zero is within the bound at any
 exponent.
 
-The bound is on the value, not on the representation. The canonical
-`exp` can differ from the value's decimal exponent: it may lie above it
-by up to the denominator's digit count, or below it by up to the
-numerator's digit count. So `exp` can pass `±10^18` while the value is
-within the bound, and nothing needs `exp` itself to stay within. The
-128-bit `log2 10` of `log2Bounds` contributes an error below `2^-68` at
-such an exponent, well inside the `2^-30` that the bounds allow, and
-every conversion of an exponent to a `Number` is guarded first.
-
-The bound is on the value because it exists so that a value can always
-be written. A refusal at it must therefore never be false about the
-value. The significand limit is on the representation for the opposite
-reason: it bounds what the device forms
+The bound is on the value, not on the representation, because it exists
+so that a value can always be written. A refusal at the bound tells the
+user that the value cannot be written, and that statement must be true
+of the value whatever form holds it. The significand limit is on the
+representation for a different reason: it bounds what the machine forms
 ([The significand limit](#the-significand-limit)).
+
+The canonical `exp` can differ from the value's decimal exponent. It may
+lie above it by up to the denominator's digit count, or below it by up
+to the numerator's digit count. So `exp` can pass `±10^18` while the
+value is within the bound, and nothing needs `exp` itself to stay
+within. The coarse bounds stay accurate there: the 128-bit `log2 10` of
+`log2Bounds` contributes an error below `2^-68` at such an exponent,
+well inside their `2^-30`. Every conversion of an exponent to a `Number`
+is guarded first.
 
 Holding the canonical `exp` to the bound instead is ruled out, for three
 reasons:
@@ -1074,11 +1143,13 @@ reasons:
 - It would refuse `1e1000000000000000000 / 3 * 10`, whose value is
   within the bound, with a message that says its exponent passes
   `10^18`. That is false about the value.
-- Whether a value is held would depend on whether it is exact, since an
-  exact fraction and its settled form can lie on different sides of such
-  an edge.
-- It would have to overrule `powerRefusal`, which already reads the
-  value, for no gain.
+- Whether a value is refused would depend on whether it is exact, since
+  an exact fraction and its settled form can lie on different sides of
+  such an edge.
+- It would have to overrule the report of a refused power, which already
+  reads the value
+  ([Which limit a refusal names](#which-limit-a-refusal-names)), for no
+  gain.
 
 | You type                         | Exucal shows                       | Note                                               |
 | -------------------------------- | ---------------------------------- | -------------------------------------------------- |
@@ -1088,13 +1159,6 @@ reasons:
 | `0e2000000000000000000`          | `= 0`                              | zero is within the bound at any exponent           |
 | `1e1000000000000000001`          | refused as it is typed             | the same `overflow` a computed value past it is    |
 
-`powerOfTenRadius(k)` gives a radius at or above `10^k`, from the same
-bounds on the magnitude, without forming the power. Every site that
-needs only the radius of a power of ten uses it: the power that a root
-takes off, `lnScaled`, the unit that `approx` adds, and the half unit of
-a settle. It accepts `|k|` below `2^90`. The bounds keep their accuracy
-to about `2^97`.
-
 `scaled()` checks the value's exponent only when `|exp|` lies within a
 band of the bound (`BOUND_BAND`). The band is four hundred million
 digits, more than any `bigint` holds, since V8 caps a `bigint` at `2^30`
@@ -1102,21 +1166,22 @@ bits, about 323 million digits. An integer significand's digit count has
 a fast path, so the common case costs one comparison. A value that fails
 the check is an `overflow` above the bound or an `underflow` below it,
 both errors of `Scaled`. The check runs wherever exponents combine, in
-`multiply`, `divide` and `pow`. So `10^1e30` and `exp(1e30)` fail
-cleanly before anything is computed: they neither loop nor form an
-exponent that could not be formatted. A literal past the bound is the
-same `overflow`, refused as it is typed, and the parser words the
-message from the exponent of the literal's value.
+`multiply`, `divide` and `pow`. So `10^1e30` fails cleanly before
+anything is computed: it neither loops nor forms an exponent that could
+not be formatted. `exp(1e30)` is refused as early, by the classifier. A
+literal past the bound is the same `overflow`, refused as it is typed,
+and the parser words the message from the exponent of the literal's
+value.
 
-A ball is held to the bound by every value in it, and a refusal needs
-the whole ball past the edge. A result can pass the bound for some
+A ball is tested against the bound by every value in it, and a refusal
+needs the whole ball past the edge. A result can pass the bound for some
 values of its ball and not for others. Such a result is `unresolved` at
 the edge `"bound"` ("the point where the result passes the exponent
 bound"), as a divisor that straddles zero is `unresolved` at zero. The
 answer, a value or a refusal, depends on which side the true value lies
 on, and a refusal is final and must never be wrong. The retry loop
-narrows the ball until that is decided. The rule applies in three
-places:
+narrows the ball until that is decided. The rule applies to three
+operations:
 
 - **A product or a quotient with an inexact operand** is `overflow` or
   `underflow` only when its whole ball lies past the bound:
@@ -1128,8 +1193,8 @@ places:
   zero and whose midpoint passes the bottom of the bound is zero within
   `|mid| + rad`. Any other result is `unresolved` at the bound,
   including a result whose `|mid| + rad` reaches the top. A ball of
-  unbounded radius is held by its midpoint.
-- **A sum that aligns and whose value passes the bound** is held the
+  unbounded radius is tested by its midpoint only.
+- **A sum that aligns and whose value passes the bound** is tested the
   same way. Two exact operands are refused in either mode
   (`5e1000000000000000000 + 5e1000000000000000000`). An inexact sum
   whose ball reaches back within the bound is `unresolved`. The midpoint
@@ -1138,61 +1203,20 @@ places:
   `unresolved` message, as it does for `1 / (approx(1) - 1)`.
 - **A guarded built-in** computes a result only when every value of the
   result lies within the bound, with a margin for the kernel's error.
-  One classifier in `ball.ts` makes that decision. It works on an
-  interval `[L_lo, L_hi]` that bounds the natural logarithm of the
-  result's magnitude. It tests the interval against two edges,
-  `U = (10^18 + 1) ln 10` and `D = -10^18 ln 10`, taken from the memo of
-  `ln 10`. It keeps a margin `m` that covers the kernel's error and half
-  a unit of the working grid: `2^(40 - bits)` for a kernel at `bits`
-  bits, forty bits above an ulp (`MARGIN_BITS`). Its verdict:
+  [The classifier](#the-classifier) makes that decision.
 
-  - `overflow` when `L_lo >= U` is certified;
-  - `underflow` when `L_hi < D`;
-  - compute when `D + m <= L_lo` and `L_hi < U - m`;
-  - `unresolved` at the bound otherwise.
-
-  The coarse bounds decide first (`log2` of radii, and near one the
-  exact difference from one). The interval is formed on the kernel only
-  within their slack. So an exact argument is left `unresolved` only
-  when it lies within the ceiling's precision of an edge. Each site has
-  its own `L`:
-
-  - `classifyExp` works on `x` itself.
-  - `classifyHyperbolic` works on `|x| - ln 2`, widened by the working
-    ulp on each side, against the top edge only. `sinh` and `cosh` are
-    `overflow` for either sign.
-  - `classifyPower` works on `y ln x` for `powLogSpace`, and on
-    `n ln |b|` for `powBall`. It runs before `lnScaled` is asked for the
-    bits that `y`'s size needs. When the bound on `|y ln x|` is below
-    `2^-bits`, the result is one within twice that bound, without the
-    kernel. When the bits the decision would need pass the significand
-    limit, the answer comes from the bound or is `tooLarge`.
-  - `gamma` classifies its `lgamma` ball through `classifyExp`.
-  - `erfc` goes through the upper incomplete gamma function of order one
-    half. That function's exponential is classified on the exponent
-    `s ln x - x`, less the logarithm of its prefactor, with the square
-    of the argument for `x`, so that the leading term is `-x^2`. The
-    incomplete functions classify their own exponents the same way
-    ([The Gamma and Beta families](builtins.md#the-gamma-and-beta-families)).
-  - `floatingToBall` classifies its decimal exponent's interval too, and
-    handles its own rounding's carry at the top.
-
-  When a power is `unresolved` at the bound, `pow` blames the argument
-  whose radius contributes more to `y ln x`, so that the message names
-  it (`logPowerBlame`).
-
-A retryable error kind of its own for a result that straddles the bound
-is ruled out. It would cost as many sites, it would be a second word for
+A separate retryable error for a result that straddles the bound is
+ruled out. It would cost as many sites, it would be a second word for
 the meaning `unresolved` already has, and it would need a second retry
 predicate kept in step with the first.
 
 Within the bound, the results of the exponential family span the whole
-range of exponents. The threshold for `exp` is an argument at
-`(10^18 + 1) ln 10`, about `2.3026e18`, throughout its ball. An argument
-whose ball reaches across an edge is retried until the ball is within
-the bound or past it. If the retries run out, the message says that the
-value cannot be told from the point where the result passes the bound. A
-rule on the midpoint would be wrong. It would refuse
+range of exponents. `exp` is refused as too large when the whole ball of
+its argument lies at or above `(10^18 + 1) ln 10`, about `2.3026e18`. An
+argument whose ball reaches across an edge is retried until the ball is
+within the bound or past it. If the retries run out, the message says
+that the value cannot be told from the point where the result passes the
+bound. A rule on the midpoint would be wrong. It would refuse
 `exp(1e46 - approx(1/3) * 3e46 + 1.5e18)` with no retry: the first pass
 puts the midpoint past the edge, though the argument is `1.5e18`.
 
@@ -1206,9 +1230,56 @@ puts the midpoint past the edge, though the argument is `1.5e18`.
 | `exp(approx(1e999) - approx(1e999 - 5))`  | `≈ 148.41316`                     | `5` within about `2e948` at the first pass; retried until within |
 | `exp(1e46 - approx(1/3) * 3e46 + 1.5e18)` | `≈ 2.9970458e+651441722854877741` | the midpoint of the first pass lies past the edge                |
 
-The settle meets the bound at its two edges ([Settling](#settling)), and
-so does the display
-([Certification and the display rule](#certification-and-the-display-rule)).
+A settle and the display each have a special case at each edge of the
+bound, described under [Settling](#settling) and
+[Certification and the display rule](#certification-and-the-display-rule).
+
+### The classifier
+
+One classifier in `ball.ts` decides whether a guarded built-in may
+compute its result. It works on an interval `[lo, hi]` that bounds the
+natural logarithm of the result's magnitude. It tests the interval
+against two edges, `top = (10^18 + 1) ln 10` and
+`bottom = -10^18 ln 10`, taken from the memo of `ln 10`. It keeps a
+margin `m` that covers the kernel's error and half a unit of the working
+grid: `2^(40 - bits)` for a kernel at `bits` bits, forty bits above an
+ulp (`MARGIN_BITS`). Its verdict is one of four:
+
+- `overflow` when `lo >= top` is certified;
+- `underflow` when `hi < bottom`;
+- compute when `bottom + m <= lo` and `hi < top - m`;
+- `unresolved` at the bound otherwise.
+
+The coarse bounds decide first. The interval is formed on the kernel
+only within their slack. So an exact argument is left `unresolved` only
+when it lies within the ceiling's precision of an edge. Each caller
+forms its own interval:
+
+- `classifyExp` works on the argument `x` of `exp(x)` itself.
+- `classifyHyperbolic` works on `|x| - ln 2`, widened by an ulp of the
+  working bits on each side, against the top edge only. `sinh` and
+  `cosh` are `overflow` for either sign.
+- `classifyPower` works on `y ln x` for a power `x^y` in `powLogSpace`,
+  and on `n ln |b|` for a power `b^n` in `powBall`. It runs before
+  `lnScaled` is asked for the bits that the size of `y` needs. When its
+  bound on `|y ln x|` is below `2^-bits`, the result is one within twice
+  that bound, without the kernel. When the decision would need more bits
+  than the significand limit holds, the result is taken from the same
+  bound if the bound is at most one half, and is `tooLarge` otherwise.
+- `gamma` classifies its `lgamma` ball through `classifyExp`.
+- `erfc` goes through the upper incomplete gamma function of order one
+  half. For the incomplete gamma function of order `s` at `t`, the
+  exponent classified is `s ln t - t`, less the logarithm of the
+  function's prefactor. For `erfc(x)`, `t` is `x^2`, so the leading term
+  is `-x^2`. The incomplete functions classify their own exponents the
+  same way
+  ([The Gamma and Beta families](builtins.md#the-gamma-and-beta-families)).
+- `floatingToBall` classifies its decimal exponent's interval too, and
+  handles its own rounding's carry at the top.
+
+When a power is `unresolved` at the bound, `pow` blames the argument
+whose radius contributes more to `y ln x`, so that the message names it
+(`logPowerBlame`).
 
 ### Which limit a refusal names
 
@@ -1216,8 +1287,8 @@ so does the display
 that a refusal names the limit it passes and says what the message
 suggests.
 
-Each limit refuses with an error kind of its own, so that the message
-can say which limit the user can change, or that no setting helps:
+Each limit refuses with an error of its own, so that the message can say
+which limit the user can change, or that no setting helps:
 
 - `tooLarge`, an error of the fraction (`rational.ts`), for the
   significand limit;
@@ -1226,15 +1297,8 @@ can say which limit the user can change, or that no setting helps:
 
 `Refusal` is the union of the three, and `isRefusal` tells them from the
 other errors. `BallError`, `BuiltinError`, `EvaluateError`,
-`ConvertError` and the grammar's rejections forward the kind. The retry
-loop never retries a refusal. Two retries do happen inside a **node**,
-which is one operation of the expression tree as the evaluator walks it,
-a step in the user docs' terms: an exact operand is put on the grid, and
-a quotient is taken again
-([Working precision and the schedule](#working-precision-and-the-schedule),
-[The significand limit](#the-significand-limit)). Those retries belong
-to the operations and not to the loop. The messages, as the tests pin
-them:
+`ConvertError` and the grammar's rejections forward the error unchanged.
+The tests pin the messages:
 
 ```
 "1e999999999 + 1" would need a significand of about 3,321,928,093 bits as an exact value, past the significand limit. Try "approx(1e999999999)" in place of "1e999999999", or decimal mode, to compute it to the digits asked.
@@ -1266,38 +1330,32 @@ the bound, but its value is `10^(0.40 × 10^18)`, within the bound. It is
 reported as `tooLarge`, a refusal at the significand limit.
 
 `powerRefusal` finds the side exactly, by comparing the base's magnitude
-with one. It finds the size from bounds on the logarithm of the value's
-exponent. For a base within `2^-30` of one, those bounds come from the
-base's exact difference from one, so `1.0000000001^1e30`, about
-`10^(4.3 × 10^19)`, is too large. Within a relative `2^-20` of the
-bound, measured in that logarithm, the check does not decide, and the
-refusal stays `tooLarge` (`POWER_MARGIN`, a margin beyond the bounds'
-own `2^-30`). `7^1.1832946e18`, about `10^(10^18)`, is `tooLarge`, where
-`7^1.1833e18` is an `overflow`.
+with one. It finds the size from an estimate of `log2` of the value's
+decimal exponent, which it compares with `log2` of `10^18`. For a base
+within `2^-30` of one, the estimate comes from the base's exact
+difference from one, so `1.0000000001^1e30`, about `10^(4.3 × 10^19)`,
+is too large. When the estimate lies within `2^-20` of the edge, the
+check does not decide, and the refusal stays `tooLarge`
+(`POWER_MARGIN`). `7^1.1832946e18`, about `10^(10^18)`, is `tooLarge`,
+where `7^1.1833e18` is an `overflow`.
 
 A product or a quotient past both limits is reported at the bound when
 every decimal exponent its result can have lies past the bound. The test
 reads the operands' decimal exponents (`pastBoundBetween`). When some
 possible exponent lies within the bound, the result is `tooLarge`. A sum
 never faces the choice. A sum that aligns and passes the bound is
-`overflow` or `underflow`. A sum that cannot be aligned is `tooLarge`,
-or, with an inexact operand, it takes the value of its larger operand,
-which is within the bound.
+`overflow` or `underflow`. A sum that cannot be aligned never passes the
+bound. Where it has a value, the value is that of its larger operand to
+the digits kept, and that operand is within the bound
+([Sums and alignment](#sums-and-alignment)).
 
 ### Why the exponent bound stays at `10^18`
 
 [Values too big to hold](../docs/numbers.md#values-too-big-to-hold) says
 that the bound is not a setting, that a higher one is ruled out, and
-that log space is the way to work past it. The bound stays where it is
-for four reasons, all from the implementation.
-
-The exponent is a `bigint`, so `10^18` is a check and not a storage
-limit. It is kept by decision. A result beyond it is computed in log
-space: `1e999 / ln(10)` is the decimal exponent of `exp(1e999)`, and a
-quotient of exponentials is the exponential of a difference, so
-`exp(1e999) / exp(1e999 - 5)` is `exp(1e999 - (1e999 - 5))`. `approx`
-does not help here. It never changes an exponent, so a result past the
-bound is refused with it or without it ([approx](#approx)).
+that log space is the way to work past it. The exponent is a `bigint`,
+so `10^18` is a check and not a storage limit. It is kept by decision,
+for four reasons:
 
 - **Cost.** The kernel squares once per bit of the argument, and each
   squaring works at the working bits plus as many bits as the argument's
@@ -1327,30 +1385,23 @@ bound is refused with it or without it ([approx](#approx)).
   32 digits of `exp(1e999)` take 1,034 characters, where log space gives
   the part that can be read.
 
-Raising the bound is ruled out on those grounds. It would take four
-things:
+Raising the bound is ruled out on those grounds. It would need a new
+`MAX_EXPONENT` with a reason for its value, new edges for the classifier
+with a new `MOST_MAGNITUDE`, a `log2 10` computed to the exponent's
+bits, and a display for an exponent of thousands of digits. A setting
+for the bound is ruled out as well. The bound is a constant, generous
+and finite, and nothing a user computes needs `10^(10^18)`.
 
-- `MAX_EXPONENT` and a reason for its new value. One candidate ties it
-  to the significand limit, an exponent of as many bits as a significand
-  may have.
-- The classifier's edges and `MOST_MAGNITUDE`.
-- `log2 10` computed to the exponent's bits plus a margin, from a memo.
-- A display for an exponent of thousands of digits.
-
-One rule would stay: a pass whose argument is too wide for the result to
-have a digit is `unresolved` at the bound. A setting for the bound is
-ruled out as well. The bound is a constant, generous and finite, and
-nothing a user computes needs `10^(10^18)`.
-
-`approx` would not help even if the bound were raised, because of what
-the exponential does to a radius. `exp(x ± r)` is `exp(x)` times a
-factor between `e^-r` and `e^r`. The argument's absolute radius
-therefore becomes the result's relative error, and `exp` of a large
-argument needs that argument to many more digits than the result shows.
-The relative precision of `approx(1e999)` bounds the precision of the
-result's logarithm, not of the result. At 32 display digits, with the
-default precision limit of 1,000 and the default significand limit of
-65,536 bits, the schedule gives:
+`approx` does not make a huge exponential cheaper, whatever the bound,
+because of what the exponential does to a radius. `exp(x ± r)` is
+`exp(x)` times a factor between `e^-r` and `e^r`. The argument's
+absolute radius therefore becomes the result's relative error, and `exp`
+of a large argument needs that argument to many more digits than the
+result shows. The relative precision of `approx(1e999)` bounds the
+precision of the result's logarithm, not of the result. The table gives
+the radius of `approx(1e999)` at each pass of 32 display digits, with
+the default precision limit of 1,000 and the default significand limit
+of 65,536 bits:
 
 | Pass | Working grid (digits) | Radius of `approx(1e999)` | `exp` of it, known within | Exponent digits known |
 | ---: | --------------------: | ------------------------: | ------------------------- | --------------------: |
@@ -1361,16 +1412,10 @@ default precision limit of 1,000 and the default significand limit of
 |    5 |                   682 |                  `1e+318` | a factor of `e^(10^318)`  |                   681 |
 |    6 |                 1,354 |                  `1e-354` | a relative `1e-354`       |                   all |
 
-The exact argument needs none of these passes. `expFixed` halves an
-argument once per bit of its magnitude and works that many bits beyond
-the working bits. So `exp(1e999)` would certify at the first pass if the
-bound were raised. `exp(approx(1e999))` would be `unresolved` at passes
-one to five and certified at the sixth, at several times the cost. It
-would cost more still without the rule that answers a wide argument from
-the exponential of its upper end
-([The kernel's boundary](#the-kernels-boundary)). The first pass would
-then square an interval whose error doubles its bit length at each
-squaring, until the kernel gives up.
+Until the sixth pass the radius is far above one, and the exponential of
+such a ball has no digit. An exact argument needs none of these passes:
+`expFixed` halves an argument once per bit of its magnitude and works
+that many bits beyond the working bits.
 
 ## Certification and the display rule
 
@@ -1380,10 +1425,10 @@ what a certified digit is and how an output line and its note read, and
 states how a value that is zero within a bound is written.
 
 `show(ball, { digits, rounding, ratio })` in `display.ts` is the only
-place where a value is rounded in the user's rounding mode. It formats
-the midpoint at the digits asked for, in that mode. In every mode that
-rounds a magnitude up, the rounding can carry across a power of ten:
-`9.99` at two digits is `10`.
+place where exact mode rounds a value in the user's rounding mode. It
+formats the midpoint at the digits asked for, in that mode. In every
+mode that rounds a magnitude up, the rounding can carry across a power
+of ten: `9.99` at two digits is `10`.
 
 A ball certifies `d` digits in a rounding mode when `mid - rad` and
 `mid + rad`, as exact values, round to the same `d`-digit value in that
@@ -1404,16 +1449,17 @@ The two-ended rule costs a retry when the true value lies near a
 **rounding boundary**, the end of a rounding cell: the next pass narrows
 the ball past the boundary. A boundary of a nearest mode is a **tie**, a
 value halfway between two roundings. A boundary of a directed mode is a
-**grid point**, a value that the mode leaves unchanged. A value that
-lies exactly on a boundary, and was reached through an irrational step,
-is the one case that no pass resolves. It ends at the ceiling with one
-digit fewer than asked.
+**grid point**, a value that the mode leaves unchanged. No pass resolves
+a value that lies exactly on a boundary and was reached through an
+irrational step. It ends at the ceiling with fewer digits certified than
+asked for.
 
 A one-sided radius, a ball that extends from its midpoint in one
-direction only, is ruled out. Every error the ball carries is symmetric:
+direction only, is ruled out. Every bound the ball carries is symmetric:
 the kernel's count bounds the distance from the true value in either
-direction, and every settle rounds to nearest. A second end would be a
-second number carrying no information.
+direction, and a settle rounds to nearest. Nothing in the computation
+knows on which side of the midpoint the true value lies, so a one-sided
+ball could only restate the same interval from one of its ends.
 
 The one definition covers the nearest modes, the directed modes, ties,
 and the carry across a power of ten. Certification is not monotone in
@@ -1438,7 +1484,7 @@ midpoint's own digits. It is compared with the radius by the coarse
 bounds, and a distance that the bounds cannot tell from the radius
 certifies nothing.
 
-`show` returns a kind with the text:
+`show` returns the text with a `kind`:
 
 - `exact`: the radius is zero and every digit held is shown. It is the
   one kind shown with `=`. With the ratio notation, an exact value is
@@ -1449,42 +1495,45 @@ certifies nothing.
   digits, which is `≈` with no note.
 - `partial`: fewer digits than asked for are certified, and the text is
   those digits. With none certified, the text is the midpoint at the
-  digits asked for. The kind has two sources. One is a rounding boundary
-  at the digits asked for, reached through an irrational step. The other
-  is the ceiling, for a value that no count down to one digit certifies:
-  a one-digit tie in a nearest mode, or a grid point under a directed
-  mode, which lies on a cell's edge at every count.
+  digits asked for. The kind arises whenever the ceiling is reached with
+  too few digits certified, as after a cancellation deeper than the
+  ceiling pays for. Two values reach the ceiling at any setting. One
+  lies on a rounding boundary at the digits asked for, reached through
+  an irrational step. The other is certified at no count down to one
+  digit: a one-digit tie in a nearest mode, or a grid point under a
+  directed mode, which lies on a cell's edge at every count.
 - `zero`: a ball that contains zero without being exactly zero, which
   certifies no digit. It is shown as `0`, whatever the sign of the
   midpoint, with a written bound at or above `|mid| + rad`. The
   midpoint's sign is noise within that bound. The written bound is
   rounded up twice, the radius to thirty bits and then the sum to one
   significant digit, so a round radius shows the next digit up.
-
-  The written bound has an edge case at each end of the exponent bound.
-  A written bound whose decimal exponent lies below `-10^18` is written
-  as `1e-1000000000000000000` (`zeroBound`). A power of a ball around
-  zero can carry such a bound, since nothing holds a radius to the
-  bottom edge: `(approx(1e20) - approx(1e20))^1e10000` carries a bound
-  whose exponent runs to ten thousand digits. The value written is
-  larger than any such bound, so the line stays sound. It is the
-  smallest positive value within the exponent bound, so nothing shorter
-  could be written, and it parses back. At the top edge, a ball around
-  zero whose upper end reaches `10^(10^18 + 1)` is `unresolved` before
-  it reaches the display. A written bound that its rounding up carries
-  past the edge (`1e+1000000000000000001`) is written as it is: it is
-  larger, so the line stays sound, and it is a note, not a literal. The
-  written bound is never typed back as the result. Rounding it up at
-  either edge therefore loses only the fact that the value is even
-  closer to zero than the line says, which the line does not claim to
-  know.
-
-- `unbounded`: the radius is not known, and the midpoint's digits
-  certify none. No operation of the app produces one today. The kind is
-  what a built-in without a propagation rule would return
-  ([Exact mode](#exact-mode)).
+- `unbounded`: the radius is unbounded ([`Radius`](#radius)), and no
+  digit is certified.
 - `uncertified`: a value that decimal mode has flagged
   ([Decimal mode](#decimal-mode)).
+
+The written bound of the `zero` kind has a special case at each edge of
+the exponent bound:
+
+- **At the bottom.** A written bound whose decimal exponent lies below
+  `-10^18` is written as `1e-1000000000000000000` (`zeroBound`). A power
+  of a ball around zero can carry such a bound, since nothing tests a
+  radius against the bottom edge:
+  `(approx(1e20) - approx(1e20))^1e10000` carries a bound whose exponent
+  runs to ten thousand digits. The value written is larger than any such
+  bound, so the line stays sound. It is the smallest positive value
+  within the exponent bound, so nothing shorter could be written, and it
+  parses back.
+- **At the top.** A ball around zero whose upper end reaches
+  `10^(10^18 + 1)` is `unresolved` before it reaches the display. A
+  written bound that its rounding up carries past the edge
+  (`1e+1000000000000000001`) is written as it is. It is larger, so the
+  line stays sound, and it is a note, not a literal.
+
+The written bound is never typed back as the result. Rounding it up at
+either edge therefore loses only the fact that the value is even closer
+to zero than the line says, which the line does not claim to know.
 
 | You type                  | Exucal shows                        | Note                                                  |
 | ------------------------- | ----------------------------------- | ----------------------------------------------------- |
@@ -1494,17 +1543,21 @@ certifies nothing.
 | `sin(pi() radian)`        | `≈ 0 (within 2e-4049 of zero)`      | the `zero` kind                                       |
 
 `show` tests the kinds in this order: uncertified, unbounded, exact,
-zero, and then the digit count. Exactness is a property of the value,
-not of the display. A value that passes through a root and comes out
-looking rational is still inexact: `sqrt(2) / sqrt(2)`, whose midpoint
-is exactly `1`, is `≈ 1`. `sqrt(4)` is `= 2`, because the exact case was
-detected and nothing was rounded. The default rounding mode is
-`halfEven`, the default of
+zero, and then the digit count.
+
+Exactness is a property of the value, not of the display. A value that
+passes through a root and comes out looking rational is still inexact:
+`sqrt(2) / sqrt(2)`, whose midpoint is exactly `1`, is `≈ 1`. `sqrt(4)`
+is `= 2`, because the exact case was detected and nothing was rounded.
+
+The default rounding mode is `halfEven`, the default of
 [IEEE 754](https://ieeexplore.ieee.org/document/4610935). It is unbiased
-over many roundings, where rounding ties away from zero drifts. The
-display never writes the radius. It writes the certified digits, and a
-note where they are fewer than asked for or where the value is zero
-within a bound.
+over many roundings, where rounding ties away from zero drifts.
+
+The display writes no radius beside a value's digits. It writes the
+certified digits, and a note where they are fewer than asked for. The
+written bound of the `zero` kind is the one place where a bound on the
+error is shown.
 
 One rounding could write a value past the exponent bound: the rounding
 to the display digits of a value within the bound, when it carries the
@@ -1550,11 +1603,6 @@ rather than a parameter beside it or a lookup closing over it, so that
 it reaches a built-in. The memos are sized by it, and `pi()` reads it
 from the context it is called with.
 
-`checkContext` requires `precision <= ceiling`. When working digits are
-given, it also requires `working >= precision` and
-`4 (working + GUARD_DIGITS) <= ceiling`. It checks these in either mode,
-though exact mode carries the working digits and ignores them.
-
 `workingContexts` yields the schedule of passes. The first pass is at
 the digits asked for plus a guard of ten (`GUARD_DIGITS`). Each later
 pass doubles the one before, and the last pass is at the context's
@@ -1565,10 +1613,16 @@ digits and three at a thousand.
 
 A pass's precision is not the grid its values settle onto. A pass at `p`
 digits runs the kernel at `bitsFor(p)` bits and settles onto the working
-grid of `workingDigits(p)` digits, which is `digitsFor(bitsFor(p))`. The
-grid has about ten digits more than `p`, for the kernel's guard bits.
-The first pass at eight display digits settles onto 28 digits, and the
-ceiling pass onto 4,050 ([Settling](#settling)).
+grid, which has `digitsFor(bitsFor(p))` digits: about ten more than `p`,
+for the kernel's guard bits. The first pass at eight display digits
+settles onto 28 digits, and the ceiling pass onto 4,050
+([Settling](#settling)). The code names that count `workingDigits`. It
+is not the working digits setting of decimal mode.
+
+`checkContext` requires `precision <= ceiling`. When working digits are
+given, it also requires `working >= precision` and
+`4 (working + GUARD_DIGITS) <= ceiling`. It checks these in either mode,
+though exact mode carries the working digits and ignores them.
 
 `resolve` runs `schedule` in `pipeline.ts`, which is `workingContexts`
 in exact mode. The schedule is geometric, so the passes together cost at
@@ -1629,12 +1683,11 @@ the loop:
 - At the ceiling the best result so far, or the last error, is returned,
   and the display shows what is certified.
 
-A refusal is never retried, and a refusal first raised at a later pass
-ends the loop with the best earlier result. Only two sites can refuse at
-a later pass what an earlier pass computed, since only their counts grow
-with the pass's bits. One is the log-space power's decision, which
-refuses by the bits the decision itself would work at (`unaffordable`).
-The other is a series' working bits.
+A refusal is never retried. A refusal first raised at a later pass ends
+the loop with the best earlier result. Such a refusal comes from a site
+whose need grows with the pass's bits. The log-space power's decision is
+one: it refuses by the bits the decision itself would work at
+(`unaffordable`).
 
 Expressions that never certify, such as `sqrt(2)^2 - 2` and
 `sin(pi() radian)`, run to the ceiling however it is set, and the
@@ -1672,16 +1725,16 @@ above every pass, or the unit holds back a pass that would otherwise
 certify `p` digits. One ceiling serves every count of display digits
 under one precision limit, so one table serves them all.
 
-The lookup hands each unit out as built, and the evaluator's unit node
-settles it to the pass's precision, so that no pass carries more of the
-unit than it computes at. `turn` into `deg` certifies every one of its
-digits of `360` and shows `≈` only because the radius is not zero.
-Rebuilding the table at each pass's precision would cost a build per
-pass, milliseconds each, for no gain. A table per setting would hold one
-table for every setting the session had seen. One table, replaced when
-the ceiling moves, is the whole footprint. The table is built in exact
-mode whatever the user's mode, and a unit is settled in the user's mode
-at the node that names it.
+The lookup hands each unit out as built, and the evaluator settles it to
+the pass's precision at the **node** that names it, so that no pass
+carries more of the unit than it computes at. A node is one operation of
+the expression tree as the evaluator walks it, a step in the user docs'
+terms. Rebuilding the table at each pass's precision would cost a build
+per pass, milliseconds each, for no gain. A table per setting would hold
+one table for every setting the session had seen. One table, replaced
+when the ceiling moves, is the whole footprint. The table is built in
+exact mode whatever the user's mode. At the node that names a unit, the
+unit is settled in exact mode and rounded in decimal mode.
 
 In decimal mode the schedule is one pass, at the user's context and the
 digits asked for. A higher internal precision would compute something
@@ -1694,7 +1747,7 @@ Every result the evaluator produces, and every unit the lookup hands
 out, is settled to the working context. To **settle** an inexact value
 is to round its midpoint onto the working grid, to nearest with ties to
 even, and to add the rounding to the radius. The working grid is the
-grid on which the kernel's results leave. An exact value is never
+grid on which the kernel's results leave. An exact result is never
 settled. So an inexact midpoint never grows beyond the working
 precision, however long the expression, while an exact value stays the
 exact number it is.
@@ -1705,13 +1758,12 @@ significand limit within a few operations. A kernel result at the
 default ceiling has some thirteen thousand bits, and its fifth power
 already passes the default limit. That power would be refused for digits
 that carry no information. `powBall` on an inexact base squares with
-settling for the same reason. An inexact value is a number computed, not
-a number known. Keeping its midpoint as the exact result of exact
-operations on kernel outputs would spend exactness on a value that has
-none. Arb follows the same discipline. Whole-expression precision is
-untouched: the errors that settling adds are at the working precision,
-far below the digits asked for, and the retry loop raises that precision
-until the digits certify.
+settling for the same reason. Keeping an inexact midpoint as the exact
+result of exact operations on kernel outputs would spend exactness on a
+value that has none. Arb follows the same discipline. Settling does not
+weaken the digits shown: the errors it adds are at the working
+precision, far below the digits asked for, and the retry loop raises
+that precision until the digits certify.
 
 Settling rounds to nearest, not in the user's rounding mode. It bounds
 the size of a number the user never sees. In exact mode the user's mode
@@ -1734,10 +1786,10 @@ The half cell is a radius read from the exponent (`powerOfTenRadius`),
 not a value formed and checked against the bound. A midpoint at the
 bottom edge, whose half cell lies past the bound, therefore settles:
 `1e-999999999999999999 / approx(3)` is
-`≈ 3.3333333e-1000000000000000000`. The same rounding puts an exact
-operand on the grid when the strict limit refuses the exact step of a
-sum, a product or a quotient with an inexact operand
-([Sums and alignment](#sums-and-alignment)).
+`≈ 3.3333333e-1000000000000000000`. An exact operand is rounded onto the
+grid in one case only, by the same rounding: when it stands beside an
+inexact operand in a sum, a product or a quotient whose exact step the
+significand limit refuses ([Sums and alignment](#sums-and-alignment)).
 
 `step` in `ball.ts` is the one entrance through which a computed value
 becomes a value of the expression, in either mode. Every node goes
@@ -1748,9 +1800,9 @@ exact mode `step` runs the computation once, at the context, and settles
 the value. In decimal mode it runs the computation at the working
 contexts until the rounding is certified, and rounds once, which is the
 mode's one rounding of each step ([Decimal mode](#decimal-mode)). Its
-primitive, `settle`, is not exported. A settle that any caller could
-apply to any ball, beside a step that only some call sites take, would
-be a contract kept in documentation rather than in the one entrance.
+primitive, `settle`, is not exported. If any caller could settle any
+ball, the rule that every value passes through `step` would be kept by
+documentation only. With `settle` private, the one entrance enforces it.
 
 ## Exact mode
 
@@ -1784,19 +1836,20 @@ value.
 
 Whole-expression precision is the practice of raising the passes'
 precision until the whole expression's ball certifies the digits asked
-for, in the manner of Arb. Whole-expression rounding is its counterpart
-([Settling](#settling) says why no rounding inside the expression takes
-the user's mode). The user page lists what the mode cannot do, and the
-cause is the same each time: an irrational step leaves a ball that no
-pass closes. `sin(pi() radian)` is a ball around zero whose relative
-accuracy never improves, since `pi()` is rounded before `sin` sees it.
-The ceiling ends the escalation, and the display shows `≈ 0` with a
-bound. Exactness for such identities needs symbolic values
-([Symbolic values](future.md#symbolic-values)), and Arb does not do
-otherwise. `turn` into `deg` shows a conservative `≈`: the result is
-exactly `360`, but it is computed through a rounded `pi()`. That is the
-one visible cost of `pi()` being a function rather than a literal, and
-it is accepted. A conservative `≈` is honest, and a false `=` is not.
+for, in the manner of Arb. Whole-expression rounding applies the user's
+rounding mode once, to that certified value ([Settling](#settling) says
+why no rounding inside the expression takes the mode). The user page
+lists what the mode cannot do, and the cause is the same each time: an
+irrational step leaves a ball that no pass closes. `sin(pi() radian)` is
+a ball around zero whose relative accuracy never improves, since `pi()`
+is rounded before `sin` sees it. The ceiling ends the escalation, and
+the display shows `≈ 0` with a bound. Exactness for such identities
+needs symbolic values ([Symbolic values](future.md#symbolic-values)),
+and Arb does not do otherwise. `turn` into `deg` shows a conservative
+`≈`: the result is exactly `360`, but it is computed through a rounded
+`pi()`. That is the one visible cost of `pi()` being a function rather
+than a literal, and it is accepted. A conservative `≈` is honest, and a
+false `=` is not.
 
 The alternative is per-operation precision, the guarantee
 [MPFR](https://www.mpfr.org/) gives. Every inexact operation returns its
@@ -1806,27 +1859,26 @@ nothing is said about the expression around it. `exp(x) - 1` at a small
 know. It is ruled out because the digits shown would be no promise, and
 the user would have to choose a working precision beside the display
 digits. Over that model, the ball model costs a radius beside every
-midpoint, a propagation rule per built-in and the retry loop, and it
-needs no new structure. The per-operation model is in fact a state of
-the ball model, the state in which every radius is unbounded
-([Certification and the display rule](#certification-and-the-display-rule)).
-A built-in without a propagation rule would still work, under
-per-operation semantics, and would gain whole-expression semantics the
-day its rule is written.
+midpoint, a propagation rule per built-in and the retry loop. The
+per-operation model is a special case of the ball model, the case in
+which every radius is unbounded ([`Radius`](#radius)). A built-in with
+no propagation rule can return an unbounded radius and work under
+per-operation semantics. It moves to whole-expression semantics when its
+rule is written.
 
 ## Decimal mode
 
 [The two modes](../docs/numbers.md#the-two-modes) states decimal mode as
 four rules a user can apply, with the uncertified mark.
 
-Decimal mode is a calculator's arithmetic. Every operation is one
-correctly rounded step: its exact result is rounded once, in the
-rounding mode, to the digits of the step. The rounded value is then
-treated as exact. It has a radius of zero, it is the step's value for
-every later step, and nothing records that it was rounded. So "exact" in
-decimal mode means "carries no error bound", not "equal to the value
-that exact mode would compute". At `p` digits in the rounding mode `R`,
-the mechanism behind the rules is this:
+In decimal mode every operation is one correctly rounded step, as on a
+hand calculator: its exact result is rounded once, in the rounding mode,
+to the digits of the step. The rounded value is then treated as exact.
+It has a radius of zero, it is the step's value for every later step,
+and nothing records that it was rounded. So "exact" in decimal mode
+means "carries no error bound", not "equal to the value that exact mode
+would compute". At `p` digits in the rounding mode `R`, the mechanism
+behind the rules is this:
 
 1. A decimal-mode value is an integer of at most `p` significant digits
    times a power of ten. That is the `Scaled` form with a denominator of
@@ -1851,7 +1903,8 @@ A radius carried through the mode's steps is ruled out. Under it,
 `1 / 3 * 3` would show `≈ 1` with a note that seven of the eight digits
 are certified. There are three reasons:
 
-- The radius answers a question the mode does not ask.
+- The mode does not ask how far its roundings have moved a value, which
+  is all that the radius would say.
 - A directed rounding could never certify its last digit, since the
   symmetric ball reaches across the boundary the result sits on.
 - It adds no behavior that exact mode lacks.
@@ -1860,15 +1913,16 @@ The ball model stays where it is needed, inside a built-in, whose result
 must be certified at extra digits before it is rounded.
 
 A float with a rational significand, as a third number type, is ruled
-out as subsumed. Unbounded, it is the exact rational with its power of
-ten. Bounded, it is decimal mode. Rationals of bounded denominator are
-not closed under addition (`1/3 + 1/7` is `10/21`). Rounding a rational
-significand to a nearby rational of bounded size would be a
-continued-fraction step that no rounding mode describes and no
-calculator's user expects. The rounding modes are defined for a
-significand that is an integer of at most `p` decimal digits.
+out as subsumed. With no limit on its significand, it is the exact
+rational with its power of ten. With a limit, it is decimal mode.
+Rationals of bounded denominator are not closed under addition
+(`1/3 + 1/7` is `10/21`). Rounding a rational significand to a nearby
+rational of bounded size would be a continued-fraction step that no
+rounding mode describes and no calculator's user expects. The rounding
+modes are defined for a significand that is an integer of at most `p`
+decimal digits.
 
-Each kind of operation, in turn:
+Each operation follows its own rule:
 
 - **A literal** with more than `p` significant digits is rounded to `p`
   in `R` as it is read, and is exact after that. `2.5400001 cm` at three
@@ -1879,18 +1933,20 @@ Each kind of operation, in turn:
   calculator holds `p` digits. Exempting literals would carry the extra
   digits into the first operation and round them there, one step later,
   for no gain.
-- **Arithmetic** forms the exact result of two `p`-digit decimals, which
-  always exists and is small, and rounds it once. Division by an exact
-  zero is the only error, since no value straddles anything. Two
-  decimals whose exponents differ by more than the significand limit
-  holds take the neighbor rule
-  ([Sums and alignment](#sums-and-alignment)).
+- **Arithmetic** forms the exact result of two `p`-digit decimals and
+  rounds it once. The exact result is small unless the operands'
+  exponents lie far apart, and a sum of two such operands takes the
+  neighbor rule ([Sums and alignment](#sums-and-alignment)). Division by
+  an exact zero is the only error an operand can cause, since no value
+  straddles anything. A rounded result past the exponent bound is
+  refused, as the item on domains and edges says.
 - **A power** `x^n` for an integer `n` is one operation, the exact power
   rounded once: `2^100` at eight digits is `= 1.2676506e+30`. Where the
-  exact power does not fit the significand limit, it is computed on the
-  base widened to the working precision, and certified. The limit is a
-  cost limit, and a correctly rounded power costs little: `3^1000000000`
-  at eight digits is `= 5.243997e+477121254`. A rational exponent is a
+  exact power does not fit the significand limit, the base is first made
+  inexact at the working precision, as `approx` would make it. The power
+  is then computed on that base and certified. The limit is a cost
+  limit, and a correctly rounded power costs little: `3^1000000000` at
+  eight digits is `= 5.243997e+477121254`. A rational exponent is a
   root, an inexact function, and the exact cases of `^` stay exact.
 - **A unit** is built exactly at the ceiling, as every unit is, and the
   lookup hands it out as built. The evaluator's unit node rounds it to
@@ -1915,44 +1971,9 @@ Each kind of operation, in turn:
   what it returns. A decimal kernel, rounding in `R` inside each
   routine, is ruled out, since it would double the numeric surface for
   every function.
-- **The ceiling.** Certification can fail at every pass when the true
-  value lies exactly on a rounding boundary of `p` digits: a tie in a
-  nearest mode, or a `p`-digit value in a directed one. No precision
-  separates the ball's two ends there.
-
-  For `exp`, `ln` and the trigonometric and hyperbolic functions the
-  case cannot arise outside their exact cases. At a rational argument
-  their value is transcendental, by Lindemann and Weierstrass, so it is
-  never a finite decimal. For `gamma`, `erf` and their kin no such
-  theorem is relied on. A value can sit on a boundary only when it is
-  rational and the built-in computes it on the kernel without
-  recognizing it. Roots and powers with rational exponents have their
-  exact cases detected before the kernel runs: `sqrt(6.25)`, `6.25^0.5`
-  and `pow(6.25, 0.5)` are each exactly `2.5`. But `log(b, x)` looks
-  only for an integer exponent or its reciprocal. So `log(4, 8)`, which
-  is `3/2`, at one display digit, and `log(256, 512)`, which is `9/8`,
-  at three, reach the ceiling under a nearest mode.
-
-  The ceiling is therefore a computation limit that lets the mode always
-  answer. At the ceiling, the result is the midpoint's rounding in `R`,
-  as a calculator would print it, and the value is flagged
-  `uncertified`. The flag is an optional field of `Ball`. It is never
-  set to anything but `true`, so that balls compare structurally. Every
-  operation carries it from an operand to the result (`carrying`), and
-  the evaluator carries it from a built-in's arguments to its result, so
-  it is sticky, as the inexact flag of IEEE 754 is.
-
-  The display writes such a value with the `≈` sign bearing a dot above
-  it, U+2248 U+0307 as text, and the note "a step could not be certified
-  at the precision limit". The component draws the dot itself over an
-  `≈` labeled "approximately, uncertified" for assistive technology. `≆`
-  is ruled out because it asserts an inequality the app cannot attest:
-  the uncertified digits may be exactly right. The value is exact under
-  the mode's rounding, and yet the computation could not vouch for its
-  last digit. Every operation after it rounds a value that may already
-  be a unit off, and the error can compound. The tests exercise the
-  ceiling with an injected built-in whose value sits on a tie.
-
+- **A call that never certifies** takes the midpoint's rounding at the
+  ceiling and is flagged `uncertified`
+  ([A call that never certifies](#a-call-that-never-certifies)).
 - **A result that is zero** is an exact case where the argument makes
   the function zero exactly (`sin(0 radian)`, `ln(1)`, `atan(0)`). An
   inexact argument is rounded first and misses zero. So
@@ -1973,15 +1994,15 @@ Each kind of operation, in turn:
   `overflow` at the top (`99999999999e999999999999999990` at eight
   digits rounds to `1e+1000000000000000001`) and `underflow` at the
   bottom (`1e-1000000000000000000 / 3`).
-- **`approx(x)`** is `x`, the identity.
+
 - **A defined function** is its body, ordinary arithmetic evaluated by
   the same evaluator. Each step of the body rounds, as a programmable
   calculator rounds each step of a program. Calling the function and
   typing its body inline round at the same subexpressions and give the
   same value. Treating a function as one operation, like a built-in, is
   ruled out. A mode that rounded a body once would make `tempF(37)` and
-  its inlined body differ, the opposite surprise. A function's
-  conditions compare exact values and are always decided.
+  its inlined body differ. A function's conditions compare exact values
+  and are always decided.
 - **The pipeline's own quotients** are each one operation, rounded once,
   with an exact result: the conversion's ratio, a unit list's counts and
   remainder, a function's count and the outcome's reciprocal.
@@ -1994,7 +2015,7 @@ Each kind of operation, in turn:
 | ----------------------- | --------------------------------------------------------------- | ------------------------------------------------------------- |
 | `1 / 3 * 3`             | `= 0.99999999`                                                  | eight display digits                                          |
 | `1 / (1 / 3 * 3 - 1)`   | `= -1e+8`                                                       |                                                               |
-| `2^-30000`              | `= 1.2593025e-9031`                                             | the base widened; exact mode refuses it                       |
+| `2^-30000`              | `= 1.2593025e-9031`                                             | the base made inexact first; exact mode refuses it            |
 | `sin(pi() radian)`      | `= -4.6410207e-8`                                               | the unit rounded before `sin` sees it                         |
 | `log(256, 512)`         | `≈̇ 1.12 (a step could not be certified at the precision limit)` | at three display digits: `9/8`, a tie, computed on the kernel |
 | `log(4, 8)`             | `≈̇ 2 (a step could not be certified at the precision limit)`    | at one display digit: `3/2`                                   |
@@ -2008,28 +2029,28 @@ digits are not certified" never appear for a rounding that the mode
 certified. The ratio notation is not used in decimal mode, and the
 outcome never asks for it there
 ([Not in decimal mode](notation.md#not-in-decimal-mode)). The precision
-limit has one meaning in both modes, the finest grid the app rounds
-onto. In decimal mode it bounds the display digits and the working
-digits, and a step's certification runs on grids up to the same ceiling.
+limit sets the ceiling in both modes. In decimal mode it also bounds the
+display digits and the working digits, and a step's certification runs
+on grids up to that ceiling.
 
-The denominator is fixed at one. A decimal-mode value is then always
-representable in the decimal system directly, with no interference from
-the rational's reduction. The cost is at the bottom of the exponent
-range: a value whose `p` digits would need an exponent below the bound
-has nowhere to put them, and is refused. The alternative is a
-denominator that flexes by powers of ten. It would give such a value a
-representation with reduced precision, as the subnormals of IEEE 754
-have, and `Scaled` can hold it, since the invariant is on the value and
-not on the stored fraction. It is recorded here so that a change to the
-decision is a decision and not a rediscovery.
+The denominator of a decimal-mode value is fixed at one. The value is
+then always a plain decimal, whatever the rational's reduction would do
+to it. The cost is at the bottom of the exponent range: a value whose
+`p` digits would need an exponent below the bound has nowhere to put
+them, and is refused. A denominator that flexes by powers of ten would
+give such a value a representation with reduced precision, as the
+subnormals of IEEE 754 have. It is not used, so a decimal-mode value has
+its full digits or is refused.
 
-The midpoint's rounding at the ceiling is the answer for an uncertified
-call, rather than an error. An error would withhold a value that every
-calculator answers, because an exact case is missing. Keeping the
-ceiling's ball on the uncertified value, and letting the display rule
-mark what it does not certify, is ruled out too. The radius would then
-propagate through the rest of the expression, which is the mismatch that
-the mode's definition removes.
+Two other representations of a decimal-mode value are ruled out. A
+second number type beside `Rational`, with the core generic over the
+two, doubles the numeric surface of every built-in. Decimal mode as a
+rounding step in the evaluator, over the fraction with no exponent, caps
+a value at the digits the significand limit holds, about 19,700 at the
+default. `exp(100000)` and `gamma(20001)` would then fail in the mode
+that exists to represent them. With the exponent, a decimal-mode value
+is a decimal float, and the cost of the exponent is confined to
+`scaled.ts`.
 
 The significand limit is nearly idle in decimal mode. With the
 denominator fixed it binds four things:
@@ -2039,7 +2060,55 @@ denominator fixed it binds four things:
 - the significand of a literal as typed, which is refused past the limit
   in either mode rather than rounded;
 - the prediction of an exact power, which sends a power past the limit
-  to the widened base.
+  to a base made inexact first.
+
+### A call that never certifies
+
+Certification can fail at every pass when the true value lies exactly on
+a rounding boundary of `p` digits: a tie in a nearest mode, or a
+`p`-digit value in a directed one. No precision separates the ball's two
+ends there.
+
+For `exp`, `ln` and the trigonometric and hyperbolic functions the case
+cannot arise outside their exact cases. At a rational argument their
+value is transcendental, by Lindemann and Weierstrass, so it is never a
+finite decimal. For `gamma`, `erf` and their kin no such theorem is
+relied on. A value can sit on a boundary only when it is rational and
+the built-in computes it on the kernel without recognizing it. Roots and
+powers with rational exponents have their exact cases detected before
+the kernel runs: `sqrt(6.25)`, `6.25^0.5` and `pow(6.25, 0.5)` are each
+exactly `2.5`. But `log(b, x)` looks only for an integer exponent or its
+reciprocal. So two calls reach the ceiling under a nearest mode:
+`log(4, 8)`, which is `3/2`, at one display digit, and `log(256, 512)`,
+which is `9/8`, at three.
+
+The ceiling is therefore a computation limit that lets the mode always
+answer. At the ceiling, the result is the midpoint's rounding in `R`, as
+a calculator would print it, and the value is flagged `uncertified`. The
+flag is an optional field of `Ball`. It is never set to anything but
+`true`, so that balls compare structurally. Every operation carries it
+from an operand to the result (`carrying`), and the evaluator carries it
+from a built-in's arguments to its result. The flag is sticky, as the
+inexact flag of IEEE 754 is.
+
+The display writes such a value with the `≈` sign bearing a dot above
+it, U+2248 U+0307 as text, and the note "a step could not be certified
+at the precision limit". The component draws the dot itself over an `≈`
+labeled "approximately, uncertified" for assistive technology. `≆` is
+ruled out because it asserts an inequality the app cannot attest: the
+uncertified digits may be exactly right. The value is exact under the
+mode's rounding, and yet the computation could not vouch for its last
+digit. Every operation after it rounds a value that may already be a
+unit off, and the error can compound. The tests exercise the ceiling
+with an injected built-in whose value sits on a tie.
+
+The midpoint's rounding at the ceiling is the answer for an uncertified
+call, rather than an error. An error would withhold a value that every
+calculator answers, because an exact case is missing. Keeping the
+ceiling's ball on the uncertified value, and letting the display rule
+mark what it does not certify, is ruled out too. The radius would then
+propagate through the rest of the expression, which is the mismatch that
+the mode's definition removes.
 
 ### The working digits
 
@@ -2069,9 +2138,11 @@ digits and `w >= p` the working digits:
   reciprocal of the `p`-digit ratio shown. So `3 m` in `in` at eight
   digits gives `0.0084666664` whatever the working digits, where the
   reciprocal of the exact ratio rounds to `0.0084666667`.
-- The answer is exact and written with `=`. Under a directed mode the
-  answer is the neighbor of a value that sits on the grid, as that mode
-  asks. The working digits change what is rounded, never how.
+- The answer is exact and written with `=`. Under a directed mode, a
+  true value that lies exactly on the `p`-digit grid can come out as the
+  next value on the grid, since the `w`-digit operands were already
+  rounded in that direction. The table's third and fourth rows show it.
+  The working digits change what is rounded, never how.
 - With `w = p` nothing changes, which is the default.
 
 | You type (decimal mode, eight display digits) | Into | Exucal shows     | Note                                         |
@@ -2105,8 +2176,8 @@ floor on it would be a floor on the schedule's first pass, a different
 control with a different purpose. The retry schedule's contexts are
 called "working contexts" throughout the core, and the step callbacks
 name their parameter `working`, beside a field `working` that holds this
-setting's digits. The choice of that vocabulary is
-[#172](https://github.com/bsidhom/exucal/issues/172).
+setting's digits. [#172](https://github.com/bsidhom/exucal/issues/172)
+tracks the choice of that vocabulary.
 
 Hand calculators commonly round each step to more digits than they show,
 a ten-digit display over twelve or thirteen internal digits, so that the
@@ -2126,12 +2197,13 @@ states what the limit refuses, what the message suggests and what
 [How a value is held](../docs/numbers.md#how-a-value-is-held) states the
 cost of a power of two in a denominator.
 
-Exact arithmetic cannot overflow, but it can grow without bound:
-`3^1000000` and `1e999999999 + 1` are valid input. Beside the exponent
-bound, two settings bound that growth, the significand limit and the
-precision limit. They are two settings in two units because they bound
-two kinds of value, as a float's exponent width and significand width
-are different quantities that one number cannot stand for:
+An exact value has no fixed width, so exact arithmetic can grow without
+bound: `3^1000000` and `1e999999999 + 1` are valid input. Beside the
+exponent bound, two settings bound that growth, the significand limit
+and the precision limit. They are two settings, in two units, because
+they bound two different quantities. A float's exponent width and
+significand width are likewise two quantities that one number cannot
+stand for. Each limit has its own unit:
 
 - The significand limit is in bits. It bounds the size of an exact
   rational's numerator and denominator, which is the cost of holding an
@@ -2153,8 +2225,8 @@ limit with room for a product of two such midpoints, which is
 significand limit `S`. `precisionLimitFor(S)` is the largest `L` that
 satisfies the relation. At the default `S` of 65,536 bits it is 2,453
 digits: a ceiling of 9,852 digits is 32,760 bits, and twice that is just
-under 65,536. The only slack in the relation is the guard's 32 bits,
-which the derivation counts.
+under 65,536. The relation counts the kernel's 32 guard bits, which
+`bitsFor` includes, and has no other slack.
 
 The limit has a hard bound, a floor and a default:
 
@@ -2179,8 +2251,8 @@ denominator for fives in the numerator: `2^-30000`, a value of 30,000
 bits, is stored as `5^30000 × 10^-30000`, about 69,658 bits, and a
 product with it costs those bits.
 
-The extra cost is narrower than it looks. An exact value is expensive by
-the bits of the two integers that store it, not by how simple its
+The extra cost applies to few values. An exact value is expensive by the
+bits of the two integers that store it, not by how simple its
 factorization is. `3^-100000` is as simple as `2^-30000`, and it is
 stored as itself, `1/3^100000`, in 158,497 bits. Any other
 representation needs as many, short of a factored one, which the app
@@ -2188,25 +2260,27 @@ does not use. The canonical form adds cost in one case only, a
 denominator with twos. The factor is `log2 5`, about 2.32, for a pure
 power of two. It is less for a mixed denominator, and it is nothing for
 a denominator with no twos, which is every other fraction. So the added
-cost is bounded, and it changes the outcome only for a dyadic value
-within a factor of 2.32 below the limit. A value that it moves past the
-limit was already within that factor of the limit by its own bits, and
-so a big number by the measure that matters. `approx` is the remedy, as
-it is for any other value past the limit. A binary exponent beside the
-decimal one would spare `2^-30000` and do nothing for `3^-100000`: the
-cost lies in storing exact rationals as digits, not in the power of ten.
-So `1 / 2^n` is refused from `n = 28,225` at the default: `5^28225` has
-65,537 bits, and `1 / 2^28224` is a value. `0.5^30000` is refused
-likewise, since each is stored with `5^n`.
+cost is bounded. It changes the outcome only for a value with twos in
+its denominator, and only when the value's own bits are within a factor
+of 2.32 of the limit. `approx` is the remedy, as it is for any other
+value past the limit. A binary exponent beside the decimal one would
+spare `2^-30000` and do nothing for `3^-100000`: the cost lies in
+storing exact rationals as digits, not in the power of ten. So `1 / 2^n`
+is refused from `n = 28,225` at the default: `5^28225` has 65,537 bits,
+and `1 / 2^28224` is a value. `0.5^30000` is refused likewise, since
+each is stored with `5^n`.
 
-Every node is held to the limit, sums included, because nothing bounds
-an expression's length. Each operation grows its operands by a bounded
-factor, but a product of powers that are each within the limit reaches a
-million bits in a few factors. A conversion between two such products
-costs half a minute if it is formed, as a rough figure on a laptop.
+Every node's result is checked against the limit, sums included, because
+nothing bounds an expression's length. Each operation grows its operands
+by a bounded factor, but a product of powers that are each within the
+limit reaches a million bits in a few factors. A conversion between two
+such products costs half a minute if it is formed, as a rough figure on
+a laptop.
 
-The limit is strict: no exact value is formed past it, and nothing is
-measured after the fact. Every operation that forms an exact value first
+The limit is strict for the results of an expression's operations: no
+exact result is formed past it, and no result is measured after it is
+formed. Some intermediates do pass it, by a bounded amount, and are
+listed further on. Every operation that forms an exact value first
 predicts the result's size from its operands. If the size passes the
 limit, it refuses with the bits the result would need (`tooLarge` with a
 `Need`):
@@ -2220,7 +2294,7 @@ limit, it refuses with the bits the result would need (`tooLarge` with a
 - **A sum** is refused on the size of its unreduced sum, Henrici's form
   with the common factor taken out first (`addWithin`). That is the
   price of never forming the sum: `1/3^32767 + 1/7^21845` is refused.
-- **A power** `x^n` predicts `floor(|n| log2 m) + 1` for `m` the larger
+- **A power** `x^n` predicts `floor(|n| log2 t) + 1` for `t` the larger
   of `x`'s numerator and denominator, which is the true size or one bit
   over it. `2^65535` is a value at the default and `2^65536` is not.
 - **A canonical form** is sized too, before it is made, for a quotient
@@ -2233,9 +2307,9 @@ limit, it refuses with the bits the result would need (`tooLarge` with a
 - **A sum's alignment** is predicted the same way: the shift is sized
   before it runs ([Sums and alignment](#sums-and-alignment)). A
   literal's digits are measured as they are typed.
-- **The built-ins that compute at an argument's bits** refuse on their
-  own counts: the trigonometric reduction, `beta`, the incomplete
-  functions and `factorial`.
+- **A built-in whose working bits grow with the size of an argument**
+  refuses on its own count of those bits. The trigonometric reduction,
+  `beta`, the incomplete functions and `factorial` are such built-ins.
 
 `evaluate()` asserts the limit on every node's result. The pipeline
 asserts it on the two quotients it forms outside the evaluator, the
@@ -2258,14 +2332,12 @@ prediction needs the limit.
 | `1 / 2^28224`       | `≈ 5.3629331e-8497`                            |
 | `1 / 2^28225`       | past the significand limit                     |
 
-The largest integers ever formed are the operands of the gcds, and the
-probe times those when it recommends the limit. The prediction runs
-after the cross-cancelling gcds and never on the unreduced sizes. A
-prediction from the unreduced sizes would refuse `x / x`, whose result
-is one, since those sizes measure the operands and not the result.
-Measuring the result after forming it is ruled out: it would bound what
-is kept and not what is formed, and the limit is a bound on what the
-device forms.
+A prediction itself forms nothing larger than the operands of its gcds,
+which are within the limit. It runs after the cross-cancelling gcds and
+never on the unreduced sizes, which measure the operands and not the
+result. Measuring the result after forming it is ruled out: it would
+bound what is kept and not what is formed, and the limit is a bound on
+what the device forms.
 
 Every `tooLarge` carries two fields. `Need` is the bits needed:
 
@@ -2278,10 +2350,10 @@ Every `tooLarge` carries two fields. `Need` is the bits needed:
 inexactly, in the refusing function's own judgment:
 
 - `fits`, where only the exact result exceeds the limit, as for a sum's
-  alignment, an exact power's prediction or a product measured;
+  alignment, an exact power's prediction or a product;
 - `exceeds`, where the computation needs more bits than the limit holds
   whatever its operands, as for a literal's digits, an exponent that
-  cannot be formed, or a kernel's reach.
+  cannot be formed, or a size the kernel cannot work at.
 
 The `Reach` field is required, so no refusal site can be silent about
 it. It is stated where the refusal is made and carried through
@@ -2306,7 +2378,7 @@ operation expects to work, and is not a promise.
 Exact mode refuses at the node and never rounds an exact result on its
 own to stay within the limit. The alternative is to round the result at
 the node to the working grid, as `approx` at that node would, and to let
-the retry loop certify the digits asked for. It is ruled out, for four
+the retry loop certify the digits asked for. It is ruled out, for five
 reasons:
 
 - It would be a third source of inexactness, and the only one the user
@@ -2314,31 +2386,35 @@ reasons:
 - The limit depends on the device. Under rounding, the same expression
   would be `= 0` on one machine and `≈ 0` within a bound on another,
   with nothing in the expression to say why.
-- The remedy is one token, and the choice belongs to the user: a user
-  checking an exact identity wants a higher limit, and a user converting
-  a measurement wants `approx`.
-- Refusing ends the work at the node, where rounding would carry on. And
-  the calculator's behavior exists already, in decimal mode and in
-  `approx`.
+- The remedy is one token, and the user chooses it: a user checking an
+  exact identity wants a higher limit, and a user converting a
+  measurement wants `approx`.
+- Refusing ends the work at the node, where rounding would carry on.
+- A calculator's rounding behavior exists already, in decimal mode and
+  in `approx`.
 
-The alternative's rounding is recorded here so that it is not
-rediscovered. The node's exact result past the limit would be settled
-onto the working grid, with half a cell added to the radius. The
-quantity would be marked as rounded, with the node's span, and the
-pipeline would carry the mark to the display as a note beside the value.
-Nothing downstream would change. A literal past the limit, the kernel's
-reach and the exponent bound would still refuse.
+Under that alternative, the node's exact result past the limit would be
+settled onto the working grid, with half a cell added to the radius, and
+the quantity would carry a mark that the display shows as a note. A
+literal past the limit, a size the kernel cannot work at and the
+exponent bound would still refuse.
 
-An inexact result of the exact operations, and every result in decimal
-mode, is settled to the working grid and never refused for size. Four
-kinds of intermediate are not checked against the limit: a built-in's
-internal intermediates, a unit list's decomposition, the settled loop of
-`powBall`, and the display's reciprocal. Each works on node results that
-are already held to the limit, and stays within a constant factor of
-them. A built-in that computes at an argument's own bits is different.
-The trigonometric reduction, `beta`, the incomplete functions and
-`factorial` refuse by those bits whether the argument is exact or not,
-so `sin(approx(1e999999999) radian)` is refused as
+An inexact result of the exact operations is settled onto the working
+grid and is never refused for the size of its significand. Decimal mode
+rounds every result, and the limit meets it in four places only
+([Decimal mode](#decimal-mode)).
+
+Some intermediates are not checked against the limit. Four of them work
+on node results that are already within the limit, and stay within a
+constant factor of those: a built-in's internal intermediates, a unit
+list's decomposition, the settled loop of `powBall`, and the display's
+reciprocal. Two more pass the limit by a bounded amount: the exact value
+of a radius that a comparison forms ([Comparison](#comparison)), and the
+canonical form of an inexact quotient before it is settled.
+
+The built-ins whose working bits grow with the size of an argument are
+different. They refuse by those bits whether the argument is exact or
+not, so `sin(approx(1e999999999) radian)` is refused as
 `sin(1e999999999 radian)` is.
 
 A product or a quotient with one inexact operand is inexact in any case,
@@ -2346,11 +2422,11 @@ so it is never refused for its exact operand's size. When the prediction
 refuses the exact step, each operand is first put on the working grid by
 `onGrid`, as in a sum that cannot align
 ([Sums and alignment](#sums-and-alignment)), and the product or quotient
-is taken again. Two grid significands always fit, by the relation that
-`precisionLimitFor` keeps between the two limits. The retry therefore
-cannot be refused, and a `tooLarge` there is a bug, thrown. The exact
-operand is rounded only because the result was inexact already. Two
-exact operands are refused at the node, as described above.
+is taken again. The fraction of two grid significands always fits, by
+the relation that `precisionLimitFor` keeps between the two limits. The
+retry therefore cannot be refused, and a `tooLarge` there is a bug,
+thrown. The exact operand is rounded only because the result was inexact
+already. Two exact operands are refused at the node, as described above.
 
 `approx` changes the significand limit's reach in three places, and
 nothing else about the limit:
@@ -2382,7 +2458,7 @@ better. It is the ball whose midpoint is the midpoint of `x`, and whose
 radius is the larger of two radii: the radius of `x`, and one unit in
 the last digit of the working grid at the value's magnitude, rounded up
 (`widened` in `ball.ts`). The evaluator then settles the result as it
-settles every inexact result. The cases:
+settles every inexact result. Five cases follow:
 
 - An exact `x` gains that unit.
 - An inexact `x` whose radius is already larger keeps its radius. The
@@ -2402,18 +2478,17 @@ the bottom of the exponent bound, such as
 "known to this precision, and no better". A radius that the argument
 already carries is a fact about the value that the call cannot undo.
 Widening a radius is always honest, and narrowing one would claim
-knowledge the computation does not have. So `approx` cannot cast a value
-to exact, and it cannot raise a value's precision. No reason to raise a
-precision by a call is known, since the retry loop raises precision. If
-one appeared, it would belong to a built-in of its own, named for what
-it does.
+knowledge the computation does not have. So `approx` cannot make an
+inexact value exact, and it cannot raise a value's precision. No reason
+to raise a precision by a call is known, since the retry loop raises
+precision. A built-in for that purpose would be a separate one, named
+for what it does.
 
-`approx` never turns an inexact value exact and never decides an edge.
-`factorial(approx(5))` is an error where `factorial(5)` is a value, and
-`1 / approx(sqrt(2) - sqrt(2))` is as undecided as
-`1 / (sqrt(2) - sqrt(2))`. Of the limits, it changes only the reach of
-the significand limit, and only where an inexact operand makes a result
-inexact, and so settled rather than formed
+`approx` never decides an edge. `factorial(approx(5))` is an error where
+`factorial(5)` is a value, and `1 / approx(sqrt(2) - sqrt(2))` is as
+undecided as `1 / (sqrt(2) - sqrt(2))`. Of the limits, it changes only
+the reach of the significand limit, and only where an inexact operand
+makes a result inexact, and so settled rather than formed
 ([The significand limit](#the-significand-limit) lists the three cases).
 It does not help with an exponent literal past the limit, since the
 literal is refused before the result of `approx` is raised to it:
@@ -2461,8 +2536,8 @@ Four spellings are ruled out, each for its own reasons:
   form below. It also cannot be spelled `+-`, since `2.54 +- 0.01`
   already parses as a subtraction.
 - The CODATA form `6.67430(15)e-11` reads a number followed by `(`,
-  which is a product today. The canonical form also keeps no digit count
-  to read the parenthesized digits against.
+  which the grammar takes as a product. The canonical form also keeps no
+  digit count to read the parenthesized digits against.
 
 A binary form, `approx(x, u)`, a value known to within an absolute
 uncertainty, is future work
@@ -2474,9 +2549,9 @@ uncertainty, is future work
 [Values at an edge](../docs/numbers.md#values-at-an-edge) together list
 what stops a result as a user meets it.
 
-A value that cannot be computed is a `Result` error, never an exception.
-Every failure in the core is a discriminated union of a value or an
-error, and each module defines its own error type.
+A failure that the user's input can cause is a `Result` error, never an
+exception. Every such result in the core is a discriminated union of a
+value or an error, and each module defines its own error type.
 
 A violated precondition is different. It is a bug in the caller, not a
 value that can fail, and it throws `RangeError`, as `1n / 0n` does.
@@ -2486,9 +2561,10 @@ value past four times the hard bound at the kernel's entry. Every value
 that can be zero or negative because the user typed it reaches the
 numerics through `divideBalls`, `powBall` and `rootBall`, which report
 it. The ball checks the kernel's preconditions, such as a positive
-interval under a root, before it calls the kernel. The one known breach
-of the rule is the root's verification, which throws
-([Roots and powers](#roots-and-powers)).
+interval under a root, before it calls the kernel. A failed internal
+assertion throws too, such as an exact result past the limit after its
+prediction allowed it. The one known breach of the rule is the root's
+verification, which throws ([Roots and powers](#roots-and-powers)).
 
 ## Formatting
 
@@ -2509,5 +2585,5 @@ exactly.
 It takes an integer's digit count from its bit length and one comparison
 (`decimalDigits`), and its powers of ten from the memo (`powerOfTen`). A
 settle at the ceiling, a product of two settled balls and the kernel's
-exit conversion therefore each stay a small fixed cost;
+exit conversion therefore each stay a small fixed cost.
 [Benchmarks](benchmarks.md) holds the figures.

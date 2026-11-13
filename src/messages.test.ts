@@ -272,7 +272,12 @@ test("a value too large to compute names the limit it passes, and one too small 
   );
   assert.equal(
     textMessage("2^-30000", withApp),
-    '"2^-30000" would need a significand of about 69,659 bits as an exact value, past the significand limit. Try "approx(2)" in place of "2", or decimal mode, to compute it to the digits asked.',
+    '"2^-30000" would need a significand of about 69,658 bits as an exact value, past the significand limit. Try "approx(2)" in place of "2", or decimal mode, to compute it to the digits asked.',
+  );
+  // The same value written another way is refused with the same count.
+  assert.equal(
+    textMessage("0.5^30000", withApp),
+    '"0.5^30000" would need a significand of about 69,658 bits as an exact value, past the significand limit. Try "approx(0.5)" in place of "0.5", or decimal mode, to compute it to the digits asked.',
   );
   assert.ok(evaluateText(withApp, "approx(3^32767) * 7^21845", CONTEXT).ok);
   assert.ok(evaluateText(withApp, "approx(2)^-30000", CONTEXT).ok);

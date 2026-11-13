@@ -427,7 +427,7 @@ What to settle before rewriting a page, in the order it bites.
 - Finding: "`2^-30000` … costs 69,658 bits" is the true size of `5^30000`; the refusal of `2^-30000` says "would need a significand of about 69,659 bits", a one-bit gap that a reader who tries the example will see (also `3^-100000` refused with "about 158,497 bits"). A1 and A5 read the prediction (`canonicalBits`) as an upper bound within a bit (A1 report, A5 report). The sentence moves to `numbers.md#How a value is held` (§12 q5), where D8's draft carries 69,658 (D8 L180-190).
 - Proposed call: the pages keep the true size and say "about" (D4 Q2); whether the prediction should overshoot by one is a code question (D4 (B-013)).
 - Related: Q-091, B-013
-- Decision: Stands; follows Q-091 (ok: the pages keep the true size and say "about").
+- Decision: Stands; follows Q-091 (ok: the pages keep the true size and say "about"). Amended by the owner on 2026-11-13 (plan §12.3): the one-bit gap was a bug (B-013), fixed by #244, and the refusal of `2^-30000` now says "about 69,658 bits", as the pages do and as the refusal of `0.5^30000` did.
 
 #### F-013. N1: the fraction keeps no factor of ten; the bound is on the value
 
@@ -1006,7 +1006,7 @@ What to settle before rewriting a page, in the order it bites.
 - Corrected statement: A5's N21: every exact result's size predicted before forming; the count's three forms; the `fits` and `exceeds` suggestion rule; never refused for an inexact operand of the exact operations, but refused at an argument's own bits; held to the exponent bound; a dyadic denominator stored with fives; `tooLarge` one kind, none retried (full text: A5 L57).
 - Proposed call: **doc wrong** (the plan): the code is deliberate, site by site, and the page states it; the user page takes A5's rule. This also answers D4's 69,658 against 69,659 (D4 (Q-091)): the stored size against the prediction's bound.
 - Related: Q-091, F-012, F-019, F-509
-- Decision: Stands (doc wrong: the plan); follows Q-001 and Q-091; N21 amended.
+- Decision: Stands (doc wrong: the plan); follows Q-001 and Q-091; N21 amended. Amended by the owner on 2026-11-13 (plan §12.3): "refused with "about 69,659 bits", the prediction's bound" no longer holds; #244 has `2^-30000` refused with "about 69,658 bits", the stored size (Q-091 as reversed).
 
 #### F-057. Dissolve docs/functions.md#Very large results and approx (§12 q10)
 

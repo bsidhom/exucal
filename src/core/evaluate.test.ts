@@ -1572,11 +1572,14 @@ test('an exact result past the significand limit is refused at the node that for
   );
   // The measure is the canonical form's size (devdocs/numbers.md, "The
   // significand limit"): a dyadic is stored with fives for its twos, so
-  // `2^-30000` costs 69,658 bits, predicted before the form is made,
-  // within a bit.
-  const dyadic = 1 + Math.ceil(30000 * Math.log2(5));
+  // `2^-30000` costs 69,658 bits, predicted before the form is made.
+  // `0.5^30000` is the same value by another route, and it is refused
+  // with the same count.
+  const dyadic = Math.floor(30000 * Math.log2(5)) + 1;
+  assert.equal(dyadic, 69658);
   tooLarge("2^-30000", 1, dyadic);
   tooLarge("1/2^30000", 1, dyadic);
+  tooLarge("0.5^30000", 3, dyadic);
   value(run8("approx(2)^-30000"));
   value(run8("2^-28000"));
   // The exponent bound is checked first: a product past both is overflow.

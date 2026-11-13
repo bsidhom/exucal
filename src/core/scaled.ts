@@ -98,6 +98,7 @@ import {
   ONE as ONE_FRACTION,
   ZERO as ZERO_FRACTION,
   bitLength,
+  bitsOfPowerProduct,
   compare as compareFractions,
   exactRoot as exactRootOfFraction,
   invert as invertFraction,
@@ -419,7 +420,7 @@ function scaledFrom(
  * bits, `tooLarge` with the bits it would take otherwise, and nothing
  * formed past the limit: the canonical form of a fraction within the
  * limit can pass it, since a denominator's twos become fives in the
- * numerator (`2^-30000` is `5^30000 × 10^-30000`, 69,659 bits for a
+ * numerator (`2^-30000` is `5^30000 × 10^-30000`, 69,658 bits for a
  * fraction of 30,001), so a result whose fraction was predicted within
  * the limit (`divideWithin`, `pow`) is sized here before it is formed.
  * The reach is `fits`: the value's fraction fits, and the result would be
@@ -441,21 +442,27 @@ export function scaledWithin(
 
 /**
  * The bits the canonical form of `significand` takes in its numerator, as
- * `normalize` would form it, bounded from above within a bit: the
- * numerator's bits plus those of the `5^k` or `2^k` that a denominator's
- * twos or fives past its tens move into it. The denominator only shrinks.
+ * `normalize` would form it, which is the truth or a bit over it: the
+ * numerator times the `5^k` or the `2^k` that a denominator's twos or
+ * fives past its tens move into it. The denominator only shrinks. A power
+ * of two only shifts the numerator, so its bits are added exactly. A
+ * power of five is sized by `bitsOfPowerProduct` of rational.ts, the
+ * function that sizes a power in `pow`. So `1/2^k` is sized as `5^k`
+ * is, and `2^-30000` and `0.5^30000`, one value by two routes, are
+ * refused with one count. (An earlier version added the numerator's bit
+ * length to the power's bits rounded up, a bit over the truth for a
+ * numerator of one, so that the two refusals named 69,659 and 69,658
+ * bits.)
  */
 function canonicalBits(significand: Rational): number {
   const { num, den } = significand;
   if (num === 0n) return 0;
+  const magnitude = abs(num);
   const twos = trailingZeros(den);
   const fives = fivesIn(den, BigInt(bitLength(den)) / 2n);
   const tens = min(twos, fives);
-  return (
-    bitLength(abs(num)) +
-    Math.ceil(Number(twos - tens) * Math.log2(5)) +
-    Number(fives - tens)
-  );
+  if (twos === tens) return bitLength(magnitude) + Number(fives - tens);
+  return bitsOfPowerProduct(magnitude, 5n, twos - tens);
 }
 
 /** The bits `s`'s significand takes in its larger part, measured: the need of a value that exists. */

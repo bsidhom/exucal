@@ -412,8 +412,9 @@ export function divide(
  * times as large as `r`, so its size is predicted first against `limit`
  * bits, the context's significand limit: the bits of `p^|n|` for `p` the
  * larger part are `floor(|n| log2 p) + 1`, taken with `log2 p` from the
- * part's top bits rounded up, which is the truth or a bit over it, so
- * that `2^65535` is a value at the default and `2^65536` is not.
+ * part's top bits rounded up (`bitsOfPowerProduct`), which is the truth
+ * or a bit over it, so that `2^65535` is a value at the default and
+ * `2^65536` is not.
  */
 export function pow(
   r: Rational,
@@ -429,7 +430,7 @@ export function pow(
   }
   const magnitude = abs(n);
   const part = abs(r.num) > r.den ? abs(r.num) : r.den;
-  const bits = Math.floor(Number(magnitude) * log2Above(part)) + 1;
+  const bits = bitsOfPowerProduct(1n, part, magnitude);
   if (bits > limit) {
     // The exact power is what exceeds the limit; an inexact base is raised in log
     // space (ball.ts), where the exponent's size alone is the cost. The
@@ -488,6 +489,22 @@ export function trunc(r: Rational): Rational {
 function log2Above(n: bigint): number {
   const below = Math.max(0, bitLength(n) - 53);
   return Math.log2(Number(n >> BigInt(below))) + below + 2 ** -40;
+}
+
+/**
+ * The bits of `a × b^k`, for positive integers `a` and `b` and a `k`
+ * of zero or more, predicted with nothing formed:
+ * `floor(log2 a + k log2 b) + 1`, each logarithm rounded up
+ * (`log2Above`) and that of one exactly zero. The count is the truth or
+ * a bit over it, never under. It is the one size estimate of a power:
+ * `pow` predicts `p^|n|` with it, and scaled.ts predicts a canonical
+ * form with it, the numerator times the `5^k` that a denominator's twos
+ * become. So `5^30000` has one predicted size whether it is reached as
+ * `0.5^30000` or as the canonical form of `2^-30000`.
+ */
+export function bitsOfPowerProduct(a: bigint, b: bigint, k: bigint): number {
+  const log2 = a === 1n ? 0 : log2Above(a);
+  return Math.floor(log2 + Number(k) * log2Above(b)) + 1;
 }
 
 /** The magnitude of a bigint. */

@@ -7,6 +7,8 @@ import {
   ZERO,
   absolute,
   add,
+  bitLength,
+  bitsOfPowerProduct,
   compare,
   divide,
   equals,
@@ -150,6 +152,34 @@ test("pow with an integer exponent is exact", () => {
     dec("6.4516"),
   );
   assertError(pow(ZERO, -1n, MAX_SIGNIFICAND_LIMIT_BITS), "divisionByZero");
+});
+
+test("bitsOfPowerProduct is the true size of a × b^k or one bit over it, and exact for a power alone", () => {
+  // The one estimate of a power's size (devdocs/numbers.md, "The
+  // significand limit"): `pow` predicts with it, and so does the
+  // canonical form of scaled.ts, so one integer has one predicted size.
+  for (const a of [1n, 2n, 3n, 2n ** 61n - 1n, 3n ** 200n, 10n ** 40n + 1n]) {
+    for (const b of [2n, 3n, 5n, 7n, 10n, 2n ** 31n - 1n]) {
+      for (const k of [0n, 1n, 2n, 77n, 1000n, 4321n]) {
+        const truth = bitLength(a * b ** k);
+        const predicted = bitsOfPowerProduct(a, b, k);
+        assert.ok(
+          predicted === truth || predicted === truth + 1,
+          `${a} × ${b}^${k}: predicted ${predicted}, truth ${truth}`,
+        );
+      }
+    }
+  }
+  for (const [b, k] of [
+    [5n, 30000n],
+    [5n, 28224n],
+    [5n, 28225n],
+    [25n, 15000n],
+    [3n, 32767n],
+    [7n, 21845n],
+  ] as const) {
+    assert.equal(bitsOfPowerProduct(1n, b, k), bitLength(b ** k));
+  }
 });
 
 test("pow refuses results beyond the size limit, but not trivial ones", () => {

@@ -1487,6 +1487,41 @@ decision, are listed after the answers.
   asks before reading another file or running the app for it (the `work-order` skill,
   section 3), since the owner may give the fact or point away from it.
 
+- **One refusal count for one value (2026-11-13).** The review notes of work order 11's
+  pull request (#242) asked whether a one-bit difference was worth a code change: the
+  refusal of `2^-30000` said "about 69,659 bits" and that of `0.5^30000` "about 69,658
+  bits", for the one stored value `5^30000 × 10^-30000`, whose significand has 69,658 bits.
+  The owner answered: "These absolutely must have the same error message. I don't even
+  understand why they could diverge here, since the significant and exponents literally
+  match (after significand reduction)." The cause was two predictions of one size. A power
+  (`pow`, `src/core/rational.ts`) was sized as the floor of its logarithm plus one, which is
+  the size itself. A canonical form (`canonicalBits`, `src/core/scaled.ts`) was sized as the
+  numerator's bit length plus the ceiling of the fives' logarithm, which is one bit over
+  whenever the fractional parts of the two logarithms sum to less than one, as they do for a
+  numerator of one: `0.5^30000` was refused by the first and `2^-30000`, formed as
+  `1/2^30000`, by the second. On the first fix, which gave the
+  canonical form the power's expression, the owner asked "why didn't you implement a single
+  size estimator function (ideally one actually used to compute overflow size elsewhere)? If
+  it's too complicated for this small fix up PR, then file a bug to fix it "properly"."
+  Settled: one value is refused with one count however it is written, which reverses
+  Q-091's "ok" and B-013's "by design". The fix is a pull request of its own (#244), merged
+  before work order 11's page: one function, `bitsOfPowerProduct`, sizes both the power and
+  the canonical form, so that `2^-30000`, `0.5^30000`, `4^-15000`, `0.25^15000` and
+  `1/2^30000` are each refused with "about 69,658 bits". The count keeps "about": the
+  function returns the true size, or one bit over it where a product's logarithm lies within
+  the estimate's margin of an integer. The pages' 69,658 stands, and `devdocs/numbers.md`
+  (work order 11) quotes the one count for both spellings. Sizing every exact result with
+  one estimator is issue #245, filed the same day: seven sites predict a size (the power,
+  the canonical form, a product or quotient, an exact sum, an alignment, a formable radius,
+  a literal), by four kinds of arithmetic, and a single estimator moves some refusal edges
+  by a bit, so it is not part of the fix. Amends Q-091's decision, B-013, the decisions of
+  F-012 and F-056, N21's sentence on the dyadic denominator (plan §1) and work order 00's
+  list of what is not scheduled; section 9's item 4 (section 12.1) no longer covers B-013.
+  The same review found the zero kind's written bound clamped below the exponent bound and
+  written as it is past the top (`1e-1000000000000000000` against
+  `1e+1000000000000000001`); the owner ruled "I'm fine with it as is; a fix is involved and
+  subtle", and issue #243 tracks it.
+
 ### The review's other corrections
 
 Applied on 2026-10-13 with the answers above; none needed a decision.

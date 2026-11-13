@@ -333,7 +333,7 @@ function describeRejection(reason: Rejection): string {
  * bits it would need (`Need`), which the message reads and never infers
  * (devdocs/numbers.md, "Which limit a refusal names"). The bits are said
  * where the function knows them, exactly ("of 113,262
- * bits") or as a bound ("of about 69,659 bits"), and left unsaid where
+ * bits") or as a bound ("of about 69,658 bits"), and left unsaid where
  * it does not; the limit in force is not restated, the panel showing
  * it, and nothing is said of raising it: the user infers from the bits
  * what they want. On `fits` the remedies are offered to try, not
@@ -368,7 +368,7 @@ function pastSignificandLimit(
   return `${significand} as an exact value, past the significand limit. Try ${rewrite}${decimal} to compute it to the digits asked.`;
 }
 
-/** The bits a refused significand would need, as the refusing function knows them: ` of 113,262 bits` exactly, ` of about 69,659 bits` as a bound, and nothing where it does not know. */
+/** The bits a refused significand would need, as the refusing function knows them: ` of 113,262 bits` exactly, ` of about 69,658 bits` as a bound, and nothing where it does not know. */
 function bitsNeeded(need: Need): string {
   switch (need.kind) {
     case "exact":

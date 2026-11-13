@@ -183,6 +183,7 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: D4 (L51, L109, L127, L404, L414)
 - Docs side: — (A5 report and A1 report, context, give the bound)
 - Rewrite impact: none — the pages keep the true size and say "about".
+- Decision (the owner, 2026-11-13; plan §12.3): a bug, fixed by #244. The gap came from two predictions of one size: `0.5^30000`, sized as a power, was refused with "about 69,658 bits" and `2^-30000`, sized as a canonical form, with "about 69,659". One function (`bitsOfPowerProduct` in `src/core/rational.ts`) now sizes both, and every spelling of the value is refused with "about 69,658 bits". The other sites that predict a size are #245.
 
 ### B-014. The dalton is the CODATA 2018 value
 

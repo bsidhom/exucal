@@ -67,8 +67,8 @@ linked:
 - **The ratio notation applies in exact mode alone**
   ([Not in decimal mode](#not-in-decimal-mode)).
 - **The ratio notation writes no other form.** A ratio for an inexact
-  value, a mixed form, a decimal at the width and a ratio for a count of
-  a unit list are ruled out ([Not in this design](#not-in-this-design)).
+  value, a mixed form and a ratio for a count of a unit list are ruled
+  out ([Not in this design](#not-in-this-design)).
 
 ## The rule
 
@@ -238,8 +238,10 @@ split. Four decisions shape the rule:
   display.
 - **A denominator of one is excluded.** The value is then an integer or
   a terminating decimal, `a × 10^k`, and the decimal display writes the
-  digits of `a` with an exponent. `15/1 × 1e-1000000000` writes the
-  digits of `1.5e-999999999` with a slash added.
+  digits of `a` with an exponent. It writes them all when `a` has at
+  most `p` digits, and [rule 5](#rule-5-every-other-exact-value) has the
+  longer case. `15/1 × 1e-1000000000` writes the digits of
+  `1.5e-999999999` with a slash added.
 
 The canonical form moves the tens of a numerator into the exponent. So
 at a small width rule 4 writes ratios that rule 3 writes at the default:
@@ -263,11 +265,14 @@ does not fit or has a denominator of one.
 
 The decimal display says `=` when rounding the value to `p` digits
 leaves it unchanged, and `≈` otherwise. So a terminating decimal of at
-most `p` digits is written exactly, and a longer one is rounded when its
-ratio does not fit. The width measures a value that is not an integer by
-its ratio and never by its decimal digits. `1.23456789012` has twelve
-digits and is rounded at a width of twenty, where rule 2 writes the
-integer `123456789012` entire.
+most `p` digits is written exactly. A longer one whose ratio does not
+fit is rounded to `p` digits, which is a defect. The ratio notation is
+meant to write an exact value as a ratio where one fits the width, and
+as its decimal in full otherwise
+([#249](https://github.com/bsidhom/exucal/issues/249)). Today the width
+measures a value that is not an integer by its ratio and never by its
+decimal digits. `1.23456789012` has twelve digits and is rounded at a
+width of twenty, where rule 2 writes the integer `123456789012` entire.
 
 | You type         | Exucal shows       | Note                                                       |
 | ---------------- | ------------------ | ---------------------------------------------------------- |
@@ -521,7 +526,7 @@ too, each rounded once. The value of `1 m` in inches is rounded to
 ## Not in this design
 
 [How numbers are written](../docs/numbers.md#how-numbers-are-written)
-states which forms the ratio notation writes. Four further forms are
+states which forms the ratio notation writes. Three further forms are
 ruled out:
 
 - An inexact value could be written as the simplest ratio within its
@@ -535,10 +540,6 @@ ruled out:
   value in three numbers where the ratio writes it in two. Before a unit
   it needs parentheses as a ratio does: `39 + 47/127 in` reads as
   `39 + 47/(127 in)`, a sum whose terms do not conform.
-- An exact decimal whose ratio does not fit could be written entire at
-  the width, as an integer is under rule 2. The ratio notation has no
-  such form, and [rule 5](#rule-5-every-other-exact-value) rounds the
-  value to `p` digits where it has more.
 - A count of a unit list, or the have, could be written as a ratio. A
   count is an integer by construction. The have is the user's own text,
   and the printer writes each of its literals as it was typed.

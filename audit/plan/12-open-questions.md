@@ -1558,12 +1558,13 @@ decision, are listed after the answers.
   - **"Whole number" on the developer numbers page**, three uses against §8's "integer" for
     the devdocs: "I would actually prefer "integer", as it's briefer and clear to any target
     user of this application." Asked how far, the owner chose both corpora and the pages
-    alone. Settled: "integer" is the one word in the user docs and the developer docs; sixty
+    alone, and then extended the answer to the app's text (the last item below). Settled:
+    "integer" is the one word in the user docs and the developer docs; sixty
     uses changed across twelve pages, a unit list's "whole number of each unit" becoming "an
     integer count of each unit"; `devdocs/notation.md` drops its line mapping the two words.
-    "Whole number" stays where a page reports the app's own text (the panel's line quoted in
-    `devdocs/settings.md`, a message's wording in `devdocs/builtins.md`). The app's six
-    strings are unchanged and not scheduled. Amends §8's row and F-452's decision.
+    "Whole number" stayed, until the app's text changed, where a page reports that text (the panel's line quoted in
+    `devdocs/settings.md`, a message's wording in `devdocs/builtins.md`). Amends §8's row and
+    F-452's decision.
   - **Comments in `display.ts` and `outcome.ts`** that named #178 for B-071's crash, called
     the decimal display "the fallback" and a written ratio a "fraction": "If we're going to
     touch code files (even if only to update issue numbers in the comments), then we might
@@ -1574,6 +1575,11 @@ decision, are listed after the answers.
     across `src` and in the definitions file's comment on unit lists; the Euclidean gcd's
     comments keep "the whole numbers", which there means the numbers at full length. Work
     order 00's comment pass has nothing left to do for B-071's two comments.
+  - **The app's own text**, six strings that said "whole number" (four messages, two lines of
+    the settings panel), which the answer on the pages had left alone: "I did want you to fix
+    the app strings." Settled: changed in the same pull request with the tests that pin them,
+    and the two developer pages that reported the old text follow; "integer" is the word
+    everywhere, the Euclidean gcd's two comments apart.
 
   Amends §8, F-452, B-071, work orders 00 and 13, `audit/principles.md` and the house
   style; adds B-072, B-073 and B-074.

@@ -360,9 +360,10 @@ literals and builds the expression of each value:
 - A scaled ratio is that quotient times its scale.
 
 `timesFirst` then joins the value to the unit or the have that follows
-it. It joins the two by juxtaposition, except where the have leads with
-a number, as `3 ft` does. In that case it joins them as a product, since
-a number cannot follow a factor by juxtaposition.
+it. It joins the two by juxtaposition, except where what follows leads
+with a number, as the have `3 ft` does, or a want such as `1000 ft`. In
+that case it joins them as a product, since a number cannot follow a
+factor by juxtaposition.
 
 ### The printer parenthesizes
 

@@ -474,18 +474,19 @@ written from, exactly. Two cases fail that in today's behavior:
   `1e+1000000000000000001`, which is past the bound. The outcome throws
   on that value and composes no line
   ([#206](https://github.com/bsidhom/exucal/issues/206)).
-- A denominator can pass a lowered significand limit. `ratioParts` tests
-  the two parts against the width and never against that limit, and a
-  typed literal is held within the limit as every value is. At the
-  default limit of 65,536 bits every part fits, since an integer of
-  1,000 digits needs at most 3,322 bits. A limit lowered below that can
-  hold a value and refuse the denominator of its ratio, because the
-  canonical form holds a power of five in a denominator as a power of
-  two, in fewer bits. At the lowest limit, 358 bits, and a width of 200,
-  `0.2^160` is held as `2^160 × 10^-160` and written as `1` over the 112
-  digits of `5^160`. Typed back, that denominator needs 372 bits and is
-  refused as past the significand limit. `0.2^150` parses back at the
-  same settings.
+- A denominator can pass a lowered significand limit, which is a defect
+  too. `ratioParts` tests the two parts against the width and never
+  against that limit, and a typed literal is held within the limit as
+  every value is. At the default limit of 65,536 bits every part fits,
+  since an integer of 1,000 digits needs at most 3,322 bits. A limit
+  lowered below that can hold a value and refuse the denominator of its
+  ratio, because the canonical form holds a power of five in a
+  denominator as a power of two, in fewer bits. At the lowest limit, 358
+  bits, and a width of 200, `0.2^160` is held as `2^160 × 10^-160` and
+  written as `1` over the 112 digits of `5^160`. Typed back, that
+  denominator needs 372 bits and is refused as past the significand
+  limit. `0.2^150` parses back at the same settings
+  ([#247](https://github.com/bsidhom/exucal/issues/247)).
 
 ## Not in decimal mode
 

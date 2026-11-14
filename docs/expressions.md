@@ -306,7 +306,7 @@ tightest of the operators, so `m^1/2` is `(m^1) / 2`, half a meter. An
 exponent's sign is written without a space before its digits: `m^-1` is
 a power, and `m^- 1` is an error as it is typed.
 
-The exponent is held as a fraction of two whole numbers, reduced, and
+The exponent is held as a fraction of two integers, reduced, and
 its numerator and denominator must each fit the significand limit:
 `m^(2/4)` is `m^(1/2)`, and `2^1e-30000` is refused, since its
 denominator is `10^30000`. An exponent that no setting of the limit

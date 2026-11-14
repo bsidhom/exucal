@@ -868,7 +868,7 @@ b - 1 - j)` over `j` from `a` to `a + b - 1`, one integer over `q^(a + b
 
 - 1)`for a rational`x = p / q`, the binomial stepped exactly, formed
 where that power fits the significand limit and `a + b - 1`is at most
-ten thousand, the whole numbers'`B(a, b)`coming from`beta`. A wide or
+ten thousand, the integers'`B(a, b)`coming from`beta`. A wide or
 edge-touching ball of `x`is taken at its ends, the function rising with`x`. Measured at forty digits: a few milliseconds a call for moderate
 parameters, fifty for `(1e4, 1e4, 0.5)`; the series' cost at the
   ceiling is [#150][150].

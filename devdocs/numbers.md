@@ -38,7 +38,7 @@ The midpoint-and-radius form is borrowed from ball arithmetic, and
 [Arb](https://arblib.org/), now part of [FLINT](https://flintlib.org/),
 is the inspiration. Arb's midpoint is a binary floating-point number
 rounded to a set number of bits. A value is exact there only when it is
-a whole number times a power of two, and a decimal literal enters
+an integer times a power of two, and a decimal literal enters
 rounded. Here the midpoint is an exact rational scaled by a power of ten
 and held in one canonical form. Three things follow:
 
@@ -186,7 +186,7 @@ forced in turn:
    denominator with every factor of two and five taken out, and it is
    fixed.
 3. With the denominator fixed, the exponent is the largest for which the
-   numerator is still a whole number. A larger exponent leaves a
+   numerator is still an integer. A larger exponent leaves a
    fraction, and a smaller one leaves a numerator divisible by ten.
 4. The numerator is then the one integer that completes the value.
 
@@ -437,7 +437,7 @@ is in `fixed.ts`. It is `ceil(precision × log2 10)` plus the guard bits.
 ## Exact operations
 
 [Operations that stay exact](../docs/numbers.md#operations-that-stay-exact-exact-cases-of-functions)
-states that `+`, `-`, `*`, `/`, a whole-number power and a comparison
+states that `+`, `-`, `*`, `/`, an integer power and a comparison
 are exact on exact values, and
 [Values at an edge](../docs/numbers.md#values-at-an-edge) states what a
 divisor that cannot be told from zero does.
@@ -1532,7 +1532,7 @@ certifies nothing.
 
 - `exact`: the radius is zero and every digit held is shown. It is the
   one kind shown with `=`. With the ratio notation, an exact value is
-  written entire, as a whole number or a ratio
+  written entire, as an integer or a ratio
   ([The rule](notation.md#the-rule)).
 - `certified`: every digit asked for is certified. This includes an
   exact value with more digits than shown, such as `1/3` at eight

@@ -51,7 +51,7 @@ rounded to, and they default to the display digits
 ## Notation and ratio width
 
 The **notation** says how an exact value is written in exact mode: as
-its decimal digits, or as a ratio of two whole numbers in lowest terms
+its decimal digits, or as a ratio of two integers in lowest terms
 ([How numbers are written](numbers.md#how-numbers-are-written)). The
 panel offers the two as "digits" and "ratio"; the default is digits.
 The notation is a setting of exact mode alone: a value shown in decimal
@@ -60,7 +60,7 @@ already write it in full.
 
 With "ratio" chosen, the **ratio width** appears beside it. The default
 is 20 digits; the range is 1 to 1,000 digits, bounded by no other
-setting. An exact value is written as a whole number or a ratio where
+setting. An exact value is written as an integer or a ratio where
 one fits the width, and as decimal digits otherwise; the rule is in
 [How numbers are written](numbers.md#how-numbers-are-written).
 

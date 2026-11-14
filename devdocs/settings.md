@@ -190,7 +190,7 @@ is chosen again in a session, and the last extended count when
 `clampSettings` is a clamp and keeps its name. The choices inside a
 variant are enumerations named by their values, not booleans: `digits`
 (the value's decimal expansion as the display writes it) and `ratio`
-(two whole numbers in lowest terms), since "decimal" is the other mode
+(two integers in lowest terms), since "decimal" is the other mode
 and "fraction" is the explanation of what a ratio is, and "rational" is a
 word about the number rather than about how it is written.
 
@@ -357,7 +357,7 @@ them. One rule decides every edit:
 
 - **An edit within the setting's range is accepted; one outside it is
   refused, and the refusal names the bound and the setting that sets
-  it** (`refusalOf`: not a whole number, or below or above a bound with
+  it** (`refusalOf`: not an integer, or below or above a bound with
   its setter; "At most 2,453 digits under the significand limit.", "At
   least 8 digits, the display digits.", "A whole number."), under the
   input, with the input marked `aria-invalid` while the line shows. The

@@ -81,11 +81,11 @@ test("the exact functions through the pipeline, with their messages", () => {
   );
   assert.equal(
     run("gcd(2.5, 1)"),
-    'Cannot compute "gcd(2.5, 1)": "2.5" is not a whole number, and "gcd" is defined only for whole numbers.',
+    'Cannot compute "gcd(2.5, 1)": "2.5" is not an integer, and "gcd" is defined only for integers.',
   );
   assert.equal(
     run("factorial(approx(5))"),
-    'Cannot compute "factorial(approx(5))": "approx(5)" is not known exactly, and "factorial" needs a whole number known exactly; "gamma" takes any value, with gamma(x + 1) for factorial(x).',
+    'Cannot compute "factorial(approx(5))": "approx(5)" is not known exactly, and "factorial" needs an integer known exactly; "gamma" takes any value, with gamma(x + 1) for factorial(x).',
   );
   assert.equal(
     run("factorial(-1)"),

@@ -588,7 +588,7 @@ alignment passes the significand limit (`mod(-1, 1e20000)`) is
 and `doublefactorial` take exact integers: an exact argument that is not
 an integer is a `domain` error (`notInteger`), and an inexact argument
 is a `domain` error too (`notExact`), worded to say that the function
-needs a whole number known exactly, since a ball `5 ± 1e-30` is not known
+needs an integer known exactly, since a ball `5 ± 1e-30` is not known
 to be `5` and no pass of the retry loop would make it so; `factorial` of
 a value below zero, `doublefactorial` below `-1` and `binomial` with `n`
 below zero are `domain` errors (`negative`). The refusals of a value

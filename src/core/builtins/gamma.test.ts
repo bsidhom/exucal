@@ -228,11 +228,11 @@ test("digamma through the pipeline, with its messages", () => {
   );
   assert.equal(
     run("digamma(0)"),
-    'Cannot compute "digamma(0)": "0" is a pole of "digamma", which has one at zero and at every negative whole number.',
+    'Cannot compute "digamma(0)": "0" is a pole of "digamma", which has one at zero and at every negative integer.',
   );
   assert.equal(
     run("digamma(-3)"),
-    'Cannot compute "digamma(-3)": "-3" is a pole of "digamma", which has one at zero and at every negative whole number.',
+    'Cannot compute "digamma(-3)": "-3" is a pole of "digamma", which has one at zero and at every negative integer.',
   );
   assert.equal(
     run("digamma(approx(-2))"),
@@ -609,11 +609,11 @@ test("lgamma and gamma through the pipeline, with their messages", () => {
   );
   assert.equal(
     run("gamma(0)"),
-    'Cannot compute "gamma(0)": "0" is a pole of "gamma", which has one at zero and at every negative whole number.',
+    'Cannot compute "gamma(0)": "0" is a pole of "gamma", which has one at zero and at every negative integer.',
   );
   assert.equal(
     run("lgamma(-3)"),
-    'Cannot compute "lgamma(-3)": "-3" is a pole of "lgamma", which has one at zero and at every negative whole number.',
+    'Cannot compute "lgamma(-3)": "-3" is a pole of "lgamma", which has one at zero and at every negative integer.',
   );
   assert.equal(
     run("gamma(approx(-2))"),
@@ -634,7 +634,7 @@ test("lgamma and gamma through the pipeline, with their messages", () => {
   // The factorial's refusals of a value it does not take point here.
   assert.equal(
     run("factorial(2.5)"),
-    'Cannot compute "factorial(2.5)": "2.5" is not a whole number, and "factorial" is defined only for whole numbers; "gamma" takes any value, with gamma(x + 1) for factorial(x).',
+    'Cannot compute "factorial(2.5)": "2.5" is not an integer, and "factorial" is defined only for integers; "gamma" takes any value, with gamma(x + 1) for factorial(x).',
   );
   assert.equal(run("gamma(2.5 + 1)"), "≈ 3.323351");
   // A ball straddling a pole at the first pass and not at a later one:

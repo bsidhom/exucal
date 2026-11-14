@@ -323,7 +323,7 @@ test("beta through the pipeline, with its messages", () => {
   );
   assert.equal(
     run("beta(0, 1)"),
-    'Cannot compute "beta(0, 1)": "0" is a pole of "beta", which has one at zero and at every negative whole number.',
+    'Cannot compute "beta(0, 1)": "0" is a pole of "beta", which has one at zero and at every negative integer.',
   );
   assert.equal(
     run("beta(1, approx(-2))"),
@@ -344,7 +344,7 @@ test("beta through the pipeline, with its messages", () => {
   // The binomial's refusals of a value it does not take point here.
   assert.equal(
     run("binomial(2.5, 1)"),
-    'Cannot compute "binomial(2.5, 1)": "2.5" is not a whole number, and "binomial" is defined only for whole numbers; "beta" takes any values, with 1 / ((n + 1) beta(n - k + 1, k + 1)) for binomial(n, k).',
+    'Cannot compute "binomial(2.5, 1)": "2.5" is not an integer, and "binomial" is defined only for integers; "beta" takes any values, with 1 / ((n + 1) beta(n - k + 1, k + 1)) for binomial(n, k).',
   );
   assert.equal(run("1 / ((5 + 1) beta(5 - 2 + 1, 2 + 1))"), "= 10");
   assert.equal(run("1 / ((2.5 + 1) beta(2.5 - 1 + 1, 1 + 1))"), "≈ 2.5");

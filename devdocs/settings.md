@@ -359,7 +359,7 @@ them. One rule decides every edit:
   refused, and the refusal names the bound and the setting that sets
   it** (`refusalOf`: not an integer, or below or above a bound with
   its setter; "At most 2,453 digits under the significand limit.", "At
-  least 8 digits, the display digits.", "A whole number."), under the
+  least 8 digits, the display digits.", "An integer."), under the
   input, with the input marked `aria-invalid` while the line shows. The
   refusal never leaves the panel, and clears on the next change of the
   settings. A refused value does not stay in the input: the panel

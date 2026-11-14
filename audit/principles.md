@@ -215,6 +215,25 @@ examples at the default digits and at a thousand, and not "within a few
 percent, past some millions, at a high precision", which the runs
 refuted.
 
+**Intentionally unspecified behavior is not documented (the review of
+the ratio notation page, 2026-11-14; plan §12.3).** A page documents
+what is designed. Documenting a behavior implies that it is intended
+and will stay: users come to rely on it, and every small change to the
+interface then costs a change to the docs, for no gain in usability.
+So a behavior that is left unspecified on purpose, an incidental result
+of the current code that no one designed and that may change, appears
+on no page of either corpus. What the settings panel shows for the
+notation when a user returns from decimal mode to exact mode is such a
+behavior. The rule mostly covers cosmetic behavior, as a minor
+interaction of the interface is. It never covers the calculator's
+results: what a calculation gives and how a result is written are
+always specified. Nor does it let a gap pass in silence. A session that
+meets a behavior that looks unspecified, or wrong, calls it out to the
+owner in its review notes and decides nothing itself. The owner then
+settles it as one of three: intentionally unspecified, and so left out
+of the docs; a bug, filed and linked from the passage that owns the
+concept (Q-012); or fixed on the spot.
+
 **Refusal (F-442).** In both corpora "refusal" and "refuse" name only a
 size refusal: the significand limit's or the exponent bound's, a value
 the limits keep from being computed or a literal past a size limit. A

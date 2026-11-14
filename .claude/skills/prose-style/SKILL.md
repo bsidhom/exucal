@@ -70,6 +70,15 @@ it to the whole text, not only to the sentence that prompted it.
   detail on a user-facing page: the mechanism behind a feature is the
   developer docs' at most, and a detail cut on this rule need not be
   kept anywhere.
+- Document what is designed. A behavior left unspecified on purpose, an
+  incidental result of the current code that no one designed and that
+  may change, is left out of every document: describing it implies that
+  it is intended and will stay, and readers then rely on it. This
+  covers cosmetic behavior, as a minor interaction of an interface is,
+  and never the system's results, which are always specified. A
+  behavior that looks unspecified or wrong is raised with the owner,
+  not documented and not passed over; it is then left out as
+  unspecified, recorded as a defect, or fixed.
 
 ## 2. Sentences
 
@@ -303,3 +312,5 @@ reviewer then reads a text that has passed that first reading.
     be correct?
 12. Any passage that restates what another page owns or what the
     system's semantics imply, where a link would do?
+13. Any behavior described that no one designed, where the owner has
+    not said whether it is intended?

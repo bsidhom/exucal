@@ -305,11 +305,11 @@ F-384, F-408, F-474.
   ratio notation's display found on 2026-11-14 during the review of
   work order 12's pull request (plan §12.3): each lives on its issue,
   outside this track.
-- The app's six strings that say "whole number" (four messages in
+- The app's six strings that said "whole number" (four messages in
   `src/messages.ts`, two lines in `src/settings-lines.ts`), with the
-  tests that pin them: the pages and the comments say "integer" since
-  2026-11-14 (plan §12.3; §8), and the strings were left as they are,
-  the owner having chosen the pages alone. Not scheduled.
+  tests that pin them: done in work order 12's pull request, where the
+  pages and the comments took "integer" too (plan §12.3; §8). Batch 3's
+  message wording starts from the new text.
 
 ## 7. Conflicts left to settle
 

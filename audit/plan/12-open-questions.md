@@ -1580,6 +1580,18 @@ decision, are listed after the answers.
     the app strings." Settled: changed in the same pull request with the tests that pin them,
     and the two developer pages that reported the old text follow; "integer" is the word
     everywhere, the Euclidean gcd's two comments apart.
+  - **Where "whole number" reads better.** Looking over the substitutions, the owner: "some
+    of the "integer" substitutions might read clearly as "whole number". For example, "whole
+    number part" of a fraction may actually be clearer than "integer part", since a rational
+    can be separated into its whole-number and fractional parts. In this context, "whole
+    number part" is actually more idiomatic in math circles." Settled: a sweep of the sixty
+    uses restored one idiom, "a whole number of" a unit for a count of whole units, in six
+    passages of the user docs (the unit list's "a whole number of each unit but the last" in
+    three pages, "the whole number of feet in it is not the whole number of meters", and
+    "each count is the whole number of its unit that fits"), in the definitions file's comment
+    and in one test comment. No page had come to say "integer part" through the change;
+    `docs/builtins.md` keeps its "whole part", and the developer docs keep the "integer part"
+    and "integer count" they had before. §8's row records both idioms.
 
   Amends §8, F-452, B-071, work orders 00 and 13, `audit/principles.md` and the house
   style; adds B-072, B-073 and B-074.

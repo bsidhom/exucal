@@ -234,8 +234,8 @@ G     approx(6.67430e-11) m^3 / (kg s^2)
 
 A **unit list** is a name and a body of two or more expressions
 separated by `;`, largest unit first: `time hr;min;s`. Typed alone as
-the want, the name means the list, and the answer is a sum, an integer
-count of each unit but the last and the rest in the last.
+the want, the name means the list, and the answer is a sum, a whole
+number of each unit but the last and the rest in the last.
 [Unit lists](quantities.md#unit-lists) says how the sum is formed, and
 [The want field](expressions.md#the-want-field) says how a list is typed
 out, as `ft;in`. The name means the list nowhere else: `2 time` is an

@@ -8,8 +8,8 @@ order:
    and exact mode never rounds it. An inexact result shows only the
    digits the calculator has certified and is marked inexact. A note or
    a message says what the calculator could not certify, decide or hold.
-   The calculator is also portable: it runs as JavaScript in a browser,
-   installs from a web page and works offline.
+   It does so in a portable format: the calculator runs as JavaScript in
+   a browser, installs from a web page and works offline.
 2. The functions a calculator is used for come under the same guarantee:
    the elementary functions, and the special functions most used in
    combinatorics, probability and physics. Each returns an exact value
@@ -37,8 +37,8 @@ Two rules bind all of the code:
   type. A throw marks a violated precondition, which is a bug and never
   an input. Two breaches of that are known: a throw where a prefixed
   unit near the exponent bound is resolved
-  ([The lookup's throw](#the-lookups-throw)), and the verification of a
-  root ([Failures](numbers.md#failures)). The UI is a thin layer that
+  ([The lookup's throw](#the-lookups-throw)), and a throw in the
+  verification of a root ([Failures](numbers.md#failures)). The UI is a thin layer that
   calls into the core.
 - **Lit is the one third-party dependency of the app.** Lit is the
   library the UI's components are built on. Nothing else is pulled in,
@@ -123,8 +123,8 @@ primitives.
 
 ### The parts
 
-The later sections refer to five parts of the pipeline before they
-describe them:
+Five things recur in the later sections, and each is described in its
+own:
 
 - The **definitions table** is a `UnitTable`: the primitives, the
   prefixes, the units, the unit lists and the functions that the
@@ -158,16 +158,16 @@ tests the shapes in this order:
 | any other single item                                         | conversion into one unit, a ratio | `convert`        |
 | two or more items                                             | conversion into a unit list       | `convertToList`  |
 
-A blank want is a fourth output mode, the have in the primitives. It
+A blank want is one more output mode, the have in the primitives. It
 converts nothing, so it takes `evaluateText`, which runs the have's
 arrows alone.
 
 `convertText` returns a `Conversion`: the values of the answer, with the
 have and the want as the expressions the parser read. It writes no text.
-**The outcome** is `src/outcome.ts`, a module of the UI. Its function
-`outcomeOf` calls `convertText`, or `evaluateText` for a blank want, and
-composes the **output lines** from the result: the lines of text that
-the app answers with
+**The outcome** is the module of the UI that turns a `Conversion` into
+text (`src/outcome.ts`). Its function `outcomeOf` calls `convertText`,
+or `evaluateText` for a blank want, and composes the **output lines**
+from the result: the lines of text that the app answers with
 ([The converter and its lines](#the-converter-and-its-lines)).
 
 ### Passes and errors
@@ -176,18 +176,17 @@ The pipeline parses each text once and then evaluates in passes. A
 **pass** is one evaluation and conversion at one precision. The
 **retry loop** runs the passes at rising precision, up to the ceiling
 ([Working precision and the schedule](numbers.md#working-precision-and-the-schedule)).
-Each pass's outcome steers the loop:
+The loop goes on or ends by what each pass returns:
 
 - A result ends the loop when every value in it is exact or certified at
   the display digits. A result that certifies fewer digits is kept, and
   the next pass is tried.
 - Four errors continue to the next pass. Each says that the precision of
-  the pass could not decide something, which a later pass may decide.
-  They are an `unresolved` in either text ([Numbers](#numbers)),
-  `unresolvedWant` and `unresolvedBound` ([Conversion](#conversion)),
-  and `undecidedCondition`, the failure of a function's body under a
-  condition that the pass could not decide
-  ([A defined function](#a-defined-function)).
+  the pass could not decide something, which a later pass may decide:
+  - `unresolved`, in either text ([Numbers](#numbers)).
+  - `unresolvedWant` ([Conversion](#conversion)).
+  - `unresolvedBound` ([Conversion](#conversion)).
+  - `undecidedCondition` ([A defined function](#a-defined-function)).
 - Every other error ends the loop.
 
 Each function's error keeps its own type. The pipeline adds only the
@@ -222,8 +221,8 @@ overview uses these words of that design:
 - The user docs call one operation of an expression a step, and each
   mode treats the result of a step in one way. In exact mode an inexact
   result is settled. In decimal mode the result is rounded once, to the
-  precision of the context, and is exact from then on. A result
-  **taken as a step** is given that treatment.
+  precision of the context it is taken at, and is exact from then on. A
+  result **taken as a step** is given that treatment.
 - A **refusal** is an error of a size limit: `tooLarge` at the
   significand limit, `overflow` or `underflow` at the exponent bound.
   A refusal ends the retry loop.
@@ -267,9 +266,9 @@ holds no list of kinds. The roles are data: the table holds them as its
 
 [Conformance](../docs/quantities.md#conformance) states the rule and
 the pairs of quantities it is required of. `checkConformance` in
-`dimension.ts` is its one implementation. It takes two dimensions and
-the primitives with their roles, and it is the one place that treats the
-two roles differently:
+`dimension.ts` is its one implementation. It takes two `Dimension`
+vectors and the primitives with their roles, and it is the one place
+that treats the two roles differently:
 
 1. It compares the two vectors restricted to the dimension primitives. A
    difference is a `dimensionMismatch`.
@@ -277,8 +276,9 @@ two roles differently:
    `kindMismatch`, which names the kind primitives that differ, in
    declaration order.
 
-That order reports the physical error first. A kind mismatch therefore
-always means that the two dimensions agree. Every caller passes the
+That order reports a difference of dimension before a difference of
+kind. A kind mismatch therefore always means that the two quantities
+agree on every dimension primitive. Every caller passes the
 primitives of one definitions file, so the roles are the same in a sum,
 in a call and in a conversion.
 
@@ -542,10 +542,19 @@ nothing to `Quantity`. A call is a quantity like any other once the body
 has run, and the rest of the expression goes on as before.
 
 A call checks the function's conditions after the arguments conform and
-before the body runs. A condition left undecided is assumed to hold. If
-it is still undecided at the ceiling, the outcome shows a **warning**
-that names the condition
-([An undecided condition](functions.md#an-undecided-condition)).
+before the body runs. A condition that the pass cannot decide is assumed
+to hold, and the call goes on. Two things can follow:
+
+- The body gives a value. The result is kept, and the retry loop tries
+  the next pass, since more digits may decide the condition. If the
+  condition is still undecided at the ceiling, the outcome shows the
+  value with a **warning** that names the condition.
+- The body fails. The failure may be the assumption's and not the
+  argument's, so the error is an `undecidedCondition`, which carries the
+  body's error. The retry loop continues on it.
+
+[An undecided condition](functions.md#an-undecided-condition) has the
+design.
 
 `applyFunction` evaluates a function's body with its parameters bound to
 the arguments, and `invertFunction` evaluates an inverse's body with its
@@ -584,7 +593,7 @@ exact cases and edges.
 
 `invertFunction` answers with the call that produces the have:
 `tempF(212)` into `tempC` is `= tempC(100)`. It makes the checks the
-user page lists, and each failure has its own error:
+user page lists, and these are the errors of their failures:
 
 1. A function without an inverse is a `noInverse`, tagged with the want.
 2. A have that does not conform to the function's result is the ordinary
@@ -617,8 +626,8 @@ reciprocal line.
 
 ### What a call costs
 
-A call costs what its body typed out in its place would, and its digits
-are certified the same way. The body is an expression evaluated on
+A call costs the same as its body typed out in its place, and its digits
+are certified in the same way. The body is an expression evaluated on
 balls, taken as a step after every operation and evaluated afresh at
 every pass. So a call is not memoized, and two uses of a parameter are
 two independent copies of its argument.
@@ -818,7 +827,9 @@ Unmemoized ordered choice is exponential in that case.
 The grammars here never share a prefix between alternatives. At every
 `alt`, the first primitive tells the alternatives apart: a digit, a name
 followed by `(`, a name not followed by it, a `(`, or an operator's
-symbol. So all but at most one alternative fail on their first
+symbol. A call and a plain name both begin with a name, and the pattern
+of each looks ahead for the `(`, so the first primitive tells those two
+apart as well. So all but at most one alternative fail on their first
 primitive, at a constant cost. An alternative fails after it has
 consumed input in three ways only:
 
@@ -833,8 +844,9 @@ consumed input in three ways only:
 
 In none of the three is text read twice. Each character is consumed by
 one primitive, and each failed alternative costs one primitive attempt.
-So a parse attempts a constant number of primitive matches per token. A
-text of a hundred characters takes a few hundred attempts.
+A **token** is a primitive with the whitespace after it. So a parse
+attempts a constant number of primitive matches per token. A text of a
+hundred characters takes a few hundred attempts.
 
 Any grammar built on these combinators must keep two disciplines for
 that bound to hold:
@@ -843,10 +855,10 @@ that bound to hold:
 - Repetition is written with `many`, `many1` or `chainl1`, never with a
   recursive alternative.
 
-The call rule shows what the first discipline takes. A call and a plain
-name begin alike, with a name. A plain name is read only where no `(`
-follows it, and the lookahead includes the name's own characters, so
-that the match cannot back off to a shorter name in front of the `(`.
+The call rule shows what the first discipline takes. A plain name is
+read only where no `(` follows it, and the lookahead includes the name's
+own characters, so that the match cannot back off to a shorter name in
+front of the `(`.
 With a lookahead for `(` alone, a call whose argument list fails would
 be read again as a shorter name before a parenthesized factor. A nested
 call with an error in it would then cost `2^k` for `k` levels.
@@ -893,11 +905,11 @@ them as a size refusal, made as the text is typed:
 | `exponentTooLarge`      | a `^` exponent that cannot be held as a fraction within the hard bound | a size refusal          |
 | `exponentDividesByZero` | a `^` exponent written as a quotient by zero                           | an error as it is typed |
 
-The function that reads a literal, `parseDecimal`, returns one past the
-exponent bound as the bound's own `overflow` or `underflow`, the refusal
-a computed value past the bound gets. The grammar maps it to its
-`Rejection`. The parser
-reports each case as a parse error at the literal's span.
+`parseDecimal` is the function that reads a literal. For a literal past
+the exponent bound it returns the bound's own `overflow` or `underflow`,
+the refusal that a computed value past the bound gets. The grammar maps
+that to its `Rejection`. The parser reports each case as a parse error
+at the literal's span.
 `describeRejection` in `src/messages.ts` words the reason, and the
 message quotes the literal before it:
 `"12e1000000000000000000": this number's exponent passes 10^18.` No
@@ -1050,11 +1062,11 @@ at fault, chosen as follows:
 - **A call whose body fails is one `callFailed` at the call.** It names
   the function and carries the body's error, whose spans point into the
   definitions text. Only the evaluator's own failures are wrapped so. A
-  lookup's failure inside a body comes back as any lookup's failure
-  does. The evaluation of a body marks a lookup's failure as the
-  lookup's to tell the two apart, since the evaluator does not know the
-  lookup's error type. No lookup fails inside a body of a table whose
-  build succeeded.
+  lookup's failure inside a body is returned unwrapped, like any other
+  failure of a lookup. The evaluator does not know the lookup's error
+  type, so the evaluation of a body marks each failure of the lookup,
+  and the mark tells the two sorts of failure apart. No lookup fails
+  inside a body of a table whose build succeeded.
 
 ## Definitions
 
@@ -1460,28 +1472,32 @@ condition, styled apart from the notes
 #### A unit list's line
 
 [Unit lists](../docs/quantities.md#unit-lists) states how a list's line
-reads. The outcome writes it as the sum of its terms, each unit written
-as a single want is. The first term keeps its sign, and each later term
-is joined by `+` or `-` and written unsigned, so that the line parses
-back. The outcome does four things, in order:
+reads. The outcome writes it as the sum of its terms, and writes each
+unit in the same way as the unit of a single want. The first term keeps
+its sign, and each later term is joined by `+` or `-` and written
+unsigned, so that the line parses back. The outcome does four things, in
+order:
 
-1. It certifies the list on its unrounded terms, and not on the rounded
-   ones. In a directed rounding mode, `roundTerms` puts the remainder's
-   midpoint exactly on a boundary between two roundings, and a value
-   there certifies one digit fewer.
+1. It asks `show` for the tag of each term before any rounding. The
+   relation of the line follows those tags. The rounded remainder would
+   give a worse answer: in a directed rounding mode, `roundTerms` puts
+   the remainder's midpoint exactly on a boundary between two roundings,
+   and `show` certifies one digit fewer of a value there.
 2. It rounds the terms with `roundTerms`, at the digits the remainder
    certifies
    ([Rounding the terms as one sum](#rounding-the-terms-as-one-sum)).
    Under the ratio notation, an exact remainder that fits as a ratio is
    written entire, so nothing is rounded and nothing carries.
-3. When the rounding carried into an earlier unit, the remainder that is
-   left is a new value, and the outcome asks `show` for its tag afresh.
+3. It takes the line's note from the remainder's tag. That is the tag
+   it asked for first, unless the rounding carried into an earlier unit. The
+   remainder left after a carry is a new value, and the outcome asks
+   `show` for its tag afresh.
 4. It leaves out a term of zero. It also leaves out a last term that
    cannot be told from zero, with its note. A sum of nothing but zeros
    keeps its last term.
 
-The relation is `=` only when `show` tags every unrounded term `exact`.
-The counts carry no note.
+So the relation is `=` only when `show` tags every unrounded term
+`exact`. The counts carry no note.
 
 #### A function's line
 
@@ -1541,10 +1557,11 @@ converts nothing.
 
 **The outcome computes the reciprocal, outside the pipeline.** The
 reciprocal is the ball quotient of one by the ratio the pipeline
-returns. It is a second view of the same value, as the rounding is, and
-no part of the conversion. So it stays in the outcome, which takes the
-quotient as a step at the user's context. In decimal mode the ratio is
-already rounded to the display digits when the outcome inverts it
+returns. It is a second view of the same value, like the display's
+rounding, and no part of the conversion. So it stays in the outcome,
+which takes the quotient as a step at the user's context. In decimal
+mode the ratio is already rounded to the display digits, the precision
+of the user's context, when the outcome inverts it
 ([The working digits](numbers.md#the-working-digits)).
 
 The line is left out whenever that quotient fails. A value of zero has

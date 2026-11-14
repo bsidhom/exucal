@@ -8,8 +8,8 @@ order:
    and exact mode never rounds it. An inexact result shows only the
    digits the calculator has certified and is marked inexact. A note or
    a message says what the calculator could not certify, decide or hold.
-   The format is portable: the calculator runs as JavaScript in a
-   browser, installs from a web page and works offline.
+   The calculator is also portable: it runs as JavaScript in a browser,
+   installs from a web page and works offline.
 2. The functions a calculator is used for come under the same guarantee:
    the elementary functions, and the special functions most used in
    combinatorics, probability and physics. Each returns an exact value
@@ -35,22 +35,21 @@ Two rules bind all of the code:
   that the input can cause is returned as a `Result`, a discriminated
   union of a value or an error, and each module defines its own error
   type. A throw marks a violated precondition, which is a bug and never
-  an input. Two breaches of that are known: the lookup of a prefixed
-  unit near the exponent bound
+  an input. Two breaches of that are known: a throw where a prefixed
+  unit near the exponent bound is resolved
   ([The lookup's throw](#the-lookups-throw)), and the verification of a
   root ([Failures](numbers.md#failures)). The UI is a thin layer that
   calls into the core.
-- **Lit is the one third-party dependency of the page.** Lit is the
+- **Lit is the one third-party dependency of the app.** Lit is the
   library the UI's components are built on. Nothing else is pulled in,
   so the arithmetic is the project's own, built on `bigint`. A new
   dependency is a decision to justify in review
   ([Dependencies](security.md#dependencies)).
 
-The sections follow the order of the user docs: numbers, quantities,
-conversion, the expression language, the definitions file, the app. The
-first section, on the pipeline, introduces the parts that the later
-sections refer to before they describe them. The parts with a design of
-their own have pages of their own, and
+After the pipeline, the sections follow the order of the user docs:
+numbers, quantities, conversion, functions, the expression language with
+its parser and its evaluator, the definitions file, the app. The parts
+with a design of their own have pages of their own, and
 [Developer documentation](README.md) lists them all. The overview leans
 most on five:
 
@@ -87,7 +86,7 @@ linked:
   parse costs a constant number of attempts per token, and an error is
   reported where the parser got furthest ([Parsing](#parsing)).
 - **The evaluator resolves names through a function it is given**, so
-  that one evaluator serves the user's texts and the build of the table
+  that one evaluator serves the user's texts and the definitions file
   ([Evaluation](#evaluation)).
 - **The table is built by evaluating the definitions on demand.**
   Definitions may stand in any order, and an ambiguous name is found
@@ -118,7 +117,9 @@ want text ──parseUnitList──▶ Expr[] ──evaluate──▶ Quantity[]
 
 Each arrow is one pure function of the core, and the two parsers of the
 user's texts share `expr.ts`. Parsing never touches the table, and
-conversion never formats.
+conversion never formats. The table enters at two arrows: `evaluate`
+resolves the names of an expression through it, and `convert` takes its
+primitives.
 
 ### The parts
 
@@ -172,10 +173,22 @@ the app answers with
 ### Passes and errors
 
 The pipeline parses each text once and then evaluates in passes. A
-**pass** is one evaluation and conversion at one precision. The passes
-rise along a retry schedule until every value is certified at the
-display digits
+**pass** is one evaluation and conversion at one precision. The
+**retry loop** runs the passes at rising precision, up to the ceiling
 ([Working precision and the schedule](numbers.md#working-precision-and-the-schedule)).
+Each pass's outcome steers the loop:
+
+- A result ends the loop when every value in it is exact or certified at
+  the display digits. A result that certifies fewer digits is kept, and
+  the next pass is tried.
+- Four errors continue to the next pass. Each says that the precision of
+  the pass could not decide something, which a later pass may decide.
+  They are an `unresolved` in either text ([Numbers](#numbers)),
+  `unresolvedWant` and `unresolvedBound` ([Conversion](#conversion)),
+  and `undecidedCondition`, the failure of a function's body under a
+  condition that the pass could not decide
+  ([A defined function](#a-defined-function)).
+- Every other error ends the loop.
 
 Each function's error keeps its own type. The pipeline adds only the
 side: it tags an error in a text with the field the text came from, have
@@ -189,9 +202,10 @@ field. An error of the conversion is about the pair and has no side.
 overview uses these words of that design:
 
 - A `Ball` is a midpoint and a radius. The midpoint is an exact fraction
-  times a power of ten (`Scaled` over `Rational`, both on `bigint`). The
-  radius is a coarse binary bound on the distance from the midpoint to
-  the true value. An exact value is a ball of radius zero.
+  times a power of ten: a `Rational` is a fraction of two `bigint`
+  values, and a `Scaled` is a `Rational` with an exponent of ten. The
+  radius is an upper bound on the distance from the midpoint to the true
+  value, kept to low precision. An exact value is a ball of radius zero.
 - The context, a `NumberContext`, holds a precision, a rounding mode,
   the mode (exact or decimal), the significand limit and the ceiling.
   The user's context has the display digits as its precision. A
@@ -200,21 +214,22 @@ overview uses these words of that design:
 - The **kernel** is the set of routines that compute the inexact
   functions, on binary fixed-point numbers. It returns a ball whose
   radius bounds its error.
-- The **working grid** of a pass is the grid of digits that the pass
-  keeps of an inexact value, a little finer than the pass's precision.
-  To **settle** an inexact value is to round its midpoint onto that grid
+- The **working grid** of a pass is the set of values with a fixed count
+  of significant digits, about ten more than the pass's precision. To
+  **settle** an inexact value is to round its midpoint onto that grid
   and to add the rounding to the radius. An exact value is never
   settled ([Settling](numbers.md#settling)).
-- A result **taken as a step** is treated as the mode treats one
-  operation: it is settled in exact mode, and in decimal mode it is
-  rounded once and is exact from then on.
+- The user docs call one operation of an expression a step, and each
+  mode treats the result of a step in one way. In exact mode an inexact
+  result is settled. In decimal mode the result is rounded once, to the
+  precision of the context, and is exact from then on. A result
+  **taken as a step** is given that treatment.
 - A **refusal** is an error of a size limit: `tooLarge` at the
   significand limit, `overflow` or `underflow` at the exponent bound.
-  The retry loop never retries a refusal.
+  A refusal ends the retry loop.
 - `unresolved` is the error of a value whose ball reaches across an edge
   that the result depends on, as a divisor's ball that contains zero
-  without being exactly zero. A later pass may narrow the ball, so the
-  retry loop retries it.
+  without being exactly zero. A later pass may narrow the ball.
 
 ## Quantities, dimensions and kinds
 
@@ -262,11 +277,10 @@ two roles differently:
    `kindMismatch`, which names the kind primitives that differ, in
    declaration order.
 
-The order of the steps reports the physical error first. A kind mismatch
-therefore always means that the two dimensions agree. A name that the
-primitives do not list counts as a dimension primitive in the check.
-Every caller passes the primitives of one definitions file, so the roles
-are the same in a sum, in a call and in a conversion.
+That order reports the physical error first. A kind mismatch therefore
+always means that the two dimensions agree. Every caller passes the
+primitives of one definitions file, so the roles are the same in a sum,
+in a call and in a conversion.
 
 ### Writing a dimension
 
@@ -345,7 +359,8 @@ The message of the second suggests `approx(3^30000 m)`. `approx` is the
 one operation whose purpose is to make a value inexact, and an inexact
 ratio is settled and never refused for its significand.
 
-The pipeline takes the ratio that `convert` returns as a step.
+`convert` returns the ratio, and the pipeline takes it as a step, as the
+evaluator takes the result of every operation.
 
 ### Unit lists
 
@@ -366,7 +381,7 @@ rounded. `convertToList` is the conversion into a unit list. A
    (`unitOutOfOrder`).
 
 The first failure is the error, and it carries the index of the unit at
-fault. The retry loop retries none of the three.
+fault. Each of the three ends the retry loop.
 
 The two sorts of list report a failure differently:
 
@@ -378,10 +393,80 @@ The two sorts of list report a failure differently:
   failure is reported as the mismatch of the pair, as for a single want.
   So the message quotes the name the user typed.
 
+#### The counts and the remainder
+
+The list is decomposed unit by unit. For each unit but the last,
+`convertToList` divides what the earlier units left by the unit, and
+takes the count from the midpoint of that ratio, truncated toward zero.
+So every term has the sign of the have, and a count is an exact integer
+whatever the ratio's radius. The last unit gets the remainder: the ball
+of the have less the counted units, computed with the ball operations.
+So the counts and the remainder, each times its unit, add up to the have
+exactly when everything is exact, and they contain it otherwise.
+
+Three cases depart from the truncation:
+
+- **A ratio whose ball reaches across the integer nearest its midpoint counts as that integer.**
+  `turn` and `deg` both carry the radius of `pi()`, so the ratio of one
+  turn to a degree is 360 within a radius. Counting 360 leaves a
+  remainder that is a ball around zero, which the outcome leaves out. A
+  midpoint just below 360 would truncate to 359 and leave a remainder of
+  sixty arcminutes, a whole degree written in the smaller unit.
+- **A ratio whose integer part cannot be formed within the significand limit is rounded toward zero onto the working grid.**
+  The result is still an exact integer, and the remainder is computed
+  from it as from any count.
+- **A ratio that falls below the exponent bound counts as zero.**
+  Nothing of that unit fits in what is left.
+
+| You type                  | Into         | Exucal shows                                          | Case   |
+| ------------------------- | ------------ | ----------------------------------------------------- | ------ |
+| `1 turn`                  | `deg;arcmin` | `≈ 360 deg`                                           | first  |
+| `1e999999999 m`           | `ft;in`      | `≈ 3.2808399e+999999999 ft + 1.1496063e+999999983 in` | second |
+| `1e-999999999999999999 s` | `hr;min;s`   | `= 1e-999999999999999999 s`                           | third  |
+
+The arithmetic of the decomposition can fail in two ways, and either is
+the conversion's failure:
+
+- A ratio, a count times its unit, or the difference it leaves is
+  refused. `3^32767 m` into `ft/7^21845; in/7^21845` is `tooLarge`: its
+  remainder does not align within the default significand limit.
+- One of the same three reaches across the exponent bound. The pipeline
+  reports that as `unresolvedBound`, which the loop retries, as it does
+  for a single want.
+
+#### Rounding the terms as one sum
+
+Rounding each term on its own is wrong for a sum. A remainder of
+`11.9999999988 in` at eight digits is `12 in`, and `2 ft + 12 in` shows
+a whole foot as a remainder. `roundTerms` of `convert.ts` is the display
+rounding that goes with the sum:
+
+1. It rounds the remainder's midpoint in the display's rounding mode.
+   The outcome passes the digits to round at: the digits the remainder
+   certifies, which are the display digits when it certifies them all.
+2. It widens the remainder's radius by the distance the rounding moved
+   the midpoint, so that the rounded terms still contain the have.
+3. When the rounding changed the remainder, it takes the counts again
+   from the rounded sum. A remainder that rounds up to a whole of an
+   earlier unit then carries into that unit, through as many units as it
+   must.
+
+That is one rounding of the whole sum, by less than a unit in the last
+digit of the remainder, and the second decomposition is exact.
+`3599.9999999999 s` into `hr;min;s` is `≈ 1 hr`. Under the rounding mode
+`floor` nothing rounds up, and it stays `≈ 59 min + 59.999999 s`.
+
+`roundTerms` returns the terms as they are in two cases. The first is a
+remainder already exact at those digits. The second is a carry whose
+rebuilt total fails, since the rebuilt total can pass the exponent bound
+where the terms did not. The uncarried terms still contain the have, so
+the outcome can show them.
+
 #### A typed list's unit that cannot be told from zero is not retried
 
 A unit of a typed list whose ball contains zero at a pass fails the
-second check, and the retry loop does not try the next pass. The same
+second of the checks on the units, and the retry loop does not try the
+next pass. The same
 expression as a single want is retried, and answers. Three facts of the
 code produce the difference:
 
@@ -390,11 +475,9 @@ code produce the difference:
   One error, `nonpositiveUnit`, covers both: a unit that is certainly
   not positive, which no pass can change, and a unit that cannot be told
   from zero at this pass, which a later pass may narrow.
-- The retry loop continues on four errors only: an `unresolved` in
-  either text, `unresolvedWant`, `unresolvedBound`, and a condition of a
-  function left undecided. `nonpositiveUnit` is none of them. So the
-  loop ends on it at the first pass, whichever of the two cases it
-  stands for.
+- `nonpositiveUnit` is none of the four errors on which the retry loop
+  continues ([Passes and errors](#passes-and-errors)). So the loop ends
+  on it at the first pass, whichever of the two cases it stands for.
 - A single want takes another path. `convert` divides by the want, the
   ball quotient is `unresolved` for a divisor that contains zero, and
   `convert` reports it as `unresolvedWant`, which the loop retries.
@@ -419,70 +502,6 @@ behavior, and
 [#198](https://github.com/bsidhom/exucal/issues/198) is open for the
 retry.
 
-#### The counts and the remainder
-
-The list is decomposed unit by unit. For each unit but the last,
-`convertToList` divides what the earlier units left by the unit, and
-takes the count from the midpoint of that ratio, truncated toward zero.
-So every term has the sign of the have, and a count is an exact integer
-whatever the ratio's radius. The last unit gets the remainder: the ball
-of the have less the counted units, computed with the ball operations.
-So the counts and the remainder, each times its unit, add up to the have
-exactly when everything is exact, and they contain it otherwise.
-
-Three cases depart from the truncation:
-
-- **A ratio whose ball reaches across the integer nearest its midpoint counts as that integer.**
-  `turn / deg` reaches across 360, since both units carry the radius of
-  `pi()`. Counting 360 leaves a remainder that is a ball around zero,
-  which the outcome leaves out. Truncating can leave a whole of the
-  unit instead: `359 deg + 60 arcmin`.
-- **A ratio whose integer part cannot be formed within the significand limit is rounded toward zero onto the working grid.**
-  The result is still an exact integer, and the remainder follows from
-  that count. `1e999999999 m` into `ft;in` is such a ratio.
-- **A ratio that falls below the exponent bound counts as zero.**
-  Nothing of that unit fits in what is left, as in
-  `1e-999999999999999999 s` into `hr;min;s`.
-
-The arithmetic of the decomposition can fail in two other ways, and
-either is the conversion's failure:
-
-- A ratio, a count times its unit, or the difference it leaves is
-  refused. `3^32767 m` into `ft/7^21845; in/7^21845` is `tooLarge`: its
-  remainder does not align within the default significand limit.
-- One of the same three reaches across the exponent bound. The pipeline
-  reports that as `unresolvedBound`, which the loop retries, as it does
-  for a single want.
-
-#### Rounding the terms as one sum
-
-Rounding each term on its own is wrong for a sum. A remainder of
-`11.9999999988 in` at eight digits is `12 in`, and `2 ft + 12 in` shows
-a whole foot as a remainder. `roundTerms` of `convert.ts` is the display
-rounding that goes with the sum:
-
-1. It rounds the remainder's midpoint in the display's rounding mode, as
-   `roundTo` does. The outcome passes the digits to round at: the digits
-   the remainder certifies, which are the display digits when it
-   certifies them all.
-2. It widens the remainder's radius by the distance the rounding moved
-   the midpoint, so that the rounded terms still contain the have.
-3. When the rounding changed the remainder, it takes the counts again
-   from the rounded sum. A remainder that rounds up to a whole of an
-   earlier unit then carries into that unit, through as many units as it
-   must.
-
-That is one rounding of the whole sum, by less than a unit in the last
-digit of the remainder, and the second decomposition is exact.
-`3599.9999999999 s` into `hr;min;s` is `≈ 1 hr`. Under the rounding mode
-`floor` nothing rounds up, and it stays `≈ 59 min + 59.999999 s`.
-
-`roundTerms` returns the terms as they are in two cases. The first is a
-remainder already exact at those digits. The second is a carry whose
-rebuilt total fails, since the rebuilt total can pass the exponent bound
-where the terms did not. The uncarried terms still contain the have, so
-the outcome can show them.
-
 #### A long count under the ratio notation
 
 The counts are integers, and `roundTerms` leaves them alone. The outcome
@@ -491,9 +510,10 @@ defect under the ratio notation, the setting that writes an exact value
 entire, as a ratio, where the ratio fits a width
 ([#248](https://github.com/bsidhom/exucal/issues/248)). Under that
 setting `show` reports an integer that fits the width as exact, and the
-line's relation follows `show`. The count's text is rounded to the
-display digits all the same. So a count longer than the display digits
-is shown rounded, and the line still says `=`:
+relation of the line, `=` or `≈`, follows what `show` reports
+([The relation and the note](#the-relation-and-the-note)). The count's
+text is rounded to the display digits all the same. So a count longer
+than the display digits is shown rounded, and the line still says `=`:
 
 | You type | Into    | Exucal shows                        | Note                                 |
 | -------- | ------- | ----------------------------------- | ------------------------------------ |
@@ -504,7 +524,7 @@ The count is 32,808,398,950.
 [In a unit list](notation.md#in-a-unit-list) says what the ratio
 notation writes in a list.
 
-### Functions
+## Functions
 
 [Functions](../docs/definitions.md#functions) states how a function is
 defined, and
@@ -514,7 +534,7 @@ states what a function answers with as the want.
 the annotations, the conditions and their three-valued check, the
 build-time checks, what a call costs and the alternatives weighed.
 
-#### A defined function
+### A defined function
 
 A **defined function** is one the definitions file defines: a body with
 parameters, bound by position, and an optional inverse. A function adds
@@ -523,26 +543,48 @@ has run, and the rest of the expression goes on as before.
 
 A call checks the function's conditions after the arguments conform and
 before the body runs. A condition left undecided is assumed to hold. If
-it is still undecided at the ceiling, it reaches the outcome as a
-warning ([An undecided condition](functions.md#an-undecided-condition)).
+it is still undecided at the ceiling, the outcome shows a **warning**
+that names the condition
+([An undecided condition](functions.md#an-undecided-condition)).
 
 `applyFunction` evaluates a function's body with its parameters bound to
 the arguments, and `invertFunction` evaluates an inverse's body with its
 parameter bound to the have. The two share that evaluation. It wraps the
-lookup, in two ways:
+lookup, so that a parameter's name resolves to its argument before any
+unit or prefix of that name.
 
-- A parameter's name resolves to its argument before any unit or prefix
-  of that name.
-- A failure of the lookup itself is marked as the lookup's while the
-  body is evaluated, and the mark is removed afterwards. So a failure of
-  the body can be told from a failure of the lookup, and the evaluator
-  need not know the lookup's error type.
+### A built-in
 
-#### Conversion into a function
+A **built-in** is a function the core implements in code
+(`src/core/builtin.ts`, with the set in `builtins.ts`). It has four
+parts:
+
+- A name.
+- The count of arguments it takes.
+- A dimension rule, from the dimensions of its arguments to the
+  dimension of its result.
+- The function itself, from balls to a ball at a working context.
+
+The function returns the kernel's ball as it is and rounds nothing. The
+evaluator takes the result as a step, as it takes every result.
+
+The table carries the set of built-ins it was built against, and a
+call's name resolves among the defined functions and that set
+([Names](#names)).
+
+A built-in has no inverse, and the pipeline does not look a want up
+among the built-ins. A built-in's bare name as the want is therefore
+evaluated as a unit, and the lookup reports a `functionAsUnit` error. It
+reports the same error for a defined function's name anywhere but in a
+call or as the bare want.
+[Built-in functions](builtins.md) lists each built-in's rule, domain,
+exact cases and edges.
+
+### Conversion into a function
 
 `invertFunction` answers with the call that produces the have:
-`tempF(212)` into `tempC` is `= tempC(100)`. It runs the steps the user
-page lists, and each failure has its own error:
+`tempF(212)` into `tempC` is `= tempC(100)`. It makes the checks the
+user page lists, and each failure has its own error:
 
 1. A function without an inverse is a `noInverse`, tagged with the want.
 2. A have that does not conform to the function's result is the ordinary
@@ -573,35 +615,7 @@ A want that is a call, `tempC(100)`, is not a conversion into a
 function. It is an expression, and the conversion is the ratio, with a
 reciprocal line.
 
-#### A built-in
-
-A **built-in** is a function the core implements in code
-(`src/core/builtin.ts`, with the set in `builtins.ts`). It has four
-parts:
-
-- A name.
-- The count of arguments it takes.
-- A dimension rule, from the dimensions of its arguments to the
-  dimension of its result.
-- The function itself, from balls to a ball at a working context.
-
-The function returns the kernel's ball as it is and rounds nothing. The
-evaluator takes the result as a step, as it takes every result.
-
-Built-ins share a namespace with the defined functions, and the build
-rejects a definition named like a built-in. The table carries the set of
-built-ins it was built against, so a call's name resolves among the
-defined functions and that set.
-
-A built-in has no inverse, and the pipeline does not look a want up
-among the built-ins. A built-in's bare name as the want is therefore
-evaluated as a unit, and the lookup reports a `functionAsUnit` error. It
-reports the same error for a defined function's name anywhere but in a
-call or as the bare want.
-[Built-in functions](builtins.md) lists each built-in's rule, domain,
-exact cases and edges.
-
-#### What a call costs
+### What a call costs
 
 A call costs what its body typed out in its place would, and its digits
 are certified the same way. The body is an expression evaluated on
@@ -635,9 +649,10 @@ parentheses by the same data. So the parser and the printer cannot
 disagree on the level or the symbol of a binary operator.
 
 The rest of the grammar is written once in each: the nesting of the
-levels, the negation, the power, and the rule that a number only starts
-a product. A property test keeps the two in step for those. It prints
-random trees (`src/testing/expr.ts`) and parses them back.
+levels, the negation, the power, and the rule that a number may only be
+the first factor of a juxtaposition. A property test keeps the two in
+step for those. It prints random trees (`src/testing/expr.ts`) and
+parses them back.
 
 ### The tree
 
@@ -725,8 +740,8 @@ It follows three rules:
 - The parentheses are the fewest that parse back as the same tree. Each
   position of the grammar accepts an operand down to some level of
   binding, and the printer parenthesizes an operand that binds looser
-  than its position accepts (`levelOf`). The levels do not express the
-  rule of one position. A number cannot follow a factor by
+  than its position accepts (`levelOf`). One position has a rule that
+  the levels do not express. A number may only be the first factor of a
   juxtaposition, so a right operand of a juxtaposition that leads with a
   number is parenthesized too, as in `2 (3 m)`.
 
@@ -764,10 +779,16 @@ that type-checks produces the tree its types say it does.
 
 Combinators were chosen over a hand-written recursive-descent parser and
 over a Pratt parser, a top-down operator-precedence parser. The grammars
-are small and fixed, so a combinator grammar is short enough to be
-checked by reading it against the grammar it transcribes. The expression
-language has six levels. Each is one `chainl1` over the level below it,
-or one `many` for juxtaposition. A definition has two or three fields.
+are small and fixed. The expression language has six levels: the sum and
+the quotient are one `chainl1` each, juxtaposition is one `many`, and
+the negation, the power and the atom are a few lines each. A definition
+has two or three fields.
+
+A combinator grammar is recursive descent with the bookkeeping written
+once. The combinators carry the position, the spans and the furthest
+expectation, which a hand-written parser repeats in every function. What
+is left is short enough to be checked by reading it against the grammar
+it transcribes.
 
 A Pratt parser is general. It drives a table of operators with numeric
 binding powers from a loop, and the loop's invariant has to be checked.
@@ -872,9 +893,10 @@ them as a size refusal, made as the text is typed:
 | `exponentTooLarge`      | a `^` exponent that cannot be held as a fraction within the hard bound | a size refusal          |
 | `exponentDividesByZero` | a `^` exponent written as a quotient by zero                           | an error as it is typed |
 
-`parseDecimal` returns a literal past the exponent bound as the bound's
-own `overflow` or `underflow`, the refusal a computed value past the
-bound gets, and the grammar maps it to its `Rejection`. The parser
+The function that reads a literal, `parseDecimal`, returns one past the
+exponent bound as the bound's own `overflow` or `underflow`, the refusal
+a computed value past the bound gets. The grammar maps it to its
+`Rejection`. The parser
 reports each case as a parse error at the literal's span.
 `describeRejection` in `src/messages.ts` words the reason, and the
 message quotes the literal before it:
@@ -929,15 +951,11 @@ conditions that the calls in the expression assume
 - `^` raises its base to the exponent the parser read.
 - A call applies a function.
 
-The evaluator takes the result of every node as a step, and the user
-docs call a node a step. In exact mode an exact value is therefore never
-rounded. The arithmetic reads the context as well:
-
-- Every sum aligns within the significand limit.
-- Every product, quotient and power holds its exact result to that limit
-  and to the exponent bound.
-- Every built-in computes at the precision of the context.
-- Every literal's significand is checked against the limit.
+The evaluator takes the result of every node as a step, so an exact
+value is never rounded in exact mode. The operations read the context as
+[The arithmetic on quantities](#the-arithmetic-on-quantities) says. A
+built-in computes at the precision of the context, and a literal's
+significand is checked against the significand limit.
 
 The primitives go to every sum, for its conformance check. For the
 user's texts they come from the table. While the table is being built,
@@ -996,9 +1014,9 @@ that type as a type parameter and returns a lookup's failure unchanged.
 
 The lookup is given the span of the reference with the name, so that its
 error points at the text as the evaluator's own errors do. For a call it
-is given the span of the whole call as well as the name's. The error for
-a call of what is not a function, `notAFunction`, shows the product with
-the space, `kg (m/s)`, from that span.
+is given the span of the whole call as well as the name's. The message
+for a call of what is not a function, `notAFunction`, writes the product
+from that span.
 
 ### Where each error points
 
@@ -1033,7 +1051,10 @@ at fault, chosen as follows:
   the function and carries the body's error, whose spans point into the
   definitions text. Only the evaluator's own failures are wrapped so. A
   lookup's failure inside a body comes back as any lookup's failure
-  does, and a table that built cannot produce one.
+  does. The evaluation of a body marks a lookup's failure as the
+  lookup's to tell the two apart, since the evaluator does not know the
+  lookup's error type. No lookup fails inside a body of a table whose
+  build succeeded.
 
 ## Definitions
 
@@ -1059,11 +1080,11 @@ definitions in the order written, duplicates included, and knows nothing
 of what they mean.
 
 The parser keeps three texts beside the tree, each as it was written:
-every item of a unit list, every annotation and every condition. The
-tree alone cannot give a text back as it was written. A message quotes a
-condition's text. The outcome compares an annotation's text with `1`,
-the annotation of a dimensionless parameter, after which it writes no
-unit.
+every item of a unit list, every annotation and every condition. A
+message quotes a condition's text. The outcome compares an annotation's
+text with `1`: a parameter annotated `1` is dimensionless, and the
+outcome writes no unit after its count
+([A function's line](#a-functions-line)).
 
 Every span is an offset into the whole text, not into the line. A
 definition carries the span of its text from name to body, for the
@@ -1084,7 +1105,7 @@ The parser rejects seven things, each where it is written:
 
 ### The order of the build
 
-The build is five modules:
+The build is spread over five modules:
 
 - `table.ts` holds the `UnitTable` and the lookup over it that the
   evaluator resolves the user's texts against.
@@ -1124,7 +1145,7 @@ lists every fault, the parser's and the build's, with an example of
 each. Each `BuildError` locates its fault: it carries the definition or
 definitions at fault, or a span into the whole definitions text. No
 message is worded for a build error: only the predefined definitions
-file is loaded, and the shell reports a failed build by the error's name
+file is loaded, and the UI reports a failed build by the error's name
 ([The shell and its parts](#the-shell-and-its-parts)).
 
 ### The walk
@@ -1143,9 +1164,9 @@ it knows what a definition is:
   request came from. So a cycle is reported at the reference that closes
   it, and never looped on.
 
-The build's lookup is the link between the two. It resolves each name
-through the index and requests the definition the name means from the
-walker.
+The build's lookup connects the definitions to the walker. It resolves
+each name through the index and requests the definition the name means
+from the walker.
 
 The entries of the walk are the definitions that an expression can refer
 to. The two other forms are handled when the order reaches them:
@@ -1213,8 +1234,10 @@ names. For most pairs the index holds none: `micro` extends `m` by
 
 The table's lookup forms a prefixed unit as the prefix's factor times
 the unit's quantity, under the context it is given. The product can be
-refused at the exponent bound, and the lookup has no error to return for
-a refusal. It throws instead (`table.ts`).
+refused at the exponent bound. The error type of the table's lookup has
+three cases: an unknown name, a function used as a unit, and a call of
+what is not a function. It has none for a refusal, so the lookup throws
+instead (`table.ts`).
 
 No input reaches the throw with the predefined definitions file, whose
 prefixes and units are nowhere near the exponent bound. A file could
@@ -1225,6 +1248,9 @@ The build's own lookup differs. It reports the same product, refused, as
 an error at the reference that forms it. So a definition that itself
 writes such a prefixed form fails the build, and only a prefixed form
 that no definition writes can reach the throw.
+
+The breach is accepted while no definitions file can reach it. A file
+with a unit that near the bound needs the missing error case first.
 
 The significand limit is not the lookup's concern. The evaluator holds
 the product to that limit at the node that names the unit.
@@ -1279,8 +1305,9 @@ exact mode. The build is synchronous and memoized, so the shell builds
 in `render`:
 
 - The memo holds one table, keyed by the definitions and the ceiling.
-  The shell rebuilds only when the precision limit moves the ceiling,
-  and the new table replaces the old.
+  The ceiling follows from the precision limit, a setting. So the shell
+  rebuilds only when that setting changes, and the new table replaces
+  the old.
 - The memo holds a failed build too. `units.test.ts` checks the
   predefined file, so a failure is a bug, and rebuilding on every render
   would not change it.
@@ -1385,8 +1412,8 @@ an expression, from two sources:
 The outcome joins a value to its unit by the grammar's own operators
 (`timesFirst`). The value becomes the first factor of the unit, as in
 `36 m / s`. Where the unit leads with a number, the value multiplies it
-whole with `*`, as in `5.28 × 1000 ft`, since a number cannot follow a
-factor by juxtaposition. The terms of a list are summed, and the
+whole with `*`, as in `5.28 × 1000 ft`, since a number may only be the
+first factor of a juxtaposition. The terms of a list are summed, and the
 argument of a conversion into a function is put inside the call.
 
 The printer then writes both sides ([The printer](#the-printer)). It
@@ -1425,9 +1452,9 @@ things:
 - That no digit is certified.
 - That a step could not be certified at the precision limit.
 
-A **warning** is not a note. A condition left undecided at the ceiling
-makes the relation of every line `≈` and adds one warning for each
-distinct condition, styled apart from the notes
+A warning is not a note. A condition left undecided at the ceiling makes
+the relation of every line `≈` and adds one warning for each distinct
+condition, styled apart from the notes
 ([An undecided condition](functions.md#an-undecided-condition)).
 
 #### A unit list's line
@@ -1436,12 +1463,12 @@ distinct condition, styled apart from the notes
 reads. The outcome writes it as the sum of its terms, each unit written
 as a single want is. The first term keeps its sign, and each later term
 is joined by `+` or `-` and written unsigned, so that the line parses
-back. The outcome takes four steps:
+back. The outcome does four things, in order:
 
-1. It certifies the list on its unrounded terms. In a directed rounding
-   mode, `roundTerms` puts the remainder's midpoint exactly on a
-   boundary between two roundings, and a value there certifies one digit
-   fewer.
+1. It certifies the list on its unrounded terms, and not on the rounded
+   ones. In a directed rounding mode, `roundTerms` puts the remainder's
+   midpoint exactly on a boundary between two roundings, and a value
+   there certifies one digit fewer.
 2. It rounds the terms with `roundTerms`, at the digits the remainder
    certifies
    ([Rounding the terms as one sum](#rounding-the-terms-as-one-sum)).

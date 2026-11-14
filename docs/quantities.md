@@ -86,9 +86,9 @@ A quantity follows these rules:
   - A mismatch, a want that is zero or cannot be told from zero, or a
     ratio at or past a size limit stops the conversion.
   - Every line pastes back.
-- **A unit list answers with a sum, largest unit first**: an integer
-  count of each unit but the last, and the remainder in the last. Asking
-  for a list whose units do not decrease is an error
+- **A unit list answers with a sum, largest unit first**: a whole number
+  of each unit but the last, and the remainder in the last. Asking for a
+  list whose units do not decrease is an error
   ([Unit lists](#unit-lists)).
 - **An invertible function as the want recovers the function's argument**
   through its inverse, and the answer is written as the call
@@ -322,9 +322,9 @@ Three things follow.
   `floor`, `ceil`, `trunc` and `round` are such functions, and so are
   the functions that take only integers, `factorial` among them.
   `floor(3.7 ft)` is an error: the value is held in meters, and the
-  integer number of feet in it is not the integer number of meters, so
-  there is no floor of a length. Divide the unit out, take the floor,
-  and multiply the unit back: `floor(3.7 ft / ft) ft` is `= 3 ft`.
+  whole number of feet in it is not the whole number of meters, so there
+  is no floor of a length. Divide the unit out, take the floor, and
+  multiply the unit back: `floor(3.7 ft / ft) ft` is `= 3 ft`.
 - A function that takes a quantity with a dimension works on the
   scalar and says what becomes of the dimension. `abs` keeps it,
   `sign` gives a dimensionless result, and `approx`, the one operation
@@ -555,7 +555,7 @@ front of the have on the reciprocal line, by these rules:
 ### What a list answers
 
 The want may be a **unit list**: units separated by `;`, largest
-first. The answer is then a sum, an integer count of each unit but the
+first. The answer is then a sum, a whole number of each unit but the
 last and the rest in the last: `1 m` into `ft;in` is
 `≈ 3 ft + 3.3700787 in`. Each item is any expression, so `ft;in/8`
 counts eighths of an inch. A unit whose count is zero is left out, a
@@ -586,7 +586,7 @@ else, so `2 time`, or `time` inside a list, is an unknown unit.
 
 ### The counts and the remainder
 
-Each count is the integer number of its unit that fits in what is left
+Each count is the whole number of its unit that fits in what is left
 of the have, truncated toward zero, so that every term carries the
 have's sign. A count is never rounded on its own; only a carry from the
 remainder, described below, changes one. The remainder is the rest,

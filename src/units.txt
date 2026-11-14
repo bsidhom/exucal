@@ -583,7 +583,7 @@ bps         bit / s
 
 # ---------------------------------------------------------------------------
 # Unit lists. A `want` that is one of these names shows the value as a sum
-# of the units listed, largest first, with an integer count of each but the
+# of the units listed, largest first, with a whole number of each but the
 # last: `1 m` in `ftin` is `3 ft + 3.3700787 in`. A list's units must be
 # of one dimension, positive and decreasing, and its name must not read as
 # a unit, exactly or as a prefix followed by one (see docs/definitions.md).

@@ -159,7 +159,7 @@ test("a unit list's remainder is a ratio, unrounded, and the counts are integers
   assert.deepEqual(lines("1 m", "ft;in", 5, { ...CONTEXT, precision: 2 }), [
     "1 m ≈ 3 ft + 3.4 in",
   ]);
-  // A remainder that is an integer count of its unit stays an integer.
+  // A remainder that is a whole number of its unit stays an integer.
   assert.deepEqual(lines("15 in", "ft;in", true), ["15 in = 1 ft + 3 in"]);
   // An inexact total has no ratio.
   assert.deepEqual(lines("approx(1) m", "ft;in", true), [

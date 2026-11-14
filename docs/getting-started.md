@@ -121,8 +121,8 @@ back into the have, `36 in` or `0.027777778 * 3 ft`
 
 ## Lists of units
 
-A want of several units separated by `;` answers with a sum: an integer
-count of each unit but the last, and the rest in the last. `1 m` into
+A want of several units separated by `;` answers with a sum: a whole
+number of each unit but the last, and the rest in the last. `1 m` into
 `ft;in` is `≈ 3 ft + 3.3700787 in`. The units must run from the
 largest to the smallest, since each unit after the first counts what
 is left over from the one before it, so `in;ft` is an error to ask

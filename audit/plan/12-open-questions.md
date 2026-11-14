@@ -1521,6 +1521,62 @@ decision, are listed after the answers.
   written as it is past the top (`1e-1000000000000000000` against
   `1e+1000000000000000001`); the owner ruled "I'm fine with it as is; a fix is involved and
   subtle", and issue #243 tracks it.
+- **The review of the ratio notation page (2026-11-14).** The page's review notes (#246)
+  put six questions to the owner, who answered them one by one.
+  - **A ratio's denominator past a lowered significand limit** (a ratio the notation writes
+    whose denominator is refused when typed back, at a limit below about 3,300 bits and a
+    wide width): "I agree this is a defect." Filed as #247 (B-072); the page calls it a
+    defect and links it once, beside #206.
+  - **A unit list's long count shown rounded with `=`** under the ratio notation: a defect.
+    Filed as #248 (B-073). `devdocs/notation.md` keeps its two factual sentences and links
+    nothing; `devdocs/architecture.md#Unit lists` owns unit lists and carries the link (work
+    order 13).
+  - **An exact decimal rounded to the display digits when its ratio does not fit the
+    width** (`1.23456789012` at a width of twenty; `1 gallon` into `m^3`): "This is a defect
+    in the current display logic. I still want the future uniform rule study, but this was
+    an oversight. Specifically: ratio mode must always display a ratio if it fits within the
+    configured ratio width, and otherwise it should show full precision decimal (to as much
+    as can be rendered). If these are inconsistent (e.g., because the decimal display width
+    is smaller than the ratio), then this is a design hole at the moment." Filed as #249
+    (B-074), separate from #178, which stays open; the issue records the design hole, what
+    bounds "in full". The page states the rounding as a defect under rule 5 with the link,
+    and the form leaves "Not in this design".
+  - **What the panel shows for the notation on a return from decimal mode**, which the old
+    page described: left out, here and on the settings page. "Documentation implies
+    intentional behavior and even an intention of stability. This is an incidental case and
+    not something that I have designed for or have opinions about either way. I don't want
+    to set the current behavior in stone or have users rely on it. [...] In general, under-
+    or unspecified behaviors should likely not be documented, as they increase documentation
+    bloat without improving usability." Then, scoping the rule: "this only applies to
+    _intentionally_ underspecified behavior. I would still like you to look for and call out
+    potentially-underspecified or buggy behavior. After clearing it with me, we can then
+    either mark it as intentionally-unspecified or as a bug (or fix it on the spot). This
+    mostly applies to "cosmetic" behaviors, and not the core calculator results (which _do_
+    need to be specified)." Settled as a rule of `audit/principles.md`, "Intentionally
+    unspecified behavior is not documented", with its bullet in the house style
+    (`.claude/skills/prose-style/SKILL.md`). Work order 16 does not carry the sentence.
+  - **"Whole number" on the developer numbers page**, three uses against §8's "integer" for
+    the devdocs: "I would actually prefer "integer", as it's briefer and clear to any target
+    user of this application." Asked how far, the owner chose both corpora and the pages
+    alone. Settled: "integer" is the one word in the user docs and the developer docs; sixty
+    uses changed across twelve pages, a unit list's "whole number of each unit" becoming "an
+    integer count of each unit"; `devdocs/notation.md` drops its line mapping the two words.
+    "Whole number" stays where a page reports the app's own text (the panel's line quoted in
+    `devdocs/settings.md`, a message's wording in `devdocs/builtins.md`). The app's six
+    strings are unchanged and not scheduled. Amends §8's row and F-452's decision.
+  - **Comments in `display.ts` and `outcome.ts`** that named #178 for B-071's crash, called
+    the decimal display "the fallback" and a written ratio a "fraction": "If we're going to
+    touch code files (even if only to update issue numbers in the comments), then we might
+    as well fix the "integer" rewording here as well. Let's just get it over with. The docs
+    revamp is a huge overhaul and I'm planning to have the history condensed and cleaned up
+    before it's merged into main, so the "clean separation" is not as valuable as you
+    think." Settled: fixed in the pull request, comments and test titles only, "integer"
+    across `src` and in the definitions file's comment on unit lists; the Euclidean gcd's
+    comments keep "the whole numbers", which there means the numbers at full length. Work
+    order 00's comment pass has nothing left to do for B-071's two comments.
+
+  Amends §8, F-452, B-071, work orders 00 and 13, `audit/principles.md` and the house
+  style; adds B-072, B-073 and B-074.
 
 ### The review's other corrections
 

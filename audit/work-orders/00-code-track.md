@@ -247,9 +247,12 @@ answers word:
   not touch them. B-014 (the dalton as CODATA 2018) stays as it is
   (Q-041, ok); the comment records the edition.
 - B-071's two comments: `ratioParts` (`src/core/display.ts`) and
-  `literal` (`src/outcome.ts`) file the crash at the bound under #178;
-  they name #206, the bug's own issue (section 6), unless the fix has
-  landed first and rewritten them.
+  `literal` (`src/outcome.ts`) filed the crash at the bound under #178.
+  Done ahead of this pass: they name #206 since work order 12's pull
+  request (2026-11-14), which also took "whole number", "fraction" for
+  a written ratio and "the fallback" for the decimal display out of the
+  comments it touched (plan §12.3). The pass has nothing left to do for
+  them.
 
 **With the work they belong to.** B-069: the panel's "About these
 settings" link (`src/settings-lines.ts:114-117`) becomes a local link
@@ -295,9 +298,18 @@ F-384, F-408, F-474.
   whose canonical exponent passes it, found on 2026-10-13 during the
   review of work order 01's pull request and filed as its own issue
   (the owner: independent of #178): lives on its issue, outside this
-  track, with the fix the issue weighs; the comment pass (batch 3)
-  points the comments at `ratioParts` (`src/core/display.ts`) and
-  `literal` (`src/outcome.ts`) at #206 instead of #178 for the crash.
+  track, with the fix the issue weighs; the comments at `ratioParts`
+  (`src/core/display.ts`) and `literal` (`src/outcome.ts`) name #206
+  instead of #178 for the crash since work order 12's pull request.
+- B-072 (#247), B-073 (#248) and B-074 (#249), three defects of the
+  ratio notation's display found on 2026-11-14 during the review of
+  work order 12's pull request (plan §12.3): each lives on its issue,
+  outside this track.
+- The app's six strings that say "whole number" (four messages in
+  `src/messages.ts`, two lines in `src/settings-lines.ts`), with the
+  tests that pin them: the pages and the comments say "integer" since
+  2026-11-14 (plan §12.3; §8), and the strings were left as they are,
+  the owner having chosen the pages alone. Not scheduled.
 
 ## 7. Conflicts left to settle
 

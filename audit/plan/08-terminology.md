@@ -45,7 +45,7 @@ Conflicting or synonymous terms found, with a proposed canonical term.
 | "kernel" (leaks once into docs/functions.md) | both | devdocs-only. |
 | "the probe" vs "Measure this device" | both | **"Measure this device"** in docs with "(the probe)" once; **probe** in devdocs. |
 | "format version" (docs) vs "stored version" / "storage version" (commits, `STORAGE_VERSION`) | both | **format version**. |
-| "whole number" (docs) vs "integer" (devdocs) | both | **whole number** in docs, **integer** in devdocs, mapped once. |
+| "whole number" (docs) vs "integer" (devdocs) | both | **integer** in both corpora and in the code's comments, as the owner ruled on 2026-11-14 (plan §12.3): it is briefer, and clear to any user the calculator is for. "Whole number" stays only where a page reports the app's own text, which still says it (four messages and two lines of the settings panel). |
 | "Exucal" / "the app" / "the converter" / "the calculator" | both | **Exucal** for the product, **the calculator** for what it is, with unit awareness and kind checking as features, **the app** generically, **the converter** only for the two-field component (§12, question 2); **the outcome** for `src/outcome.ts` (F-472). |
 | "span" vs "the text at fault" | both | docs: "the text at fault"; **span** devdocs-only. |
 | "exact case" vs "recognized as exact" | both | **exact case**. |

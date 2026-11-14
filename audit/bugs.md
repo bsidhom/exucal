@@ -774,4 +774,40 @@ listed last: they are not defects, but the pages will quote their result.
 - Description: `1e1000000000000000000 / 3 * 10` and `123/7 * 1e-1000000000000000000 / 10` are values within the bound, at its two ends, whose canonical exponents lie one past it; the digits notation writes them (`≈ 3.3333333e+1000000000000000000`), and the ratio notation at width 20 writes `1/3` or `123/7` with a scale of `1e+1000000000000000001` or `1e-1000000000000000001`, which `parseDecimal` refuses, so `literal` throws "The display wrote 1e+1000000000000000001, not a literal". No test covers it. The issue weighs three fixes: refuse the line as B-002's fix refuses a display rounding (worse here, the value being legal); fall back to the decimal display when the scale would pass the bound (cheapest, every line parseable); split the tens so that the scale lies within the bound (the parts then no longer the canonical form rule 4 promises, and #178's ground). Whichever is chosen, the comments at `ratioParts` and `literal` name #206 instead of #178 for the crash, and a test pins the two reproductions.
 - Units: none; found by the session of work order 01 while checking that a line is a function of the value, its exactness and the settings (plan §12.3, "The canonical form, a user-docs concept")
 - Docs side: — (`docs/numbers.md` states the rule and says nothing of the crash; `devdocs/notation.md#Every literal parses back` states the exception with its one link, Q-012's rule for a bug in today's behaviour)
-- Rewrite impact: complicates — `devdocs/notation.md#The rule` (rule 4) and `#Every literal parses back` state the scaled form as it is; until the fix lands, the latter names the exception in one sentence with the link to #206 (work order 12).
+- Rewrite impact: complicates — `devdocs/notation.md#The rule` (rule 4) and `#Every literal parses back` state the scaled form as it is; until the fix lands, the latter names the exception in one sentence with the link to #206 (work order 12). The two comments name #206 since work order 12's pull request (2026-11-14), ahead of the comment pass.
+
+### B-072. The ratio notation writes a denominator that is refused when typed back at a lowered significand limit
+
+- Issue: #247 (opened 2026-11-14, during the review of work order 12's pull request; the owner: a defect)
+
+- Category: behaviour
+- Severity (guess): low — reached only with the significand limit lowered below about 3,300 bits and the ratio width raised past about 107
+- Location: `src/core/display.ts` (`ratioParts`, which tests a ratio's parts against the width and never against the significand limit; `show` is not given the limit)
+- Description: a typed literal is held within the significand limit, and the canonical form holds a power of five in a denominator as a power of two, in fewer bits, so a legal value can have a ratio whose denominator is not a legal literal: at 358 bits and a width of 200, `0.2^160` (held as `2^160 × 10^-160`) is written `= 1/5^160` in full, and typing that back is refused ("would need a significand of 372 bits, past the significand limit, however it is computed."), while `0.2^150` parses back. Only rule 3 is exposed, through the denominator. The issue weighs screening the parts against the limit and falling through, against bounding the width by the limit; #234 (relaxing the width's maximum) would bring the case within reach of the default limit.
+- Units: none; found by the session of work order 12 while checking the old page's claim that every ratio parses back
+- Docs side: — (`devdocs/notation.md#Every literal parses back` states the case as a defect with its one link, Q-012's rule)
+- Rewrite impact: none — the page is written; the fix rewrites its bullet.
+
+### B-073. A unit list's count longer than the display digits is shown rounded with `=` under the ratio notation
+
+- Issue: #248 (opened 2026-11-14, during the review of work order 12's pull request; the owner: a defect)
+
+- Category: behaviour
+- Severity (guess): medium — a line that says `=` and shows a rounded number
+- Location: `src/outcome.ts` (`listResult`: the relation comes from `show` on the unrounded terms with the ratio settings, the text of a count from `format` at the display digits)
+- Description: `1e10 m` into `ft;in` under the ratio notation shows `= 3.2808399e+10 ft + (200/127) in`, the count being 32,808,398,950; `12345678901 ft + 6 in` shows `= 1.2345679e+10 ft + 6 in`. Under the digits notation the same lines say `≈`, an eleven-digit integer not being `exact` at eight digits. The issue weighs writing a count as `show` writes it against making the relation follow what is written; #241 revisits the unit-list rules.
+- Units: none; found by the session of work order 12 while checking the old page's "the counts are exact integers and are written as they are"
+- Docs side: — (`devdocs/notation.md#Where a ratio is written` states that a count is written at the display digits and links nothing; `devdocs/architecture.md#Unit lists` owns unit lists and carries the one link, work order 13)
+- Rewrite impact: complicates — work order 13 states the gap as today's behaviour at `#Unit lists`, with the link to #248.
+
+### B-074. The ratio notation rounds an exact decimal to the display digits when its ratio does not fit the width
+
+- Issue: #249 (opened 2026-11-14, during the review of work order 12's pull request; the owner: a defect, an oversight in the display logic)
+
+- Category: behaviour
+- Severity (guess): medium — an exact value shown rounded with `≈` at the default settings (`1 gallon` into `m^3`)
+- Location: `src/core/display.ts` (`show`: an exact value that is not an integer has `ratioParts` and nothing else under the notation; rule 4 excludes a canonical denominator of one)
+- Description: `1 gallon` into `m^3` shows `≈ 0.0037854118 m^3` though the value is exactly `0.003785411784`, its ratio having twenty-one digits; `1.23456789012` shows `≈ 1.2345679` at a width of twenty, where the integer `123456789012` is written entire. The owner's rule: the ratio notation always writes a ratio when one fits the width, and otherwise the decimal at full precision, as far as it can be rendered. What bounds "in full" (the width, as rule 2 has it for an integer, or something larger) is a design hole the issue leaves open; #178, the study of one uniform rule, stays open beside it.
+- Units: none; stated as a plain fact by the session of work order 12 and put to the owner in its review notes
+- Docs side: — (`devdocs/notation.md#The rule`, rule 5, states the rounding as a defect with its one link; `docs/numbers.md#How numbers are written` says only "anything longer is written as digits", which stays true)
+- Rewrite impact: none — the page is written; the fix rewrites rule 5.

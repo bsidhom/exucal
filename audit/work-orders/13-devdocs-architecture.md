@@ -347,7 +347,12 @@ design` bullet that reads as still possible.
   settles under F-249), B-035, B-036, B-037 (comments; the comment
   pass, Q-059), B-067 (the TODO; a later pass).
 - **Documented as today's behaviour, no wait:** B-009 (#92), B-010
-  (the typed list's unit; #198).
+  (the typed list's unit; #198), and B-073 (#248): under the ratio
+  notation a count longer than the display digits is shown rounded and
+  the line still says `=`. `#Unit lists` states it as a defect with the
+  one link (Q-012's rule; plan §12.3, the review of the ratio notation
+  page), until the fix lands. `devdocs/notation.md`, "Where a ratio is
+  written", says only that a count is written at the display digits.
 
 ## 10. Done when
 

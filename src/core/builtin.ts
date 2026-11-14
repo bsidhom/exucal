@@ -118,7 +118,7 @@ export type DomainReason =
   | "belowOne"
   | "outsideOpenUnitInterval"
   | "origin"
-  /** An exact value that is not a whole number, where the function takes integers (the exact functions, 6.1). */
+  /** An exact value that is not an integer, where the function takes integers (the exact functions, 6.1). */
   | "notInteger"
   /** An inexact value, where the function takes integers known exactly, which no ball is. */
   | "notExact"

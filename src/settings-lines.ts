@@ -188,7 +188,7 @@ export const PROBE_LINE =
   "Times an exact product and the four elementary functions at rising sizes and proposes the largest limits that stay within the budget a pass; nothing changes until the proposal is applied.";
 
 /**
- * The line that refuses an edit of `setting`: not a whole number, or past
+ * The line that refuses an edit of `setting`: not an integer, or past
  * a bound, named with the setting that sets it where one does ("at most
  * 2,453 digits under the significand limit"; "at least 8 digits, the
  * display digits"; "at least 10 ms").

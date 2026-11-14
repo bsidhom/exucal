@@ -31,16 +31,16 @@
 //
 // With the ratio notation at a `width` (devdocs/notation.md, "The rule"),
 // an exact value is written entire when its digits fit
-// the width: a whole number by the decimal display at the width
+// the width: an integer by the decimal display at the width
 // (`= 3486784401` for `3^20` at twenty), any other exact value as its
-// fraction in lowest terms when the numerator and the denominator have at
+// ratio in lowest terms when the numerator and the denominator have at
 // most the width in digits between them (`= 1/3`, `= 127/50` for `2.54`),
 // and, when that does not fit, as a ratio times a power of ten written
 // after it (`= 1/3 × 1e+30`) when the parts then fit and the denominator
 // is not one; the `exact` kind says so with `fraction`, and `scale` for
 // the power of ten. Everything else, an exact value past the width and every inexact
-// value, is shown as above at the digits asked, the decimal display being
-// the fallback, which says `=` where its own rule allows
+// value, is shown as above at the digits asked, by the decimal display,
+// which says `=` where its own rule allows
 // (`1.5e-999999999`). The user's rounding mode is applied here and
 // nowhere else in exact mode (devdocs/numbers.md, "Settling"), and plays
 // no part in a ratio, which is not rounded.
@@ -108,17 +108,17 @@ function zeroBoundUnclamped(ball: Ball): Scaled {
 }
 
 /**
- * The non-integer `s` as a ratio of two whole numbers, with the numerator
+ * The non-integer `s` as a ratio of two integers, with the numerator
  * signed, when its parts have at most `width` digits between them
  * (devdocs/notation.md, "The rule", rules 3 and 4), and `undefined` when
- * they do not. First the fraction in lowest terms, the ordinary one with
+ * they do not. First the ratio in lowest terms, the ordinary one with
  * the power of ten multiplied back in (`127/50`, `1/10000000`); when that
- * does not fit, the canonical significand as the ratio with its power of
+ * does not fit, the scaled ratio, the canonical significand with its power of
  * ten as a `scale` written after it (`1/3` times `1e+30`, `5/127` times
  * `1e+33`), when the significand's parts fit and its denominator is not
- * one, a value with a denominator of one being a decimal the fallback
- * writes exactly in the same characters. The sign, the slash and the
- * scale are not counted. The fraction is formed
+ * one, a value with a denominator of one being a decimal the decimal
+ * display writes in the same characters. The sign, the slash and the
+ * scale are not counted. The ordinary ratio is formed
  * only when it can fit: for an exponent `k > 0`, its numerator has at
  * least `k + 1` digits; for `k < 0`, the `10^-k` cancels against the
  * significand's numerator, which is not divisible by ten and so holds
@@ -126,16 +126,16 @@ function zeroBoundUnclamped(ball: Ball): Scaled {
  * of it, more than `-k × log10 2` digits, and the numerator loses at
  * most its fives, `-k × log10 5` digits. So an exponent beyond four
  * times `width` in magnitude, or a significand numerator beyond three
- * times `width` in digits, cannot fit as a fraction, and nothing is
+ * times `width` in digits, cannot fit as a ratio, and nothing is
  * formed for it, while every value that can fit passes: a dyadic the
  * width admits, `2^-63` at twenty (`5^63 × 10^-63` in canonical form,
- * a numerator of forty-five digits), is formed. The scaled form's power
+ * a numerator of forty-five digits), is formed. The scaled ratio's power
  * of ten is the canonical
  * exponent itself, which lies past the exponent bound for some values
  * within it (a third of `10^(10^18 + 1)` has the exponent `10^18 + 1`),
  * and the outcome then cannot write the line and throws (outcome.ts,
- * `literal`); whether the display should choose its own split of the
- * tens is issue #178's.
+ * `literal`), which is issue #206; whether the display should choose its
+ * own split of the tens is issue #178's.
  */
 function ratioParts(s: Scaled, width: Precision): Ratio | undefined {
   const { num, den } = s.significand;
@@ -214,7 +214,7 @@ export type Shown =
 
 /**
  * The ratio notation's settings (devdocs/notation.md, "The rule"): the
- * width, the most digits a ratio's two parts, or a whole number, may have
+ * width, the most digits a ratio's two parts, or an integer, may have
  * to be
  * written entire. The place a further setting of the notation goes, so
  * that it reaches every caller of `show` without a change of signature.
@@ -238,7 +238,7 @@ export type ShowOptions = {
  * certification gives, with `text` the midpoint rounded in `rounding` to
  * the digits certified. With the ratio notation's `width`
  * (devdocs/notation.md, "The rule"), an exact value is written entire when it fits
- * the width, before any of that: a whole number of at most `width`
+ * the width, before any of that: an integer of at most `width`
  * significant digits by the decimal display at the width, and any other
  * exact value as a ratio (`ratioParts`) when its parts fit; an exact
  * value that fits neither goes on to the rule above, at `digits`. The

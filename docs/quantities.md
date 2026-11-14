@@ -86,9 +86,9 @@ A quantity follows these rules:
   - A mismatch, a want that is zero or cannot be told from zero, or a
     ratio at or past a size limit stops the conversion.
   - Every line pastes back.
-- **A unit list answers with a sum, largest unit first**: a whole number
-  of each unit but the last, and the remainder in the last. Asking for a
-  list whose units do not decrease is an error
+- **A unit list answers with a sum, largest unit first**: an integer
+  count of each unit but the last, and the remainder in the last. Asking
+  for a list whose units do not decrease is an error
   ([Unit lists](#unit-lists)).
 - **An invertible function as the want recovers the function's argument**
   through its inverse, and the answer is written as the call
@@ -118,8 +118,8 @@ stays exact: `m^(1/2)` is a dimension, and `(m^2)^(1/2)` is `m` again.
 No dimension is ever rounded, in exact mode or in decimal mode, which
 rounds scalars alone ([The two modes](numbers.md#the-two-modes)).
 To keep them rational, `^` takes its exponent from the text, as a
-number: a whole number or a decimal, with a sign if needed, or a ratio
-of two whole numbers in parentheses, as in `2`, `0.5`, `-1` and
+number: an integer or a decimal, with a sign if needed, or a ratio
+of two integers in parentheses, as in `2`, `0.5`, `-1` and
 `(1/2)`. The exponent is never computed, so no dimension ever depends
 on a computed value. An exponent written as an expression, `sqrt(2)`
 or `1+1`, is not read at all: `m^sqrt(2)` and `2^(1+1)` are errors
@@ -320,11 +320,11 @@ Three things follow.
 - A call of a function that takes a dimensionless argument fails for an
   argument with a dimension or a kind, whatever unit it was typed in.
   `floor`, `ceil`, `trunc` and `round` are such functions, and so are
-  the functions that take only whole numbers, `factorial` among them.
+  the functions that take only integers, `factorial` among them.
   `floor(3.7 ft)` is an error: the value is held in meters, and the
-  whole number of feet in it is not the whole number of meters, so there
-  is no floor of a length. Divide the unit out, take the floor, and
-  multiply the unit back: `floor(3.7 ft / ft) ft` is `= 3 ft`.
+  integer number of feet in it is not the integer number of meters, so
+  there is no floor of a length. Divide the unit out, take the floor,
+  and multiply the unit back: `floor(3.7 ft / ft) ft` is `= 3 ft`.
 - A function that takes a quantity with a dimension works on the
   scalar and says what becomes of the dimension. `abs` keeps it,
   `sign` gives a dimensionless result, and `approx`, the one operation
@@ -555,7 +555,7 @@ front of the have on the reciprocal line, by these rules:
 ### What a list answers
 
 The want may be a **unit list**: units separated by `;`, largest
-first. The answer is then a sum, a whole number of each unit but the
+first. The answer is then a sum, an integer count of each unit but the
 last and the rest in the last: `1 m` into `ft;in` is
 `≈ 3 ft + 3.3700787 in`. Each item is any expression, so `ft;in/8`
 counts eighths of an inch. A unit whose count is zero is left out, a
@@ -586,7 +586,7 @@ else, so `2 time`, or `time` inside a list, is an unknown unit.
 
 ### The counts and the remainder
 
-Each count is the whole number of its unit that fits in what is left
+Each count is the integer number of its unit that fits in what is left
 of the have, truncated toward zero, so that every term carries the
 have's sign. A count is never rounded on its own; only a carry from the
 remainder, described below, changes one. The remainder is the rest,
@@ -650,8 +650,8 @@ conforming to the have.
 A count comes from the ratio of what is left to the unit, and an
 inexact ratio is compared as the whole range within its error radius
 ([Comparison and equality](numbers.md#comparison-and-equality)). When
-that range reaches across the whole number nearest the ratio, or ends
-exactly on it, the ratio cannot be told from that whole number. The
+that range reaches across the integer nearest the ratio, or ends
+exactly on it, the ratio cannot be told from that integer. The
 count then takes it, and the remainder is a value around zero, left
 out as a zero term: `approx(36) in` into `ft;in` is `≈ 3 ft`.
 This is the design, and it is not a guess: a count chooses how the
@@ -802,8 +802,8 @@ written in the expression language:
   the `/`. Without a negative exponent there is no `/`.
 - On each side of the `/`, the primitives come in the order the
   definitions file declares them.
-- An exponent of one is not written, and an exponent that is not a
-  whole number is parenthesized.
+- An exponent of one is not written, and an exponent that is not an
+  integer is parenthesized.
 - `1` stands for an empty numerator, and a dimensionless quantity's
   dimension is `1` alone, the empty product.
 

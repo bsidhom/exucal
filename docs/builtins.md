@@ -19,9 +19,9 @@ The built-ins follow these rules:
 - **The elementary functions are exact at a few arguments and inexact everywhere else.**
   - `pi()` has no exact case ([Constants](#constants)).
   - `exp` is exact at zero, and a logarithm at `1` and where its argument
-    or its base is a whole-number power of the other
+    or its base is an integer power of the other
     ([Exponential and logarithms](#exponential-and-logarithms)).
-  - `sqrt`, `cbrt` and `pow` are exact at perfect powers and whole-number
+  - `sqrt`, `cbrt` and `pow` are exact at perfect powers and integer
     exponents ([Roots and powers](#roots-and-powers)).
   - `sin`, `cos` and `tan` are exact at zero ([Trigonometric](#trigonometric)),
     and `asin`, `acos`, `atan` and `atan2` are exact where the result is
@@ -33,9 +33,9 @@ The built-ins follow these rules:
 - **`abs`, `sign`, `floor`, `ceil`, `trunc`, `round`, `div` and `mod` are exact on exact arguments, and all but `abs` and `mod` are exact on an inexact argument whose error radius lies on one side of an edge**
   ([Magnitude, sign and rounding](#magnitude-sign-and-rounding),
   [Division](#division)).
-- **`gcd`, `lcm`, `factorial`, `binomial` and `doublefactorial` take only whole numbers known exactly, and every result is exact**
+- **`gcd`, `lcm`, `factorial`, `binomial` and `doublefactorial` take only integers known exactly, and every result is exact**
   ([Integer functions](#integer-functions)).
-- **The Gamma family is exact at whole numbers, where `gamma` and `beta` are factorials that fit the significand limit, at `lgamma(1)` and `lgamma(2)`, and at `beta`'s exact zeros, and inexact everywhere else**, and is computed from a table of Bernoulli ratios built on first use
+- **The Gamma family is exact at integers, where `gamma` and `beta` are factorials that fit the significand limit, at `lgamma(1)` and `lgamma(2)`, and at `beta`'s exact zeros, and inexact everywhere else**, and is computed from a table of Bernoulli ratios built on first use
   ([Gamma family](#gamma-family)). The incomplete gamma and beta
   functions and the error functions are built on the family
   ([Incomplete gamma](#incomplete-gamma),
@@ -90,30 +90,30 @@ written `exp(1)`
 plain number, and `log(b, x)` is the logarithm of `x` to the base `b`, a
 positive plain number other than one. `exp` is exact at zero. A
 logarithm is exact at `1`; `log10` and `log2` are exact where the
-argument is a whole-number power of the base, and `log(b, x)` where `x`
-is a whole-number power of `b` or `b` is a whole-number power of `x`.
+argument is an integer power of the base, and `log(b, x)` where `x`
+is an integer power of `b` or `b` is an integer power of `x`.
 Every other value is inexact. No argument is too large or too small for
 a logarithm, while `exp` reaches the exponent bound
 ([Values too big to hold](numbers.md#values-too-big-to-hold)).
 
-| You type             | Exucal shows                        | Note                                                                          |
-| -------------------- | ----------------------------------- | ----------------------------------------------------------------------------- |
-| `log10(1000)`        | `= 3`                               | a power of the base                                                           |
-| `log2(1/8)`          | `= -3`                              | a negative exponent                                                           |
-| `log(8, 2)`          | `≈ 0.33333333`                      | exact, `1/3`, with more digits than shown                                     |
-| `log(4, 8)`          | `≈ 1.5`                             | inexact: `3/2` is neither a whole number nor the reciprocal of a whole number |
-| `log(1, 8)`          | an error: no logarithm has base one |                                                                               |
-| `ln(1e-300)`         | `≈ -690.77553`                      | no argument is too small                                                      |
-| `log10(1e999999999)` | `≈ 1e+9`                            | exact, `999999999`, with more digits than shown                               |
-| `exp(1e30)`          | refused: too large to compute       | the exponent bound                                                            |
-| `exp(-1e30)`         | refused: too small to compute       | the exponent bound                                                            |
+| You type             | Exucal shows                        | Note                                                                  |
+| -------------------- | ----------------------------------- | --------------------------------------------------------------------- |
+| `log10(1000)`        | `= 3`                               | a power of the base                                                   |
+| `log2(1/8)`          | `= -3`                              | a negative exponent                                                   |
+| `log(8, 2)`          | `≈ 0.33333333`                      | exact, `1/3`, with more digits than shown                             |
+| `log(4, 8)`          | `≈ 1.5`                             | inexact: `3/2` is neither an integer nor the reciprocal of an integer |
+| `log(1, 8)`          | an error: no logarithm has base one |                                                                       |
+| `ln(1e-300)`         | `≈ -690.77553`                      | no argument is too small                                              |
+| `log10(1e999999999)` | `≈ 1e+9`                            | exact, `999999999`, with more digits than shown                       |
+| `exp(1e30)`          | refused: too large to compute       | the exponent bound                                                    |
+| `exp(-1e30)`         | refused: too small to compute       | the exponent bound                                                    |
 
 ## Roots and powers
 
 `sqrt(x)` and `cbrt(x)` are the square and cube roots of a plain number,
 and `pow(x, y)` raises a plain number to a plain number. A root is exact
-where the argument is a perfect square or cube, and `pow` for a
-whole-number exponent and for a fraction whose root is exact; every
+where the argument is a perfect square or cube, and `pow` for an
+integer exponent and for a fraction whose root is exact; every
 other value is inexact. An even root of a negative value is an error; a
 cube root of a negative value is a value.
 
@@ -196,7 +196,7 @@ its dimension and kind. `sign(x)` takes any quantity and gives `-1`, `0`
 or `1`, a plain number. `floor(x)`, `ceil(x)`, `trunc(x)` and `round(x)`
 take a plain number
 ([A quantity carries no unit](quantities.md#a-quantity-carries-no-unit)
-says how to floor a length). `round(x)` rounds to a whole number, and
+says how to floor a length). `round(x)` rounds to an integer, and
 `round(x, places)` rounds to that many decimal places, a negative count
 rounding to the left of the point. Both round in the rounding mode in
 force
@@ -244,23 +244,23 @@ need a significand past the significand limit is refused.
 ## Integer functions
 
 `gcd(a, b)`, `lcm(a, b)`, `factorial(n)`, `binomial(n, k)` and
-`doublefactorial(n)` take whole numbers known exactly, `factorial` and
+`doublefactorial(n)` take integers known exactly, `factorial` and
 `binomial` from zero up and `doublefactorial` from `-1` up, and every
 result is exact. `gcd` and `lcm` are never negative. `factorial`,
 `binomial` and `doublefactorial` are refused past the significand limit;
 `gamma(20001)` gives the value `factorial(20000)` cannot hold
 ([Gamma family](#gamma-family)).
 
-| You type               | Exucal shows                                 | Note                                 |
-| ---------------------- | -------------------------------------------- | ------------------------------------ |
-| `gcd(-12, 18)`         | `= 6`                                        | never negative                       |
-| `gcd(5, 0)`            | `= 5`                                        |                                      |
-| `binomial(5, 2)`       | `= 10`                                       |                                      |
-| `doublefactorial(7)`   | `= 105`                                      |                                      |
-| `factorial(approx(5))` | an error: the argument is not known exactly  | `approx(5)` is inexact in exact mode |
-| `factorial(5.5)`       | an error: the argument is not a whole number |                                      |
-| `factorial(5000)`      | `≈ 4.2285779e+16325`                         | exact, a value of 16,326 digits      |
-| `factorial(20000)`     | refused: past the significand limit          |                                      |
+| You type               | Exucal shows                                | Note                                 |
+| ---------------------- | ------------------------------------------- | ------------------------------------ |
+| `gcd(-12, 18)`         | `= 6`                                       | never negative                       |
+| `gcd(5, 0)`            | `= 5`                                       |                                      |
+| `binomial(5, 2)`       | `= 10`                                      |                                      |
+| `doublefactorial(7)`   | `= 105`                                     |                                      |
+| `factorial(approx(5))` | an error: the argument is not known exactly | `approx(5)` is inexact in exact mode |
+| `factorial(5.5)`       | an error: the argument is not an integer    |                                      |
+| `factorial(5000)`      | `≈ 4.2285779e+16325`                        | exact, a value of 16,326 digits      |
+| `factorial(20000)`     | refused: past the significand limit         |                                      |
 
 ## Gamma family
 
@@ -271,7 +271,7 @@ The family is four functions of plain numbers.
 - `digamma(x)` is its logarithmic derivative.
 - `beta(a, b)` is the Beta function, `gamma(a) gamma(b) / gamma(a + b)`.
 
-The family's exact cases are at whole numbers, `gamma` and `beta` where
+The family's exact cases are at integers, `gamma` and `beta` where
 the factorials they reduce to fit the significand limit and `lgamma` at
 `1` and `2`, and `beta` is exactly `0` where the sum of its arguments is
 a pole and neither argument is. `digamma` has no exact case. Every other
@@ -279,26 +279,26 @@ value is inexact.
 
 ### The Gamma function and its logarithm
 
-`gamma(x + 1)` is `factorial(x)` for a whole number `x` and extends the
-factorial to every other value. For a whole number whose factorial is
+`gamma(x + 1)` is `factorial(x)` for an integer `x` and extends the
+factorial to every other value. For an integer whose factorial is
 past the significand limit it gives the value inexactly. The poles are
-zero and the negative whole numbers, where `gamma`, `lgamma` and
+zero and the negative integers, where `gamma`, `lgamma` and
 `digamma` are errors. `lgamma` gives the logarithm of a Gamma value the
 exponent bound refuses.
 
 ### The Beta function
 
-A whole number at or below zero in either argument is a pole, an error.
+An integer at or below zero in either argument is a pole, an error.
 Outside its exact cases, the magnitude of `beta` is the exponential of
 `lgamma(a) + lgamma(b) - lgamma(a + b)`, the three logarithms taken to
 the precision of the pass plus the digits of the largest argument's
 whole part, so that their cancellation leaves the precision of the pass.
 So `beta` has a value where `gamma` of an argument is refused as too
 large, as long as its own value fits the exponent bound and the digits
-the logarithms need fit the significand limit. For whole numbers `n` and
+the logarithms need fit the significand limit. For integers `n` and
 `k` with `k` from `0` to `n`, `1 / ((n + 1) beta(n - k + 1, k + 1))` is
 `binomial(n, k)`, and the same expression gives a binomial of values
-that are inexact or not whole numbers.
+that are inexact or not integers.
 
 ### What the family costs
 
@@ -408,7 +408,7 @@ argument past about `1.5e9` is refused as too small to compute.
 `beta(a, b)` below `x`, and `incbetareg(a, b, x)` is its regularized
 form, that part divided by `beta(a, b)` so that it runs from `0` to `1`.
 Both take positive `a` and `b` and an `x` within `[0, 1]`, all plain
-numbers. For whole numbers `a` and `b` the regularized function is a
+numbers. For integers `a` and `b` the regularized function is a
 polynomial in `x` of degree `a + b - 1`, and the calculator forms the
 polynomial exactly when:
 

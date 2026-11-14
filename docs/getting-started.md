@@ -121,8 +121,8 @@ back into the have, `36 in` or `0.027777778 * 3 ft`
 
 ## Lists of units
 
-A want of several units separated by `;` answers with a sum: a whole
-number of each unit but the last, and the rest in the last. `1 m` into
+A want of several units separated by `;` answers with a sum: an integer
+count of each unit but the last, and the rest in the last. `1 m` into
 `ft;in` is `≈ 3 ft + 3.3700787 in`. The units must run from the
 largest to the smallest, since each unit after the first counts what
 is left over from the one before it, so `in;ft` is an error to ask
@@ -181,7 +181,7 @@ known only within a bound ([approx](numbers.md#approx)).
 
 Making a value inexact buys something: the exact arithmetic never
 rounds, so a value too big to hold exactly is refused even when a few
-digits of it would do. `3^1000000000` is a whole number of hundreds of
+digits of it would do. `3^1000000000` is an integer of hundreds of
 millions of digits, past the
 [significand limit](settings.md#significand-limit), the setting that
 bounds how big an exact value may be. The calculator refuses it,
@@ -189,7 +189,7 @@ answering with a message that names the limit rather than with the
 number ([Values too big to hold](numbers.md#values-too-big-to-hold)).
 The message suggests `approx(3)` in place of `3`. With the base
 inexact, the calculator computes `approx(3)^1000000000` to the digits
-asked, within a bound, instead of forming the whole number, and shows
+asked, within a bound, instead of forming the integer, and shows
 `≈ 5.243997e+477121254`. The eighth digit is a zero, which is dropped.
 
 | You have               | You want | Exucal shows                          |

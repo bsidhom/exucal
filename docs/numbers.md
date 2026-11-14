@@ -11,7 +11,7 @@ conversion multiplies one, a defined function computes one, a built-in
 returns one. `Ball` is built in three layers, each adding one idea to
 the one below it:
 
-- **`Rational`** is an exact fraction: a whole number of any size over
+- **`Rational`** is an exact fraction: an integer of any size over
   a positive one, kept in lowest terms. `1/3` is one over three, not a
   string of threes.
 - **`Scaled`** is a `Rational` times a power of ten, written
@@ -94,7 +94,7 @@ The midpoint-and-radius form comes from ball arithmetic, and the
 inspiration is [Arb](https://arblib.org/), now part of
 [FLINT](https://flintlib.org/). Arb's midpoint is a binary
 floating-point number rounded to a set number of bits, so a value is
-exact there only if it is a whole number times a power of two; Exucal's
+exact there only if it is an integer times a power of two; Exucal's
 midpoint is an exact rational, scaled by a power of ten and held in one
 canonical form. That decomposition is novel, and it is a trade. Equal
 values cost the same by every route; but a power of two in a denominator
@@ -231,7 +231,7 @@ reaches it by, because each step of building it is forced:
 2. The only denominator the rule allows is that fraction's with every
    two and five taken out.
 3. With the denominator fixed, the exponent can only be the largest
-   that still leaves the numerator a whole number.
+   that still leaves the numerator an integer.
 4. The numerator is then whatever is left.
 
 This makes a held value predictable. Equal values are held
@@ -314,7 +314,7 @@ Exactness survives arithmetic. This section says which operations keep
 it, what happens when exact and inexact values meet, and when a
 built-in returns an exact result.
 
-On exact values, `+`, `-`, `*`, `/` and a whole-number power give an
+On exact values, `+`, `-`, `*`, `/` and an integer power give an
 exact result, however long it needs to be, and a comparison is always
 decided ([Comparison and equality](#comparison-and-equality)). In
 exact mode an exact result of exact operands is never rounded, and an
@@ -489,7 +489,7 @@ The edges are:
 - zero, as a divisor;
 - the end of a function's domain, as `1` for `asin`;
 - a pole of a function, as `90 deg` for `tan` or zero for `gamma`;
-- a whole number, for `floor`, `ceil` and `trunc`, and for `round` in
+- an integer, for `floor`, `ceil` and `trunc`, and for `round` in
   a mode that rounds in one direction;
 - a point halfway between two roundings, for `round` in a mode to
   nearest;
@@ -528,7 +528,7 @@ halfway between two roundings. An inexact value whose error radius
 reaches across one cannot be told from it at any pass, however small
 the radius, so `round(approx(2.5))` runs to the ceiling and is an error
 there, where `round(2.5)` is decided. In a mode that rounds in one
-direction the halfway point is no edge, and the whole numbers are.
+direction the halfway point is no edge, and the integers are.
 
 ## Identities and cancellation
 
@@ -742,7 +742,7 @@ the identity, since every value there is already rounded
 | `approx(2.54) cm` | `in` | `≈ 1 in`     |
 
 A step the exact arithmetic refuses for its size (a sum that cannot be
-aligned; a whole-number power, a product or a quotient whose exact
+aligned; an integer power, a product or a quotient whose exact
 result would pass the significand limit) is computed to the digits
 asked once one operand is inexact, and shown with `≈` instead of `=`
 ([Values too big to hold](#values-too-big-to-hold)).
@@ -766,7 +766,7 @@ decimal point, which the significand limit cannot hold for
 at the exponent bound for every value within the error radius. A
 power's exponent must be formed within the significand limit before
 anything is computed, so `approx(2)^1e-30000` is refused as
-`2^1e-30000` is. And the whole-number functions, `factorial` among
+`2^1e-30000` is. And the integer functions, `factorial` among
 them, take only an exact argument.
 
 | You type                          | Exucal shows                                                |
@@ -805,8 +805,8 @@ down.
   ([Digits you can trust](#digits-you-can-trust)).
 - In decimal mode it acts at every step
   ([The two modes](#the-two-modes)).
-- Inside an expression it acts in one place, `round`, which rounds to a
-  whole number in the mode, or to a given number of decimal places with
+- Inside an expression it acts in one place, `round`, which rounds to an
+  integer in the mode, or to a given number of decimal places with
   a second argument.
 
 | You type          | Exucal shows | Note                                            |
@@ -893,7 +893,7 @@ help. Some built-ins need their argument to more
 digits than the result shows, as `sin` of a huge angle needs `π` to the
 angle's own length; they are refused at the significand limit when the
 argument is too large, exact or inexact, so `approx` does not help
-them. The whole-number functions' refusals, `factorial`'s among them,
+them. The integer functions' refusals, `factorial`'s among them,
 never offer `approx` or decimal mode and apply in both modes.
 `round(x, places)` and `mod` are refused when their results would pass
 the limit. A number you type with more digits than the significand
@@ -950,7 +950,7 @@ argument are too large rather than too small.
 
 A product, quotient or power that no setting could hold is reported
 at the bound even where the significand limit would refuse it first.
-`7^1e19`, a whole number of about `8.5 × 10^18` digits, is too large
+`7^1e19`, an integer of about `8.5 × 10^18` digits, is too large
 to compute, where `2.54^1e18`, a hair within the bound, is past the
 significand limit. A sum never faces that choice. A sum that aligns
 and passes the bound is too large or too small to compute; one that
@@ -1013,7 +1013,7 @@ setting of exact mode alone, writes an exact value as a fraction where
 one fits the **ratio width**, which is independent of the display
 digits:
 
-- a whole number is written entire when it has at most the width's
+- an integer is written entire when it has at most the width's
   significant digits;
 - a fraction is written as `n/d` when its numerator and denominator
   together have at most that many digits;

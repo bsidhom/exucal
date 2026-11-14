@@ -10,13 +10,12 @@ the user docs gives the rule a user needs, and
 gives the setting. The mechanism behind the rule is described here, with
 each design decision, its reasons and the alternatives ruled out.
 
-Three words differ from the user docs:
+Two words differ from the user docs:
 
 - A **ratio** is always the written form `n/d`. "Fraction" is kept for
   the form that a value is held in, a fraction times a power of ten
   ([`Scaled`](numbers.md#scaled)). The user docs say "fraction" for
   both.
-- An integer is the whole number of the user docs.
 - The **decimal display** is the mechanism that writes a value as
   digits, rounded to a count of significant digits. It is the digits
   display of the user docs. It serves both modes, and its name does not

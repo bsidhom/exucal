@@ -210,7 +210,7 @@ test("both forms match mpmath to forty digits, in either orientation", () => {
   }
 });
 
-test("the exact cases: the ends of the argument, and the polynomial for whole numbers", () => {
+test("the exact cases: the ends of the argument, and the polynomial for integers", () => {
   assert.equal(shown(false, d("2.5"), d("3.5"), d("0")), "= 0");
   assert.equal(shown(true, d("2.5"), d("3.5"), d("0")), "= 0");
   assert.equal(shown(true, d("2.5"), d("3.5"), d("1")), "= 1");
@@ -219,7 +219,7 @@ test("the exact cases: the ends of the argument, and the polynomial for whole nu
     "≈ 0.08333333333333333333333333333333333333333",
   );
   assert.ok(isExact(value(call(false, d("2"), d("3"), d("1")))));
-  // Whole numbers and a rational argument: exact fractions.
+  // Integers and a rational argument: exact fractions.
   const reg = value(call(true, d("2"), d("3"), d("0.5")));
   assert.ok(isExact(reg) && equals(reg.mid, dec("0.6875")), inspect(reg));
   const unreg = value(call(false, d("2"), d("3"), d("0.5")));

@@ -88,8 +88,8 @@ import { ROUNDING_MODES, type RoundingMode } from "./core/rounding.ts";
 
 /**
  * How an exact value is written in exact mode: as its digits, or as a
- * ratio of two whole numbers in lowest terms whose parts have at most
- * `width` digits between them, a whole number written entire within the
+ * ratio of two integers in lowest terms whose parts have at most
+ * `width` digits between them, an integer written entire within the
  * same width (devdocs/notation.md, "The rule"). A display setting: it is
  * not part of the context, and the core never sees it but through
  * `show`'s width.
@@ -622,8 +622,8 @@ function withClampedValue(
 }
 
 /**
- * Why `value` is not a value of `setting` under `settings`: not a whole
- * number, or past one of the setting's bounds, with the bound and the
+ * Why `value` is not a value of `setting` under `settings`: not an
+ * integer, or past one of the setting's bounds, with the bound and the
  * setting that sets it where one does (`rangesOf`); `undefined` when it
  * is a value of the setting. For the panel's refusal line ("at most
  * 2,453 digits under the significand limit"). A refused edit changes

@@ -174,7 +174,7 @@ test("an inexact value that certifies every digit asked is certified, never exac
       text: "1.4142135",
     },
   );
-  // A midpoint with few digits, or a whole number, is still only certified.
+  // A midpoint with few digits, or an integer, is still only certified.
   assert.deepEqual(
     show(about("1", "1e-30"), { digits: 8, rounding: nearest }),
     {
@@ -461,7 +461,7 @@ function asScaled(text: string, scale: string): Shown {
   return { kind: "exact", text, fraction: true, scale };
 }
 
-test("with the ratio notation, an exact value that is not a whole number is its fraction in lowest terms when its parts fit the width together", () => {
+test("with the ratio notation, an exact value that is not an integer is its ratio in lowest terms when its parts fit the width together", () => {
   // 1.9's rows, restated under the notation at the default width.
   assert.deepEqual(ratio(exact(fr(127n, 50n)), 20), asRatio("127/50"));
   assert.deepEqual(ratio(exact(dec("2.54")), 20), asRatio("127/50"));
@@ -479,7 +479,7 @@ test("with the ratio notation, an exact value that is not a whole number is its 
     kind: "exact",
     text: "2",
   });
-  // The fraction is the ordinary one, the power of ten multiplied back in.
+  // The ratio is the ordinary one, the power of ten multiplied back in.
   assert.deepEqual(ratio(exact(dec("1.609344")), 20), asRatio("25146/15625"));
   assert.deepEqual(ratio(exact(dec("1e-7")), 20), asRatio("1/10000000"));
   assert.deepEqual(ratio(exact(dec("0.5")), 2), asRatio("1/2"));
@@ -536,7 +536,7 @@ test("with the ratio notation, an exact value that is not a whole number is its 
   }
 });
 
-test("with the ratio notation, a whole number is written entire when it fits the width, by the decimal display at the width", () => {
+test("with the ratio notation, an integer is written entire when it fits the width, by the decimal display at the width", () => {
   assert.deepEqual(ratio(exact(fr(36n)), 20), { kind: "exact", text: "36" });
   assert.deepEqual(ratio(exact(ZERO), 20), { kind: "exact", text: "0" });
   // 3^20 has ten digits: entire at a width of ten, and at eight digits
@@ -619,7 +619,7 @@ test("with the ratio notation, a ratio that fits only with its power of ten on t
   );
   assert.deepEqual(ratio(scaled(-1n, 3n, 30n), 20), asScaled("-1/3", "1e+30"));
   // A ratio that fits without the exponent is written without it: the
-  // plain fraction comes first, 1/3 × 1e+30 only past a width of thirty-one.
+  // plain ratio comes first, 1/3 × 1e+30 only past a width of thirty-one.
   assert.deepEqual(
     ratio(scaled(1n, 3n, 30n), 32),
     asRatio("1000000000000000000000000000000/3"),
@@ -663,7 +663,7 @@ test("with the ratio notation, a ratio that fits only with its power of ten on t
     text: "2.5",
   });
   // A power of two with a negative exponent cancels against the power of
-  // ten: 2^20 × 10^-20 is 1/5^20, fifteen digits as a fraction, and at
+  // ten: 2^20 × 10^-20 is 1/5^20, fifteen digits as a ratio, and at
   // fourteen a decimal, its canonical denominator being one.
   const dyadic = dec("1048576e-20");
   assert.deepEqual(ratio(exact(dyadic), 15), asRatio("1/95367431640625"));
@@ -671,13 +671,13 @@ test("with the ratio notation, a ratio that fits only with its power of ten on t
     kind: "exact",
     text: "1.048576e-14",
   });
-  // A sixth is 5/3 × 10^-1 in canonical form: the fraction first.
+  // A sixth is 5/3 × 10^-1 in canonical form: the ratio first.
   assert.deepEqual(ratio(exact(fr(1n, 6n)), 2), asRatio("1/6"));
 });
 
-test("with the ratio notation, a dyadic value is its fraction whenever its parts fit the width: the screen before forming admits every value that can", () => {
+test("with the ratio notation, a dyadic value is its ratio whenever its parts fit the width: the screen before forming admits every value that can", () => {
   // 2^-k is 5^k × 10^-k in canonical form, a numerator of about 0.7k
-  // digits over a denominator of one, and its fraction is 1/2^k: at the
+  // digits over a denominator of one, and its ratio is 1/2^k: at the
   // default width it fits up to 2^-63, nineteen digits under the one,
   // and not from 2^-64, twenty.
   assert.deepEqual(
@@ -710,7 +710,7 @@ test("with the ratio notation, a dyadic value is its fraction whenever its parts
   });
   // The boundary, at every width: for the powers of two and of five and
   // their multiples by a small odd factor, each in lowest terms with a
-  // denominator of one in canonical form, the fraction is formed exactly
+  // denominator of one in canonical form, the ratio is formed exactly
   // when its parts fit the width, the rule and nothing else deciding.
   for (const width of [1, 2, 3, 5, 8, 13, 20, 33, 50]) {
     for (let k = 1n; k <= 200n; k++) {

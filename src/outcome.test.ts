@@ -1,6 +1,6 @@
 // The lines the output area shows, through the pipeline over the system
 // definitions, with the ratio notation on and off
-// (devdocs/notation.md, "Where a ratio is written"): where a fraction is
+// (devdocs/notation.md, "Where a ratio is written"): where a ratio is
 // parenthesized, where it is bare, the reciprocal, a unit list's
 // remainder, a function's argument, and both modes.
 
@@ -79,7 +79,7 @@ function lines(
   );
 }
 
-test("a fraction is parenthesized before a unit, and the reciprocal before the have", () => {
+test("a ratio is parenthesized before a unit, and the reciprocal before the have", () => {
   assert.deepEqual(lines("1 m", "in", false), [
     "1 m ≈ 39.370079 in",
     "in = 0.0254 × 1 m",
@@ -96,7 +96,7 @@ test("a fraction is parenthesized before a unit, and the reciprocal before the h
     "3 ft = 36 in",
     "in = 1/36 × 3 ft",
   ]);
-  // A value the decimal writes exactly still becomes a fraction
+  // A value the decimal writes exactly still becomes a ratio
   // (devdocs/notation.md, "The rule").
   assert.deepEqual(lines("1 in", "cm", false), [
     "1 in = 2.54 cm",
@@ -117,7 +117,7 @@ test("a fraction is parenthesized before a unit, and the reciprocal before the h
   assert.deepEqual(lines("1 in", "", false), ["1 in = 0.0254 m"]);
 });
 
-test("a fraction alone, or inside a call, is bare", () => {
+test("a ratio alone, or inside a call, is bare", () => {
   assert.deepEqual(lines("m / (3 m)", "", true), ["m / 3 m = 1/3"]);
   assert.deepEqual(lines("m / (3 m)", "", false), ["m / 3 m ≈ 0.33333333"]);
   assert.deepEqual(lines("-m / (3 m)", "", true), ["-m / 3 m = -1/3"]);
@@ -132,7 +132,7 @@ test("a fraction alone, or inside a call, is bare", () => {
   ]);
 });
 
-test("a unit list's remainder is a fraction, unrounded, and the counts are integers", () => {
+test("a unit list's remainder is a ratio, unrounded, and the counts are integers", () => {
   assert.deepEqual(lines("1 m", "ft;in", false), ["1 m ≈ 3 ft + 3.3700787 in"]);
   assert.deepEqual(lines("1 m", "ft;in", true), ["1 m = 3 ft + (428/127) in"]);
   assert.deepEqual(lines("-1 m", "ft;in", true), [
@@ -159,9 +159,9 @@ test("a unit list's remainder is a fraction, unrounded, and the counts are integ
   assert.deepEqual(lines("1 m", "ft;in", 5, { ...CONTEXT, precision: 2 }), [
     "1 m ≈ 3 ft + 3.4 in",
   ]);
-  // A remainder that is a whole number of its unit stays an integer.
+  // A remainder that is an integer count of its unit stays an integer.
   assert.deepEqual(lines("15 in", "ft;in", true), ["15 in = 1 ft + 3 in"]);
-  // An inexact total has no fraction.
+  // An inexact total has no ratio.
   assert.deepEqual(lines("approx(1) m", "ft;in", true), [
     "approx(1) m ≈ 3 ft + 3.3700787 in",
   ]);
@@ -177,8 +177,8 @@ test("an inexact value is written as digits with ≈, whatever the setting", () 
   }
 });
 
-test('in decimal mode no value is written as a fraction, and every line is exact (devdocs/numbers.md, "Decimal mode")', () => {
-  // The fractions display is exact mode's: in decimal mode every value is
+test('in decimal mode no value is written as a ratio, and every line is exact (devdocs/numbers.md, "Decimal mode")', () => {
+  // The ratio notation is exact mode's: in decimal mode every value is
   // a decimal of the digits asked for, written entire by its digits,
   // whatever the setting says.
   const decimal: NumberContext = { ...CONTEXT, mode: "decimal" };

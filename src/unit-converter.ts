@@ -42,7 +42,7 @@ import "./copy-button.ts";
  * digits half even, under the default precision limit's ceiling. The `ratio`
  * property is the ratio notation's settings
  * (devdocs/notation.md, "The rule"), its width the most digits an exact
- * value may have to be written entire, as a whole number or a ratio;
+ * value may have to be written entire, as an integer or a ratio;
  * absent, the digits notation, by default.
  */
 @customElement("unit-converter")

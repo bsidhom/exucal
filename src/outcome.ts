@@ -60,7 +60,7 @@
 //
 // A line is two expressions and a relation, not text: the `have` as it
 // was read, and the result composed from the values the display wrote
-// (each a literal, or a fraction as the quotient of two) and the units as
+// (each a literal, or a ratio as the quotient of two) and the units as
 // they were read, by the grammar's own operators: a value as the first
 // factor of its unit (`36 m / s`, as one would type it, rather than
 // `36 (m / s)`), joined by juxtaposition, or by `*` where the factor it
@@ -464,9 +464,9 @@ function numberExpr(text: string): Result<Expr, RoundingRefusal> {
  * the bound and is written `1/3 × 1e+1000000000000000001`, and `123/7`
  * times `10^(-10^18 - 1)` is written with `1e-1000000000000000001`. The
  * ratio notation's rule does not screen the scale (display.ts,
- * `ratioParts`), so such a line throws here; how the display should
- * split the tens between the ratio and its power is issue #178's, the
- * study of one uniform rule for the exact-mode display.
+ * `ratioParts`), so such a line throws here, which is issue #206; how
+ * the display should split the tens between the ratio and its power is
+ * issue #178's, the study of one uniform rule for the exact-mode display.
  */
 function literal(text: string): Expr {
   const value = numberExpr(text);
@@ -657,7 +657,7 @@ function listResult(
   const all: { value: Ball; negative: boolean; quantity: Expr }[] = [];
   for (const [i, value] of rounded.entries()) {
     const magnitude = sign(value.mid) < 0 ? absolute(value.mid) : value.mid;
-    // The remainder's fraction is taken from the magnitude's own ball,
+    // The remainder's ratio is taken from the magnitude's own ball,
     // which is exact as the term is; a count and a rounded remainder are
     // formatted from the magnitude at their digits.
     const shown: Shown =

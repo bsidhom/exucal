@@ -34,7 +34,7 @@
 // one or `B(a, b)`, within `10^-(10^18)`.
 //
 // Exact cases: `x = 0` gives `0`, `x = 1` gives `B(a, b)` (`beta`'s, exact
-// for whole numbers) and `1`; whole numbers `a` and `b` with a rational `x`
+// for integers) and `1`; integers `a` and `b` with a rational `x`
 // make `I_x(a, b)` the polynomial `Σ binomial(a + b - 1, j) x^j (1 -
 // x)^(a + b - 1 - j)` over `j` from `a` to `a + b - 1`, exact where its
 // terms fit the significand limit, and `B(x; a, b)` that times `B(a, b)`. A parameter
@@ -424,7 +424,7 @@ function sumOf(
 }
 
 /**
- * The exact case: whole numbers `a` and `b` and a rational `x = p / q`,
+ * The exact case: integers `a` and `b` and a rational `x = p / q`,
  * where `I_x(a, b)` is the polynomial of the header, every term of which
  * has the denominator `q^(a + b - 1)`, so the sum is one integer over
  * that power, reduced once; `B(x; a, b)` is it times `B(a, b)`.

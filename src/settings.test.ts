@@ -559,7 +559,7 @@ test("a refusal says why an edit is out of range: the bound passed and the setti
     bound: 10,
     by: undefined,
   });
-  // Not a whole number: refused before any bound is read.
+  // Not an integer: refused before any bound is read.
   for (const value of [2.5, NaN, Infinity, "12", undefined]) {
     assert.deepEqual(refusalOf(value, "displayDigits", settings), {
       kind: "notInteger",

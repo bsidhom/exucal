@@ -371,7 +371,7 @@ function passOn(error: BallError): Result<never, ListRefusal> {
  * lists"): its midpoint truncated
  * toward zero, unless the ball straddles the integer nearest its midpoint,
  * which is then the count, so that a ratio that cannot be told from a
- * whole number is counted as that whole number and leaves a remainder
+ * integer is counted as that integer and leaves a remainder
  * around zero rather than a whole of the unit. An exact ratio straddles an
  * integer only when it is one, and an unbounded one is truncated. A
  * midpoint whose integer part cannot be formed within the significand limit of

@@ -316,13 +316,13 @@ async function main(): Promise<void> {
   const sampled =
     options.sample === undefined ? undefined : Number(options.sample);
   if (sampled !== undefined && !(Number.isInteger(sampled) && sampled >= 1)) {
-    console.error(`--sample takes a positive whole number: ${options.sample}`);
+    console.error(`--sample takes a positive integer: ${options.sample}`);
     process.exit(2);
   }
   const jobs =
     options.jobs === undefined ? availableParallelism() : Number(options.jobs);
   if (!(Number.isInteger(jobs) && jobs >= 1)) {
-    console.error(`--jobs takes a positive whole number: ${options.jobs}`);
+    console.error(`--jobs takes a positive integer: ${options.jobs}`);
     process.exit(2);
   }
 

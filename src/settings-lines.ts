@@ -197,7 +197,7 @@ export function refusalLine(setting: RangedSetting, refusal: Refusal): string {
   const unit = UNITS[setting];
   switch (refusal.kind) {
     case "notInteger":
-      return "A whole number.";
+      return "An integer.";
     case "above": {
       const bound = `at most ${measure(refusal.bound, unit)}`;
       return refusal.by === undefined
@@ -273,7 +273,7 @@ export const ROUNDING_LINES: Readonly<Record<Mode, string>> = {
 
 /** The notation's rule, under its radios. */
 export const NOTATION_LINE =
-  "An exact value is written as a ratio of two whole numbers when the two have at most the width in digits between them, a whole number entire when it fits the width, and anything longer as a decimal; an inexact value is always a decimal.";
+  "An exact value is written as a ratio of two integers when the two have at most the width in digits between them, an integer entire when it fits the width, and anything longer as a decimal; an inexact value is always a decimal.";
 
 function capital(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);

@@ -223,7 +223,7 @@ test("a refusal names the bound and the setting that sets it", () => {
     line(MAX_SIGNIFICAND_LIMIT_BITS + 1, "significandLimitBits"),
     "At most 1,048,576 bits.",
   );
-  assert.equal(line(2.5, "displayDigits"), "A whole number.");
+  assert.equal(line(2.5, "displayDigits"), "An integer.");
 });
 
 test("a clamp's line says the move and the setting whose bound it was brought to", () => {

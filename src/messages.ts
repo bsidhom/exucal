@@ -239,15 +239,15 @@ function describeDomain(
     case "origin":
       return `both arguments are zero, and the origin has no direction`;
     case "notInteger":
-      return `${argument} is not a whole number, and ${fn} is defined only for whole numbers${factorialRemedy(name)}`;
+      return `${argument} is not an integer, and ${fn} is defined only for integers${factorialRemedy(name)}`;
     case "notExact":
-      return `${argument} is not known exactly, and ${fn} needs a whole number known exactly${factorialRemedy(name)}`;
+      return `${argument} is not known exactly, and ${fn} needs an integer known exactly${factorialRemedy(name)}`;
     case "negative":
       return name === "doublefactorial"
         ? `${argument} is below -1, and ${fn} is defined only from -1 up`
         : `${argument} is negative, and ${fn} is defined only from 0 up`;
     case "pole":
-      return `${argument} is a pole of ${fn}, which has one at zero and at every negative whole number`;
+      return `${argument} is a pole of ${fn}, which has one at zero and at every negative integer`;
     case "outsideZeroOne":
       return `${argument} lies outside [0, 1], where ${fn} is defined`;
   }
@@ -292,7 +292,7 @@ function domainValue(reason: DomainReason): string {
     case "origin":
       return "the origin";
     case "notInteger":
-      return "a value that is not a whole number";
+      return "a value that is not an integer";
     case "notExact":
       return "a value not known exactly";
     case "negative":

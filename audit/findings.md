@@ -6652,7 +6652,7 @@ link they write to the old name targets the new one.
 - Proposed canonical: D8: **whole number**, **whole-number power** in docs. V5: **integer** in devdocs, mapped once; the sheet's lines are user text and keep "whole number". D6, D7: both as §8 maps them ("regularized", "complement", "the median" uncontested).
 - Against §8/§12: consistent (§8 "whole number" row).
 - Proposed call: follow §8 as D8 and V5 propose.
-- Decision: Stands (§8).
+- Decision: Stands (§8). Amended by the owner on 2026-11-14 (plan §12.3): "integer" in both corpora; §8's row follows.
 
 #### F-453. "relation" for `=`, `≈` and the uncertified sign
 

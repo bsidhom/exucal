@@ -2616,8 +2616,10 @@ numerics through `divideBalls`, `powBall` and `rootBall`, which report
 it. The ball checks the kernel's preconditions, such as a positive
 interval under a root, before it calls the kernel. A failed internal
 assertion throws too, such as an exact result past the limit after its
-prediction allowed it. The one known breach of the rule is the root's
-verification, which throws ([Roots and powers](#roots-and-powers)).
+prediction allowed it. Two breaches of the rule are known. The root's
+verification throws ([Roots and powers](#roots-and-powers)). So does the
+table's lookup when the product of a prefix and a unit is refused
+([The lookup's throw](architecture.md#the-lookups-throw)).
 
 ## Formatting
 

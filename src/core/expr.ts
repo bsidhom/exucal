@@ -52,8 +52,8 @@
 // is lexical: no space between the name and the `(` makes a call, and a
 // space makes a product, so `kg (m/s)` is a product and `kg(m/s)` is a
 // call of `kg`, which the evaluator will reject. That is the one
-// whitespace-sensitive rule in the grammar (devdocs/functions.md,
-// "Alternatives considered", says why).
+// whitespace-sensitive rule in the grammar (devdocs/architecture.md,
+// "Expressions", says why).
 // A name directly followed by `(` is only a call: a plain name is read
 // only where no `(` follows it, so that a call whose argument list fails
 // is not read again as a name before a parenthesized factor, which cost

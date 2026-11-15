@@ -179,8 +179,8 @@ them:
   number is a mistake whether or not the user asked to convert between
   them.
 - **Richer UX** is new components that edit the same two strings or
-  read the table ([architecture.md](architecture.md), "Messages"):
-  autocomplete, unit buttons, highlighting from error spans.
+  read the table: autocomplete, unit buttons, highlighting from error
+  spans.
 
 ## Ruled out, and why
 

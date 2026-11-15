@@ -35,8 +35,8 @@ Two rules bind all of the code:
   that the input can cause is returned as a `Result`, a discriminated
   union of a value or an error, and each module defines its own error
   type. A throw marks a violated precondition, which is a bug and never
-  an input. Two breaches of that are known: a throw where a prefixed
-  unit near the exponent bound is resolved
+  an input. Two breaches of that are known: a throw where the product
+  of a prefix and a unit is refused
   ([The lookup's throw](#the-lookups-throw)), and a throw in the
   verification of a root ([Failures](numbers.md#failures)). The UI is a thin layer that
   calls into the core.
@@ -1245,27 +1245,29 @@ names. For most pairs the index holds none: `micro` extends `m` by
 ### The lookup's throw
 
 The table's lookup forms a prefixed unit as the prefix's factor times
-the unit's quantity, under the context it is given. The product can be
-refused at the exponent bound. The error type of the table's lookup has
-three cases: an unknown name, a function used as a unit, and a call of
-what is not a function. It has none for a refusal, so the lookup throws
-instead (`table.ts`).
+the unit's quantity, under the context it is given. That product can be
+refused, at the exponent bound or at the significand limit of the
+context. The error type of the table's lookup has three cases: an
+unknown name, a function used as a unit, and a call of what is not a
+function. It has none for a refusal, so the lookup throws instead
+(`table.ts`). That is a defect
+([#250](https://github.com/bsidhom/exucal/issues/250)).
 
-No input reaches the throw with the predefined definitions file, whose
-prefixes and units are nowhere near the exponent bound. A file could
-make it reachable by defining a unit within a prefix's factor of the
-bound. A user who then typed that unit with the prefix would reach it.
+No input reaches the throw with the predefined definitions file. Every
+prefix joined to every unit of the file resolves, at the default
+settings and at the least significand limit the settings allow. No test
+holds the file to that.
+
+A file can reach the throw with definitions that are valid at every
+setting. A unit `big 3^200 m` holds about 317 bits, and a prefix
+`yobi- 1024^8` adds 80. Their product passes the least significand
+limit, 358 bits, so `1 yobibig` throws at that setting and answers at
+the default.
 
 The build's own lookup differs. It reports the same product, refused, as
 an error at the reference that forms it. So a definition that itself
-writes such a prefixed form fails the build, and only a prefixed form
-that no definition writes can reach the throw.
-
-The breach is accepted while no definitions file can reach it. A file
-with a unit that near the bound needs the missing error case first.
-
-The significand limit is not the lookup's concern. The evaluator holds
-the product to that limit at the node that names the unit.
+writes a prefixed form whose product is refused fails the build. Only a
+prefixed form that a user types can reach the throw.
 
 ## UI
 

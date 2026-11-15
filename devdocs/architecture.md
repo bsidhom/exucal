@@ -1510,6 +1510,18 @@ a count of the unit the function's parameter takes, followed by that
 unit, as a want's unit is written. It writes nothing after the count
 when the unit is `1`, as for a parameter without an annotation.
 
+The line carries no note, which is a defect
+([#251](https://github.com/bsidhom/exucal/issues/251)). The outcome
+keeps the relation and the text of the recovered argument, and drops the
+note that `show`'s tag gives it. So a recovered argument that certifies
+fewer digits than asked, or that cannot be told from zero, is shown with
+`≈` and nothing to say which:
+
+| You type                     | Into    | Exucal shows                     |
+| ---------------------------- | ------- | -------------------------------- |
+| `(sqrt(2)^2 - 2) K`          |         | `≈ 0 K (within 4e-4049 of zero)` |
+| `(273.15 + sqrt(2)^2 - 2) K` | `tempC` | `≈ tempC(0)`                     |
+
 #### The reciprocal line
 
 [The reciprocal line](../docs/quantities.md#the-reciprocal-line) states

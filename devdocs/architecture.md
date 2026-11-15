@@ -692,15 +692,28 @@ not a parsing concept: every later function locates its errors with it.
 
 ### Three decisions of the parser
 
-**A call is decided by the text alone.** The parser cannot ask the table
-whether a name is a function, so the rule is lexical
+**A call is decided by the text alone.** The rule is lexical
 ([Calls and arity](../docs/expressions.md#calls-and-arity)). No space
 before the `(` makes a call, and a space makes a juxtaposition. So
 `kg (m/s)` is a product, and `kg(m/s)` is a call of `kg`, which the
-evaluator reports with a message that shows the product. That is the one
-rule of the grammar that depends on whitespace
-([Calls](functions.md#calls)). The count of arguments is the evaluator's
-to check, not the parser's.
+evaluator reports with a message that shows the product
+([Calls](functions.md#calls)). That is the one rule of the grammar that
+depends on whitespace, and it is a decision, made for two reasons:
+
+- The grammar stays free of context. A text parses to one tree whatever
+  the definitions file defines, so the parser needs no table of
+  functions.
+- The parser never backtracks at a `(`. The character before the `(`
+  says at once whether it opens the arguments of a call or a factor of a
+  juxtaposition.
+
+The alternative ruled out lets whitespace mean nothing there, so that
+`kg(m/s)` and `kg (m/s)` read alike. The parser would then need the
+table to tell a call from a product, or would try both readings, and a
+parse would cost more for it
+([Ordered choice, and what a parse costs](#ordered-choice-and-what-a-parse-costs)).
+
+The count of arguments is the evaluator's to check, not the parser's.
 
 **An exponent is kept as the literals it was written with.** An exponent
 is one literal, as in `m^0.5`, or a quotient of two, as in `m^(1/2)`. It

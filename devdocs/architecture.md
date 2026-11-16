@@ -701,10 +701,10 @@ six things:
 - A call. It holds the function's name, with a span of its own, and the
   arguments.
 
-Juxtaposition is its own operator in the tree, `juxtapose`. The evaluator multiplies it as it does `*`. The
-tree keeps the two apart so that the printer can write `2 m` back as it
-was read. A number is never negative in the tree: `-2` is the negation
-of `2`.
+Juxtaposition is its own operator in the tree, `juxtapose`. The
+evaluator multiplies it as it does `*`. The tree keeps the two apart so
+that the printer can write `2 m` back as it was read. A number is never
+negative in the tree: `-2` is the negation of `2`.
 
 Every node carries the span of the text it came from. An error found
 after parsing, an unknown unit or a mismatch, points back at the input

@@ -278,8 +278,9 @@ kilogram kelvin, and it parses as `(4184 J) / (kg K)`. If juxtaposition
 bound at the level of `*` and `/`, the text would parse from left to
 right, as `((4184 J) / kg) K`, with the kelvin in the numerator. The
 binding matters only where a denominator holds two or more factors side
-by side. Its price is a fraction before a unit, which takes the unit
-into its denominator ([Pitfalls](#pitfalls)).
+by side. The same rule has a price. In `1/2 in` the denominator is
+`2 in`, two factors side by side, so the text is half per inch and not
+half an inch ([Pitfalls](#pitfalls)).
 
 | You type          | Into      | Exucal shows            | Note                                          |
 | ----------------- | --------- | ----------------------- | --------------------------------------------- |

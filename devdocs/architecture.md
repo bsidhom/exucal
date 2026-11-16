@@ -179,15 +179,25 @@ The pipeline parses each text once and then evaluates in passes. A
 The loop goes on or ends by what each pass returns:
 
 - A result ends the loop when every value in it is exact or certified at
-  the display digits. A result that certifies fewer digits is kept, and
-  the next pass is tried.
-- Four errors continue to the next pass. Each says that the precision of
-  the pass could not decide something, which a later pass may decide:
+  the display digits, and the result assumes no condition of a function.
+- Any other result is kept as the best so far, and the next pass is
+  tried: a result that certifies fewer digits, or one that assumes a
+  condition the pass could not decide
+  ([A defined function](#a-defined-function)).
+- On four errors the loop continues to the next pass. Each says that the
+  precision of the pass could not decide something, which a later pass
+  may decide:
   - `unresolved`, in either text ([Numbers](#numbers)).
   - `unresolvedWant` ([Conversion](#conversion)).
   - `unresolvedBound` ([Conversion](#conversion)).
   - `undecidedCondition` ([A defined function](#a-defined-function)).
 - Every other error ends the loop.
+
+A loop that an error ends, or that reaches the ceiling, returns the best
+result it kept, or the last error when it kept none. One case differs.
+An error that ends the loop beats a kept result that assumed a
+condition, since more digits may have decided the condition against the
+argument.
 
 Each function's error keeps its own type. The pipeline adds only the
 side: it tags an error in a text with the field the text came from, have
@@ -542,15 +552,16 @@ nothing to `Quantity`. A call is a quantity like any other once the body
 has run, and the rest of the expression goes on as before.
 
 A call checks the function's conditions after the arguments conform and
-before the body runs. A condition that the pass cannot decide is assumed
-to hold, and the call goes on. Two things can follow:
+before the body runs. A condition that fails ends the call with an error
+that names it. A condition that the pass cannot decide is assumed to
+hold, and the call goes on. Two things can follow:
 
 - The body gives a value. The result is kept, and the retry loop tries
   the next pass, since more digits may decide the condition. If the
   condition is still undecided at the ceiling, the outcome shows the
   value with a **warning** that names the condition.
-- The body fails. The failure may be the assumption's and not the
-  argument's, so the error is an `undecidedCondition`, which carries the
+- The body fails. It may have failed only because the assumed condition
+  is false, so the error is an `undecidedCondition`, which carries the
   body's error. The retry loop continues on it.
 
 [An undecided condition](functions.md#an-undecided-condition) has the
@@ -663,11 +674,11 @@ the first factor of a juxtaposition, two factors written side by side. A
 property test keeps the two in step for those. It prints random trees
 (`src/testing/expr.ts`) and parses them back.
 
-Juxtaposition has a level of its own, `product` in `LEVELS`, between the
-negation and the power. [Operators](../docs/expressions.md#operators)
-gives the reason it binds tighter than `*` and `/`: a product of units
-in a denominator, as in `J / kg K`, needs no parentheses. The parser
-builds the level as one `many` over powers.
+Juxtaposition has a level of its own in that data, and no symbol. The
+code names its level `product`, and names the looser level of `*` and
+`/` `quotient`. [Operators](../docs/expressions.md#operators) gives the
+reason juxtaposition binds tighter than `*` and `/`: a product of units
+in a denominator, as in `J / kg K`, needs no parentheses.
 
 ### The tree
 
@@ -698,25 +709,24 @@ not a parsing concept: every later function locates its errors with it.
 ### Three decisions of the parser
 
 **A call is decided by the text alone.** The rule is lexical
-([Calls and arity](../docs/expressions.md#calls-and-arity)). No space
-before the `(` makes a call, and a space makes a juxtaposition. So
-`kg (m/s)` is a product, and `kg(m/s)` is a call of `kg`, which the
-evaluator reports with a message that shows the product
-([Calls](functions.md#calls)). That is the one rule of the grammar that
-depends on whitespace, and it is a decision, made for two reasons:
+([Calls and arity](../docs/expressions.md#calls-and-arity)). A name
+directly followed by `(` is a call, and a name followed by a space and
+`(` is a juxtaposition. So `kg (m/s)` is a product, and `kg(m/s)` is a
+call of `kg`, which the evaluator reports with a message that shows the
+product ([Calls](functions.md#calls)). Everywhere else a space between
+two tokens changes nothing. Here it changes the parse, and that is a
+decision, made for two reasons:
 
-- The grammar stays free of context. A text parses to one tree whatever
-  the definitions file defines, so the parser needs no table of
-  functions.
-- The parser never backtracks at a `(`. The character before the `(`
-  says at once whether it opens the arguments of a call or a factor of a
-  juxtaposition.
+- A text parses to one tree whatever the definitions file defines, so
+  the parser needs no table of functions.
+- The parser knows at once what a `(` opens. The character before it
+  says whether it opens the arguments of a call or a factor of a
+  juxtaposition, so the parser need not read the parentheses under one
+  reading and again under the other
+  ([Ordered choice, and what a parse costs](#ordered-choice-and-what-a-parse-costs)).
 
-The alternative ruled out lets whitespace mean nothing there, so that
-`kg(m/s)` and `kg (m/s)` read alike. The parser would then need the
-table to tell a call from a product, or would try both readings, and a
-parse would cost more for it
-([Ordered choice, and what a parse costs](#ordered-choice-and-what-a-parse-costs)).
+The alternative ruled out gives the space no meaning there, so that
+`kg(m/s)` and `kg (m/s)` read alike. It gives up both.
 
 The count of arguments is the evaluator's to check, not the parser's.
 
@@ -1271,10 +1281,11 @@ function. It has none for a refusal, so the lookup throws instead
 (`table.ts`). That is a defect
 ([#250](https://github.com/bsidhom/exucal/issues/250)).
 
-No input reaches the throw with the predefined definitions file. Every
-prefix joined to every unit of the file resolves, at the default
-settings and at the least significand limit the settings allow. No test
-holds the file to that.
+No input reaches the throw with the predefined definitions file as it
+stands. Every prefix joined to every unit of the file resolves at the
+least significand limit the settings allow, which is the worst case for
+the product, and none is near the exponent bound. No test checks that,
+so a unit added to the file is not covered.
 
 A file can reach the throw with definitions that are valid at every
 setting. A unit `big 3^200 m` holds about 317 bits, and a prefix
@@ -1283,9 +1294,12 @@ limit, 358 bits, so `1 yobibig` throws at that setting and answers at
 the default.
 
 The build's own lookup differs. It reports the same product, refused, as
-an error at the reference that forms it. So a definition that itself
-writes a prefixed form whose product is refused fails the build. Only a
-prefixed form that a user types can reach the throw.
+an error at the reference that forms it. So a definition that writes
+`yobibig` fails a build made at the least limit. A build made at a
+higher limit succeeds, and the table is not rebuilt when the significand
+limit alone is lowered ([The definitions](#the-definitions)). A function
+`f(x) = x yobibig` then reaches the table's lookup at a call, since a
+call evaluates the body afresh, and `f(1)` throws as `1 yobibig` does.
 
 ## UI
 
@@ -1345,10 +1359,11 @@ in `render`:
   would not change it.
 - The significand limit is not part of the key, although a build holds
   every exact result to it. A key needs the limit only if a change of
-  the limit can change the table, and it cannot. The predefined file
-  builds at the least limit the settings allow
+  the limit can change the table. For the predefined file it cannot: the
+  file builds at the least limit the settings allow
   (`MIN_SIGNIFICAND_LIMIT_BITS`, which `units.test.ts` checks), so it
-  builds to the same table at every limit.
+  builds to the same table at every limit. The key rests on that test. A
+  file that built only above some limit would need the limit in the key.
 
 `tableOf` gives the state of the table as a pure function: loading,
 failed or ready. When the fetch, the parse or the build fails, the shell
@@ -1499,25 +1514,28 @@ unsigned, so that the line parses back. The outcome does four things, in
 order:
 
 1. It asks `show` for the tag of each term before any rounding. The
-   relation of the line follows those tags. The rounded remainder would
-   give a worse answer: in a directed rounding mode, `roundTerms` puts
-   the remainder's midpoint exactly on a boundary between two roundings,
-   and `show` certifies one digit fewer of a value there.
+   relation of the line follows those tags, so it is `=` only when every
+   unrounded term is tagged `exact`. Asking after the rounding would
+   undercount the remainder's digits. In a directed rounding mode the
+   rounded midpoint lies exactly on a value of the display digits, and
+   the ball around it reaches to both sides of that value. The two ends
+   of the ball then round to different digits, and `show` certifies a
+   digit only when both ends round to it.
 2. It rounds the terms with `roundTerms`, at the digits the remainder
    certifies
    ([Rounding the terms as one sum](#rounding-the-terms-as-one-sum)).
    Under the ratio notation, an exact remainder that fits as a ratio is
    written entire, so nothing is rounded and nothing carries.
 3. It takes the line's note from the remainder's tag. That is the tag
-   it asked for first, unless the rounding carried into an earlier
-   unit. The remainder left after a carry is a new value, and the
-   outcome asks `show` for its tag afresh.
+   it asked for first, unless the rounding carried into an earlier unit.
+   After a carry the remainder is a different value, the little that is
+   left once the earlier unit took a whole, and the first tag no longer
+   describes it. So the outcome asks `show` for its tag afresh.
 4. It leaves out a term of zero. It also leaves out a last term that
-   cannot be told from zero, with its note. A sum of nothing but zeros
-   keeps its last term.
+   cannot be told from zero, and that term's note with it. A sum of
+   nothing but zeros keeps its last term.
 
-So the relation is `=` only when `show` tags every unrounded term
-`exact`. The counts carry no note.
+The counts carry no note.
 
 #### A function's line
 
@@ -1533,12 +1551,12 @@ The line carries no note, which is a defect
 keeps the relation and the text of the recovered argument, and drops the
 note that `show`'s tag gives it. So a recovered argument that certifies
 fewer digits than asked, or that cannot be told from zero, is shown with
-`≈` and nothing to say which:
+`≈` and no note. At the default settings:
 
-| You type                     | Into    | Exucal shows                     |
-| ---------------------------- | ------- | -------------------------------- |
-| `(sqrt(2)^2 - 2) K`          |         | `≈ 0 K (within 4e-4049 of zero)` |
-| `(273.15 + sqrt(2)^2 - 2) K` | `tempC` | `≈ tempC(0)`                     |
+| You type                     | Into    | Exucal shows                     | Note                                                 |
+| ---------------------------- | ------- | -------------------------------- | ---------------------------------------------------- |
+| `(sqrt(2)^2 - 2) K`          |         | `≈ 0 K (within 4e-4049 of zero)` | a value that cannot be told from zero, with its note |
+| `(273.15 + sqrt(2)^2 - 2) K` | `tempC` | `≈ tempC(0)`                     | the recovered argument is that value, with no note   |
 
 #### The reciprocal line
 

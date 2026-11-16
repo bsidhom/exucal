@@ -648,6 +648,29 @@ hand-maintained form of the grammar, and none of it is repeated here.
 The user docs say "number" where the code says **literal**, and both
 words name a decimal as it is typed.
 
+### Why juxtaposition binds tighter than `*` and `/`
+
+Juxtaposition, writing two factors side by side, binds tighter than `*`
+and `/`. The reason is a product of units in a denominator. Units are
+written that way on paper, and the tighter binding lets them be typed
+that way, with no parentheses. The specific heat of water is
+`4184 J / kg K`, joules per kilogram kelvin:
+
+| You type          | It parses as        | Exucal shows         |
+| ----------------- | ------------------- | -------------------- |
+| `4184 J / kg K`   | `(4184 J) / (kg K)` | `= 4184 m^2 / s^2 K` |
+| `(4184 J / kg) K` | `((4184 J) / kg) K` | `= 4184 m^2 K / s^2` |
+
+With juxtaposition at the level of `*` and `/`, the first text would
+parse left to right, as the second does, and put the kelvin in the
+numerator. The binding matters only where a denominator holds two or
+more juxtaposed factors. Everywhere else a parse from left to right
+gives the same tree.
+
+The decision has a price, which the user docs list among the pitfalls: a
+fraction before a unit takes the unit into its denominator, so `1/2 in`
+is `1 / (2 in)` ([Pitfalls](../docs/expressions.md#pitfalls)).
+
 ### What the parser and the printer share
 
 The binary operators are data in `expr.ts`. `BINARY` gives each operator
@@ -678,8 +701,7 @@ six things:
 - A call. It holds the function's name, with a span of its own, and the
   arguments.
 
-Juxtaposition, writing two factors side by side, is its own operator in
-the tree, `juxtapose`. The evaluator multiplies it as it does `*`. The
+Juxtaposition is its own operator in the tree, `juxtapose`. The evaluator multiplies it as it does `*`. The
 tree keeps the two apart so that the printer can write `2 m` back as it
 was read. A number is never negative in the tree: `-2` is the negation
 of `2`.

@@ -43,9 +43,11 @@ These words are used in a particular sense:
   loading.
 - A **rejection** is the definitions parser's error for text that it
   read and does not accept. It carries the span of the text at fault,
-  the offsets of that text, so "rejected at" names the text. An error of
-  the build is a build error. The name an error has in the code follows
-  it in parentheses, as in (`duplicate`).
+  the offsets of that text, so "rejected at" names the text. The parser
+  raises a rejection as it reads the file. The build raises a build
+  error afterwards, from the parsed definitions. Either keeps the file
+  from loading. The name an error has in the code follows it in
+  parentheses, as in (`duplicate`).
 - A **plain number** is a dimensionless quantity: one with neither a
   dimension nor a kind.
 - A scalar is a `Ball`: a midpoint and a radius that bounds the error of
@@ -55,16 +57,19 @@ These words are used in a particular sense:
   passes at rising precision, up to the **ceiling**, the highest
   precision any pass computes at
   ([Passes and errors](architecture.md#passes-and-errors)).
+- The pipeline is the code that parses, evaluates and converts the two
+  texts (`pipeline.ts`). The outcome is the module that composes the
+  output lines from the pipeline's result (`src/outcome.ts`).
 
 The design rests on these decisions, each described in the section
 linked:
 
-- **The head of a line decides its grammar, from the text alone.** The
-  parser never consults the table ([Definitions](#definitions)).
+- **The start of a definition decides which form it is, from the text alone.**
+  The parser never consults the table ([Definitions](#definitions)).
 - **An annotation checks a dimension and changes no value.** The want
   chooses the unit a result is written in, never the head
   ([Annotations](#annotations)).
-- **A parameter may shadow a unit, except a unit that its own head names.**
+- **A parameter may shadow a unit, except a unit that an annotation of its own head names.**
   A definition may not take a built-in's name
   ([Names and shadowing](#names-and-shadowing)).
 - **A condition is a chain of comparisons, and each comparison holds, fails or is undecided.**
@@ -73,14 +78,13 @@ linked:
 - **An undecided condition is assumed to hold, and the value is shown with a warning.**
   The retry loop tries more digits first
   ([An undecided condition](#an-undecided-condition)).
-- **A call evaluates each argument once, and its body at every call.**
-  Each argument is checked as soon as it is evaluated
+- **A call evaluates each argument once and keeps nothing for the next call**
   ([Calls](#calls)).
 - **A conversion into a function applies the inverse, then checks it by applying the function back.**
   The check refutes a wrong answer and does not prove the inverse
   ([A function as the want](#a-function-as-the-want),
   [Display](#display)).
-- **The build checks a function over dimensions alone and never evaluates its body**
+- **The build checks a function over dimensions alone, without evaluating its body**
   ([Build-time checks](#build-time-checks)).
 - **A call costs what its body costs, typed out in its place.** The
   arithmetic needs nothing new for functions
@@ -136,8 +140,8 @@ annotation := a unit expression ("Annotations")
 
 ### The head
 
-- **The head decides the grammar of the line.** A definition that starts
-  with `~` is an inverse. A name directly followed by `(` is a function,
+- **The start of a definition decides its form.** A definition that
+  starts with `~` is an inverse. A name directly followed by `(` is a function,
   with no space between the two, as in a call. A name directly followed
   by `[` is rejected (`unsupported`): the bracket is reserved for
   dimension variables, which are future work
@@ -164,18 +168,16 @@ of the line and what each loses.
 
 - **A function has any number of parameters, none included.** A call
   binds them by position.
-- **A function of no parameters is evaluated at every call.**
-  `twopi() = 2 pi()` is called with empty parentheses, as `pi()` is. It
-  differs from a unit of the same body, `twopi 2 pi()`, in when it is
-  evaluated. The build evaluates a unit once, at the ceiling. Every call
+- **A function of no parameters differs from a unit in when it is evaluated.**
+  `twopi() = 2 pi()` is called with empty parentheses, as `pi()` is. A
+  unit of the same body is written `twopi 2 pi()`. The build evaluates a
+  unit once, at the ceiling. Every call
   evaluates the body again, at the working precision of its pass. So a
   function of no parameters names a computed constant without fixing its
   value in the table.
 - **A parameter without an annotation takes a plain number.** `x: 1`
-  says the same explicitly. The table gives a parameter without an
-  annotation the annotation `1` too. So the code that writes an argument
-  meets one case for both, an annotation whose text is `1`
-  ([Display](#display)).
+  says the same explicitly, and the table gives a parameter without an
+  annotation the annotation `1` too.
 - **The result's annotation is optional.** Without one, the build infers
   the result's dimension from the body. With one, the build also checks
   the inferred dimension against it ([Annotations](#annotations),
@@ -186,8 +188,8 @@ of the line and what each loses.
 `~name(p) = body` defines the inverse of `name`. It is optional, and a
 function without one cannot be the want. The inverse's parameter stands
 for a value of the function, so its dimension is the function's result
-dimension. That dimension is known, so the parameter takes no
-annotation, and one written there is rejected (`inverseAnnotation`). The
+dimension. An annotation there could only repeat that dimension or
+contradict it, and one written is rejected (`inverseAnnotation`). The
 parameter may take conditions.
 
 The two lines may stand anywhere in the file, as every definition may.
@@ -230,21 +232,21 @@ no conversion step.
 ### The result has a dimension, not a unit
 
 The result's annotation is a check as well. The want chooses the unit a
-value is written in, as for any value, and a blank want writes the
+value is written in, as for any value, and a blank want gives the
 primitives. Say the file defines:
 
 ```
 pressure(force: lbf, area: in^2): psi = force / area
 ```
 
-| You type                    | Into  | Exucal shows             | Note                               |
-| --------------------------- | ----- | ------------------------ | ---------------------------------- |
-| `pressure(100 lbf, 4 in^2)` |       | `≈ 172368.93 kg / m s^2` | a blank want writes the primitives |
-| `pressure(100 lbf, 4 in^2)` | `psi` | `= 25 psi`               | the want chooses the unit          |
+| You type                    | Into  | Exucal shows             | Note                              |
+| --------------------------- | ----- | ------------------------ | --------------------------------- |
+| `pressure(100 lbf, 4 in^2)` |       | `≈ 172368.93 kg / m s^2` | a blank want gives the primitives |
+| `pressure(100 lbf, 4 in^2)` | `psi` | `= 25 psi`               | the want chooses the unit         |
 
-The first row surprises a reader of the head, and it is the design. The
-result of a call cannot remember its annotation, so the want writes
-every value. Showing a lone call's value
+The first row surprises a reader of the head, and it is the design. A
+call evaluates to a `Quantity`, which holds no unit, so the result's
+annotation does not reach the display. Showing a lone call's value
 in the unit of its result's annotation is future work
 ([Extensions that fit](future.md#extensions-that-fit)).
 
@@ -371,12 +373,12 @@ alone:
 - **A parameter named twice**, `f(x, x)`, is rejected at its second
   occurrence (`duplicateParameter`). No rule could say which one the
   body means.
-- **A parameter named like a unit that its own head uses** is rejected
-  at the annotation's use of the name (`parameterNamesUnit`). In
-  `kinetic(m: kg, v: m/s) = m v^2 / 2`, the head's `m` is the meter and
-  the body's `m` is the mass. The name has one meaning in each place,
-  but the line reads both ways. The rejection carries the parameter's
-  name.
+- **A parameter named like a unit that an annotation of its own head names**
+  is rejected at the annotation's use of the name
+  (`parameterNamesUnit`). In `kinetic(m: kg, v: m/s) = m v^2 / 2`, the
+  `m` of `m/s` is the meter and the `m` of the body is the mass. Each
+  has one meaning by the rule above, but a reader sees one name mean two
+  things on one line. The rejection carries the parameter's name.
 
 The second case fires only when an annotation names the unit, and an
 annotation can name only a unit that exists. So a unit added to the file
@@ -408,11 +410,10 @@ states when a comparison is decided.
   condition on an expression, as `abs(x) >= 1` is.
 - **There is no equality and no `!=`.** The four comparisons are
   orderings, and `=` ends the head. Both operators are future work
-  ([Extensions that fit](future.md#extensions-that-fit)). A design for
-  them meets one constraint. Two exact values can be found equal. An
-  inexact value cannot: its ball can be found apart from another or
-  found to overlap it, and never found equal to it. So an equality
-  condition is undecided for every inexact argument.
+  ([Extensions that fit](future.md#extensions-that-fit)). An equality
+  condition could never be decided for an inexact argument: a ball can
+  be found apart from another or found to overlap it, and never found
+  equal to it.
 - **A term is any expression**, calls of the built-ins and of other
   defined functions included. Those calls check their own conditions in
   turn. A unit list is not an expression, and neither is a comparison.
@@ -455,11 +456,6 @@ A call checks its conditions after the arguments conform and before the
 body (`checkConditions` in `evaluate.ts`). It evaluates each condition's
 terms on balls, with the parameters bound to the arguments.
 
-The terms are no part of a displayed value. So where decimal mode has
-extended working digits, it rounds the terms to the working digits, as
-it rounds every step but the last
-([The working digits](numbers.md#the-working-digits)).
-
 `decide` compares each adjacent pair of terms and gives a **verdict**:
 the comparison holds, fails or is undecided. "Holds" and "fails" are
 certain, true of every value within the two balls. A comparison is
@@ -481,8 +477,9 @@ case:
 - **A term that cannot be computed after an undecided comparison leaves its condition undecided.**
   An earlier condition may be a guard. In `| x > 0, ln(x) > 1`, a
   negative argument certainly fails the first condition, and `ln` is
-  never reached. When the first condition is undecided, `ln(x)` may fail
-  only for an argument that the guard excludes, so the failure decides
+  never reached. When the first condition is undecided, the argument's
+  ball reaches below zero, and `ln` cannot be computed on it. The values
+  it fails on are the ones the guard excludes, so the failure decides
   nothing.
 - **An undecided condition is assumed to hold, and the check goes on.**
   The call records an **assumption** for the condition: the function's
@@ -495,17 +492,18 @@ A comparison is decided on the two balls, with no tolerance. Both sides
 conformed at build, and a quantity's scalar is held in the primitives,
 so the two scalars compare directly: `x > 30 cm` holds for `1 ft`.
 
-`orderOf` in `ball.ts` places the left side against the right
-([Comparison](numbers.md#comparison) has the mechanism):
+`orderOf` in `ball.ts` finds where the left side lies against the right,
+in three cases ([Comparison](numbers.md#comparison) has the mechanism of
+each):
 
 - Two exact values are compared exactly and always decide, the bound
   included. The condition `x >= -273.15` holds for the argument
   `-273.15`. A condition `x <= 0.3` holds for `0.1 + 0.2`, since the sum
   is exactly `0.3`.
-- An inexact value is placed against an exact one directly, as a ball
-  against a point (`position`).
+- An inexact value is compared with an exact one directly, as a ball
+  with a point (`position`).
 - Two inexact values are compared through their difference, which is
-  placed against zero. The difference is formed even where the two are
+  compared with zero. The difference is formed even where the two are
   too far apart in size to subtract within the significand limit: the
   smaller is then absorbed into the radius of the larger. Only the
   exponent bound keeps a difference from being formed. A difference that
@@ -529,20 +527,24 @@ difference and the right side is zero:
 | `straddles`: reaching across it, or of unbounded radius | undecided | undecided | undecided | undecided |
 
 A ball is closed, so an end that lies exactly on the other value leaves
-equality possible. An inexact value at its bound therefore never makes a
-strict comparison hold. It makes a non-strict comparison hold only when
-its ball ends exactly on the bound, from the side the comparison admits.
-`approx` is the one operation whose purpose is to make a value inexact.
-The ball of `approx(-273.15)` straddles `-273.15`, so
-`tempC(approx(-273.15))` stays undecided up to the ceiling.
+equality possible. An inexact argument that equals a condition's bound
+therefore never makes a strict comparison hold. It makes a non-strict
+comparison hold only when its ball ends exactly on the bound, from the
+side the comparison admits. `approx`, the one operation whose purpose is
+to make a value inexact, gives such an argument: the ball of
+`approx(-273.15)` straddles `-273.15`, so `tempC(approx(-273.15))` stays
+undecided up to the ceiling.
 
 In decimal mode every value is exact. Every comparison decides there,
-and no condition is undecided.
+and no condition is undecided. A condition's terms are no part of a
+displayed value. So where decimal mode has extended working digits, it
+rounds the terms to the working digits, as it rounds every step but the
+last ([The working digits](numbers.md#the-working-digits)).
 
 ### An undecided condition
 
 [Functions](../docs/definitions.md#functions) states what a user sees
-when a condition cannot be decided. The decision rests on how a
+when a condition cannot be decided. Showing the value rests on how a
 condition differs from a built-in's edge. At an edge the value jumps or
 does not exist, so a guess would be a wrong value, and
 `floor(sqrt(2)^2)` is an error. A condition restricts a body that
@@ -577,9 +579,8 @@ A body that fails under no assumption is a `callFailed`.
 
 #### The warning at the ceiling
 
-The outcome is the module that composes the output lines
-(`src/outcome.ts`). If an assumption remains at the ceiling, the outcome
-shows the value all the same:
+If an assumption remains at the ceiling, the outcome shows the value all
+the same:
 
 - Every line's relation, `=` or `≈`, becomes `≈`, whatever its digits.
 - A **warning** beside the lines names each assumed condition, one
@@ -588,7 +589,8 @@ shows the value all the same:
 A warning is not a note, the remark on digits that follows a line. The
 converter, the component of the two fields, styles a warning differently
 from a note, so that it is not read as one. A warning belongs to the whole
-answer and not to one line, so every output mode carries it alike.
+answer and not to one line. So every output mode carries it alike,
+whether the answer is a ratio, a sum, a call or the primitives.
 
 Say the file defines these two functions. The table shows them at the
 default settings:
@@ -659,14 +661,19 @@ Conditions restrict arguments only. The build checks a function's result
 for its dimension. Nothing checks the result's value against a range, at
 the call or anywhere downstream.
 
-A condition on an argument checks what a caller passes against what the
-author admits. A condition on a result would check the author's body
-against the author's own claim, at every call. Nothing else would act on
-it. No part of the evaluator narrows a value by what is known of its
-range, and a value's ball is all that the rest of an expression learns
-of it. A built-in can use what it knows of its own range, in its own
-code. A defined function is a composition and has no such code. For that
-reason the `range=` clause of GNU units has no counterpart. Ranges that
+A condition on a result is ruled out for two reasons:
+
+- It would check the author's body against the author's own claim, at
+  every call, on a ball, where it could be undecided. The check of a
+  result's dimension is a check of the same sort, made once, at build,
+  for every argument at once.
+- Nothing would use the range. No part of the evaluator narrows a value
+  by what is known of its range, and a value's ball is all that the rest
+  of an expression learns of it. A built-in can use what it knows of its
+  own range, in its own code. A defined function is a composition and
+  has no such code.
+
+The `range=` clause of GNU units has no counterpart here. Ranges that
 narrow a result's ball are future work
 ([Extensions that fit](future.md#extensions-that-fit)).
 
@@ -733,13 +740,12 @@ or inferred it once.
 [Conversion into a function](../docs/quantities.md#conversion-into-a-function)
 states what the conversion answers with and the checks a user meets.
 
-The pipeline is the code that parses, evaluates and converts the two
-texts (`pipeline.ts`). It looks a want of one bare name up among the
-defined lists, then among the defined functions, and otherwise evaluates
-it as an expression
-([The output modes](architecture.md#the-output-modes)). The three share
-a namespace, so at most one reading applies. For a function, each pass
-takes these steps (`convertToFunction`):
+For a want of one bare name, the pipeline first looks among the defined
+lists, then among the defined functions. It evaluates any other want as
+an expression ([The output modes](architecture.md#the-output-modes)). A
+list, a function and a unit cannot share a name, so the order changes
+nothing. For a function, each pass takes these steps
+(`convertToFunction`):
 
 1. The function must have an inverse. A function without one is a
    `noInverse` on the want side.
@@ -758,7 +764,7 @@ takes these steps (`convertToFunction`):
    A value certainly other than the have is an `inverseMismatch` on the
    want side, and so is a failure of the function's body there. Two
    exact values are compared exactly. Any other two certainly differ
-   when their difference lies wholly on one side of zero.
+   when their difference lies wholly on one side of zero (`disjoint`).
 7. The count is computed: the recovered argument divided by the value
    of the parameter's annotation.
 
@@ -770,9 +776,10 @@ an inverse:
 ```
 
 The count is the one value shown, so it is the last step of the
-conversion, and steps 3 to 6 compute its operands. Where decimal mode
-has extended working digits, it therefore rounds steps 3 to 6 to the
-working digits and the count to the display digits
+conversion. Steps 3 to 6 compute and check its operand, the recovered
+argument. Where decimal mode has extended working digits, it therefore
+rounds steps 3 to 6 to the working digits and the count to the display
+digits
 ([The working digits](numbers.md#the-working-digits)).
 
 Applying and inverting are one operation, a body evaluated under a
@@ -780,8 +787,8 @@ binding, which `applyFunction` and `invertFunction` share.
 
 ### The check of the inverse
 
-Step 6 checks the one part of a definition that the build cannot: that
-an inverse inverts. The check refutes a wrong answer. It does not prove
+Step 6 checks at a conversion what no check at build can: that an
+inverse inverts. The check refutes a wrong answer. It does not prove
 that the inverse inverts:
 
 - If the function's value at the recovered argument lies wholly apart
@@ -885,11 +892,13 @@ in `outcome.ts`):
 - The argument is the count, written as any value is, at the display
   digits and in the rounding mode.
 - The annotation follows the count, as a unit follows its number:
-  `2 in`. The printer writes the annotation back from its expression, as
-  it writes a want, so an annotation written `(in)` shows as `in`.
-- An annotation whose text is `1` adds no unit, so a plain number's
-  argument is bare. The outcome tests the text for this and reads it for
-  nothing else.
+  `2 in`. The printer, which writes an expression back as text, writes
+  the annotation from its expression, as it writes a want. So an
+  annotation written `(in)` shows as `in`.
+- An annotation whose text is `1` adds no unit, so an argument that is a
+  plain number is written bare. A parameter without an annotation has
+  the annotation `1` in the table, so the one test covers both. The
+  outcome reads the text for nothing else.
 - The line takes the count's relation: `=` when the count shows exactly
   at the display digits, as for any value.
 - Under the ratio notation an exact count may be a ratio. A ratio is
@@ -924,9 +933,9 @@ checked in a fixed order, and the first failure ends the build.
 
 ### A function
 
-The build handles a definition when another first needs it, not when
-the file's order reaches it: it evaluates a unit and checks a function.
-That mechanism is the walk ([The walk](architecture.md#the-walk)). A
+The build evaluates a unit and checks a function when another definition
+first needs it, or else when the file's order reaches it. That mechanism
+is the walk ([The walk](architecture.md#the-walk)). A
 function is an entry of the walk. So a unit may be defined by a call, a
 body may call another function, and a cycle through a function is
 reported like any other. Checking a function takes four steps:
@@ -949,8 +958,9 @@ through the walk's own lookup:
 
 - A number is dimensionless.
 - A unit is its dimension.
-- A sum checks that its operands conform.
-- A product combines, and a power raises.
+- A sum's operands must conform.
+- A product has the product of its factors' dimensions, and a power has
+  its base's dimension raised to the exponent.
 - A call checks the number of its arguments and applies the callee's
   rule: a defined function's annotations, or a built-in's dimension
   rule.
@@ -991,13 +1001,15 @@ The checked inverses are attached to their functions at the end of the
 build. The table holds each function as `UnitFunction` in `table.ts`,
 and [The walk](architecture.md#the-walk) lists what that holds.
 
-### No function's body is evaluated
+### The check evaluates no body
 
-The build never evaluates the body of a function or of an inverse. A
-body that fails at some value, or at every value, builds and fails at
-the call that reaches it. `ln(x - 1)`, `asin(x + 1)` and `1 / ln(x)`
-each fail at some value, and each is a fine function. Evaluating a body
-at a value chosen by the build would reject such functions.
+The check of a function or of an inverse never evaluates the body. The
+build runs a body only where a definition that it evaluates, such as a
+unit's, calls the function. A body that fails at some value, or at every
+value, builds and fails at the call that reaches it. `ln(x - 1)`,
+`asin(x + 1)` and `1 / ln(x)` each fail at some value, and each is a
+fine function. Evaluating a body at a value chosen by the build would
+reject such functions.
 
 Of the numbers in a body, the build holds only a `^` exponent to the
 significand limit:
@@ -1018,8 +1030,9 @@ significand limit:
 [Functions](../docs/definitions.md#functions) states what a call costs a
 user, and
 [Identities and cancellation](../docs/numbers.md#identities-and-cancellation)
-gives the examples: a parameter used twice, and a function written by
-hand in place of a built-in.
+gives the examples: a parameter used twice, which reads one ball as two
+independent values, and a function written by hand in place of a
+built-in.
 
 A defined function's value is its body's value as an expression, and the
 machinery that certifies an expression certifies it:
@@ -1035,17 +1048,14 @@ machinery that certifies an expression certifies it:
 
 A definition can add no operation of its own: no series and no loop. It
 can only compose operations that already bound their own error, so
-certifying a call needs no new rule for the radius. Four consequences
-follow:
+certifying a call needs no new rule for the radius. Three things hold
+for a call as they hold for its body typed out:
 
 - **Calls are not memoized.** A body that calls a function twice
   evaluates it twice. Nesting such calls `k` levels deep evaluates the
   innermost `2^k` times, at every pass. The same expression written out
   in full costs as much, so a call sets no new limit. A definition that
   reads small can still be large.
-- **A parameter used twice is two occurrences of one ball.** Each use
-  reads the ball as an independent value, which is the dependency
-  problem of interval arithmetic.
 - **A composition rounds at every operation.** A built-in is one routine
   of the kernel, the layer that computes the inexact functions
   ([The kernel](numbers.md#the-kernel)). The routine computes with as
@@ -1164,7 +1174,7 @@ A temperature reading could be a unit with an offset, held in
 `Quantity`.
 [Temperature and logarithmic levels as functions](../docs/quantities.md#temperature-and-logarithmic-levels-as-functions)
 gives the reason a user needs: every operation would need a rule for an
-offset. The mechanism shows how many. `Quantity` holds a scalar and a
+offset. `Quantity` holds a scalar and a
 dimension and nothing else, so each operation on quantities is the arithmetic of
 balls with a rule for dimensions. An offset would be a third part, with
 a rule of its own in sums, products, powers, conversion and every

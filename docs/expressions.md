@@ -271,13 +271,25 @@ first factor, a count of what follows, so `m 2`, `2 3 m` and
 with `*` or with parentheses, `2 * 3` or `2 (3)`, and five feet three
 inches is `5 ft + 3 in`.
 
-| You type    | Into | Exucal shows            | Note                                          |
-| ----------- | ---- | ----------------------- | --------------------------------------------- |
-| `2 m`       |      | `= 2 m`                 | a count of a unit                             |
-| `kg m`      |      | `= 1 m kg`              | a product of units, written in the primitives |
-| `m 2`       |      | an error as it is typed | a number only as the first factor             |
-| `5 ft 3 in` |      | an error as it is typed | write `5 ft + 3 in`                           |
-| `2 (3)`     |      | `= 6`                   | two numbers multiplied                        |
+Juxtaposition binds tighter than `*` and `/` so that a product of units
+in a denominator can be typed the way it is written on paper, with no
+parentheses. The specific heat of water is `4184 J / kg K`, joules per
+kilogram kelvin, and it parses as `(4184 J) / (kg K)`. If juxtaposition
+bound at the level of `*` and `/`, the text would parse from left to
+right, as `((4184 J) / kg) K`, with the kelvin in the numerator. The
+binding matters only where a denominator holds two or more factors side
+by side. Its price is a fraction before a unit, which takes the unit
+into its denominator ([Pitfalls](#pitfalls)).
+
+| You type          | Into      | Exucal shows            | Note                                          |
+| ----------------- | --------- | ----------------------- | --------------------------------------------- |
+| `2 m`             |           | `= 2 m`                 | a count of a unit                             |
+| `kg m`            |           | `= 1 m kg`              | a product of units, written in the primitives |
+| `m 2`             |           | an error as it is typed | a number only as the first factor             |
+| `5 ft 3 in`       |           | an error as it is typed | write `5 ft + 3 in`                           |
+| `2 (3)`           |           | `= 6`                   | two numbers multiplied                        |
+| `4184 J / kg K`   | `J / g K` | `= 4.184 J / g K`       | `(4184 J) / (kg K)`                           |
+| `(4184 J / kg) K` |           | `= 4184 m^2 K / s^2`    | the kelvin in the numerator                   |
 
 ### `^`
 

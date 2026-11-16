@@ -1509,9 +1509,9 @@ order:
    Under the ratio notation, an exact remainder that fits as a ratio is
    written entire, so nothing is rounded and nothing carries.
 3. It takes the line's note from the remainder's tag. That is the tag
-   it asked for first, unless the rounding carried into an earlier unit. The
-   remainder left after a carry is a new value, and the outcome asks
-   `show` for its tag afresh.
+   it asked for first, unless the rounding carried into an earlier
+   unit. The remainder left after a carry is a new value, and the
+   outcome asks `show` for its tag afresh.
 4. It leaves out a term of zero. It also leaves out a last term that
    cannot be told from zero, with its note. A sum of nothing but zeros
    keeps its last term.

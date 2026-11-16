@@ -1363,7 +1363,9 @@ in `render`:
   file builds at the least limit the settings allow
   (`MIN_SIGNIFICAND_LIMIT_BITS`, which `units.test.ts` checks), so it
   builds to the same table at every limit. The key rests on that test. A
-  file that built only above some limit would need the limit in the key.
+  file that built only above some limit would leave a table whose units
+  pass a lowered limit, which is a defect for any file but the shipped
+  one ([#254](https://github.com/bsidhom/exucal/issues/254)).
 
 `tableOf` gives the state of the table as a pure function: loading,
 failed or ready. When the fetch, the parse or the build fails, the shell

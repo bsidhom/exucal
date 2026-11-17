@@ -314,13 +314,11 @@ is decided at the ceiling, so its answer depends on a setting
 
 Three other readings are set aside:
 
-- **A parameter bound to its number in the annotated unit**, as the
-  `units=` clause of [GNU units](https://www.gnu.org/software/units/)
-  reads: `w: kg` would make `w` the number `w / kg`. That matches how
-  empirical formulas are printed. But changing `kg` to `lb` would
-  silently change the function, and the body would lose its dimension
-  checks. `w / kg` in the body is explicit and survives either
-  annotation.
+- **A parameter bound to its number in the annotated unit.** `w: kg`
+  would make `w` the number `w / kg`. That matches how empirical
+  formulas are printed. But changing `kg` to `lb` would silently change
+  the function, and the body would lose its dimension checks. `w / kg`
+  in the body is explicit and survives either annotation.
 - **An argument required in exactly the annotated unit.** It cannot be
   checked, since a quantity carries no unit.
 - **A result shown in a unit built from the parameters' annotations.**
@@ -683,8 +681,7 @@ A condition on a result is ruled out for two reasons:
   own range, in its own code. A defined function is a composition and
   has no such code.
 
-The `range=` clause of GNU units has no counterpart here. Ranges that
-narrow a result's ball are future work
+Ranges that narrow a result's ball are future work
 ([Extensions that fit](future.md#extensions-that-fit)).
 
 ## Calls
@@ -1173,9 +1170,8 @@ is set aside for what it loses.
 - **Annotated signatures with the inverse after a `;`.** The function's
   own name still stands for its value there, so one name means two
   things on the line. The inverse also crowds the line.
-- **Keyword clauses**, as GNU units writes them,
-  `units=[…] domain=[…]`. They lengthen every line and add ways to get
-  one wrong.
+- **Keyword clauses**, `units=[…] domain=[…]`. They lengthen every line
+  and add ways to get one wrong.
 - **A multi-line block.** It makes the file sensitive to indentation for
   one form of definition.
 

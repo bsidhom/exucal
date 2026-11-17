@@ -1095,11 +1095,6 @@ definition takes a built-in's name
   ([The grammar of a condition](#the-grammar-of-a-condition)).
 - **A condition on a result's value**
   ([No condition on a result](#no-condition-on-a-result)).
-- **Optional parameters and defaults.** A call gives exactly as many
-  arguments as the function has parameters, so a wrong number is always
-  an error at the call. A function that fixes an argument of another is
-  a second definition, as `cube(x) = power(x, 3)` is beside
-  `power(x, n)`.
 - **A built-in defined in the file.** A definition of a built-in's name
   would need a rule for which of the two a call means. It is a
   `duplicate` instead ([A function's name](#a-functions-name)).

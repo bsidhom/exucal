@@ -260,6 +260,10 @@ dimension: `kinetic` gives an energy, which converts into `J`, `kcal` or
 
 ### An annotation is a unit expression
 
+An annotation only checks conformance. So nothing in an annotation may
+read as something that will be applied: not a scale, and not an
+operation. Every limit below follows from that.
+
 An annotation is the expression grammar restricted to these:
 
 - unit names, prefixed or not;
@@ -297,10 +301,11 @@ the annotation's value ([Display](#display)). So `2 ft` into `twelve` is
 
 The count is a quotient, so an annotation must be certainly nonzero. An
 annotation whose value is zero, or cannot be told from zero, is a build
-error (`zeroDeclaredUnit`). The same rule holds for the result's
-annotation. An annotation names units only, so the check can fail only
-through a unit of the file: one defined as zero, or one defined as an
-inexact value around zero.
+error (`zeroDeclaredUnit`). The result's annotation is held to the same
+rule, so that one rule covers an annotation in either position. An
+annotation names units only, so the check can fail only through a unit
+of the file: one defined as zero, or one defined as an inexact value
+around zero.
 
 ### Other readings of an annotation
 

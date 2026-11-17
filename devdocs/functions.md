@@ -1099,7 +1099,14 @@ for a call as they hold for its body typed out:
   evaluates it twice. Nesting such calls `k` levels deep evaluates the
   innermost `2^k` times, at every pass. The same expression written out
   in full costs as much, so a call sets no new limit. A definition that
-  reads small can still be large.
+  reads small can still be large. A memo is ruled out for two reasons:
+  - A memo of calls would need a policy for what it keeps and what it
+    evicts. The memos that the core does keep need none: each holds one
+    value, and the ceiling fixes its size
+    ([Memoized constants](numbers.md#memoized-constants)).
+  - Treating two calls in one expression as one value is a step into
+    symbolic calculation, which the design does not take on
+    ([Symbolic values](future.md#symbolic-values)).
 - **A composition rounds at every operation.** A built-in is one routine
   of the kernel, the layer that computes the inexact functions
   ([The kernel](numbers.md#the-kernel)). The routine computes with as
@@ -1137,6 +1144,8 @@ definition takes a built-in's name
   ([The grammar of a condition](#the-grammar-of-a-condition)).
 - **A condition on a result's value**
   ([No condition on a result](#no-condition-on-a-result)).
+- **A memo of calls**
+  ([Precision, the radius and cost](#precision-the-radius-and-cost)).
 - **A built-in defined in the file.** A definition of a built-in's name
   would need a rule for which of the two a call means. It is a
   `duplicate` instead ([A function's name](#a-functions-name)).

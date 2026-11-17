@@ -305,7 +305,8 @@ error (`zeroDeclaredUnit`). The result's annotation is held to the same
 rule, so that one rule covers an annotation in either position. An
 annotation names units only, so the check can fail only through a unit
 of the file: one defined as zero, or one defined as an inexact value
-around zero.
+around zero. The build accepts the definition of such a unit, which is a
+defect ([#221](https://github.com/bsidhom/exucal/issues/221)).
 
 ### Other readings of an annotation
 

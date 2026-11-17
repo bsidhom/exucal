@@ -1041,8 +1041,10 @@ digits sees a difference at the 3,000th digit, and a ceiling of 2,040
 digits does not. `faint` itself builds at either limit, since nothing
 checks a unit's value.
 
-Lowering the precision limit can thus stop a file from loading, and the
-failure is hard to trace to the setting:
+Lowering the precision limit can thus stop a file from loading. That is
+a defect of the design
+([#256](https://github.com/bsidhom/exucal/issues/256)), and the failure
+is hard to trace to the setting:
 
 - The shell shows the failure in place of the converter. Its message
   names the error and calls it a bug in the app, and nothing names the
@@ -1109,14 +1111,11 @@ for a call as they hold for its body typed out:
   evaluates it twice. Nesting such calls `k` levels deep evaluates the
   innermost `2^k` times, at every pass. The same expression written out
   in full costs as much, so a call sets no new limit. A definition that
-  reads small can still be large. A memo is ruled out for two reasons:
-  - A memo of calls would need a policy for what it keeps and what it
-    evicts. The memos of constants need none: each holds one value, and
-    the ceiling fixes its size
-    ([Memoized constants](numbers.md#memoized-constants)).
-  - Treating two calls in one expression as one value is a step into
-    symbolic calculation, which the design does not take on
-    ([Symbolic values](future.md#symbolic-values)).
+  reads small can still be large. A memo is ruled out for one reason. It
+  would have to recognize that two calls are the same call, and matching
+  one expression against another is symbolic calculation, which the
+  design does not take on
+  ([Symbolic values](future.md#symbolic-values)).
 - **A composition rounds at every operation.** A built-in is one routine
   of the kernel, the layer that computes the inexact functions
   ([The kernel](numbers.md#the-kernel)). The routine computes with as

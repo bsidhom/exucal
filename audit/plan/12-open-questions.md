@@ -628,7 +628,9 @@ plan §8 and the work orders under [../work-orders/](../work-orders/) were updat
 11. **The postfix `~` spelling.** `ok`. Settled: a ruled-out alternative, kept with its reason,
     the sentence losing "the likely spelling … later" (F-219).
 12. **Two bullets of `devdocs/functions.md#Not in this design`.** `ok`. Settled: both ruled
-    out, the first with its reason, the second gaining one or going (F-323).
+    out, the first with its reason, the second gaining one or going (F-323). Amended on
+    2026-11-17 (section 12.3): the second goes, and the page says nothing of optional
+    parameters.
 13. **The bullets of `devdocs/future.md#Ruled out, and why`.** `ok`. Settled as classified:
     the number type's alternatives, the radius display, exactness as a flag and the stored
     digits move to `devdocs/numbers.md`; the offset in `Quantity` to `devdocs/functions.md`;
@@ -1595,6 +1597,86 @@ decision, are listed after the answers.
 
   Amends §8, F-452, B-071, work orders 00 and 13, `audit/principles.md` and the house
   style; adds B-072, B-073 and B-074.
+
+- **The review of the defined functions page (2026-11-17).** The page's review notes (#255)
+  put nine questions to the owner, who took them one at a time; two defects and three rules
+  came out of the answers.
+  - **Optional parameters**, listed as ruled out with no reason, for which the session had
+    inferred one: "Don't say anything about optional parameters [...]. Just document the
+    world today and leave it at that for this one." Settled: the bullet goes, and `#Calls`
+    states today's rule, that a call gives as many arguments as the function has parameters.
+    Amends F-323's decision and item 12 of section 12.2 for this bullet.
+  - **Why the result's annotation must be certainly nonzero**, when no count is taken of a
+    result: the owner gave the intent behind the limits on an annotation, "they misleadingly
+    imply that the coefficient will be applied, whereas in practice annotations _only_ check
+    for conformability. This was the intention behind essentially all of the limits placed on
+    annotations." Settled: `#Annotations` opens its passage on what an annotation may hold
+    with that intent (a number reads as a scale to apply; a sum, a difference, a negation or
+    a call names no unit), and the result's annotation follows one rule with a parameter's.
+  - **A unit whose value is zero**, which the build accepts (`zero 0 m`, a dimensionless
+    zero, a zero prefix, a unit that cannot be told from zero), each use guarding itself:
+    "That itself was an oversight if so; the very existence is a sharp edge that we introduce
+    when this is used as a function parameter, but such a unit is also not useful on its
+    own." #221 already held the question (opened in the review of the definitions page); it
+    now records that a unit or a prefix whose value is zero is to be a fault where it is
+    defined (B-075). The page links it once, beside the nonzero rule.
+  - **The build's checks depend on the precision limit.** A check decided at the ceiling can
+    pass at one precision limit and fail at a lower one, and the table is built again when
+    the setting changes: "it's quite insidious, because if the definitions file fails to
+    load, it could fail/crash the whole web app before the user even has a chance to
+    configure precision limits." The session checked the shell: the app does not crash and
+    the settings panel stays within reach, but the failure message calls it a bug in the
+    app, Retry fails again and the stored setting brings the failure back at every start.
+    Then: "Definitely a design hole/defect, and I don't have an answer to it now. [...] This
+    will be an involved and subtle decision." Filed as #256 (B-076). `#Build-time checks`
+    gains a passage that states it as a defect of the design, with the link. Whether #221's
+    fault also covers a value that cannot be told from zero waits on #256.
+  - **The Fahrenheit caveat** (a temperature divided by `degF` is not the reading), a user
+    rule that stood only on the developer page: "Fix it now in the user docs; that's the
+    rightful home." Settled: `docs/quantities.md`, "Temperature and logarithmic levels as
+    functions", carries it, in the same pull request, under the rule on the canonical home
+    of a shared concept.
+  - **A call of an inverse in an expression**: one reason is kept, that it would change the
+    call's grammar and its lookup; the second, which the session had inferred, goes.
+  - **An inverse's parameter takes no annotation**, where the sources say only that its
+    dimension is known: the session's wording, that an annotation there could only repeat
+    that dimension or contradict it, stays. "In this case, you happened to infer my exact
+    intention."
+  - **The quoted `noInverse` message** (F-311), which no user can see while each function of
+    the predefined file has an inverse: "There's no reason to quote anything directly here
+    anyway; that's an incidental UX concern." Settled: the page describes the message and
+    quotes none; a rule of `audit/principles.md`, "A developer page quotes no message".
+    Amends F-311's decision.
+  - **Whether the bracketed head is GNU units' syntax**, which the page did not say, while
+    it attributed three other forms (`units=`, `range=`, the keyword clauses): "I'm not sure
+    about the "=" variation, so I don't want to attribute that if it's not correct. If it
+    cannot be confirmed for any reason, just leave it uncredited." The manual could not be
+    fetched, so the page attributes no syntax to another program. `#Alternatives considered`
+    stays: "it helps justify and contextualize the syntax we chose in the end." A rule of
+    `audit/principles.md`, "Nothing is attributed to another program unless it is checked".
+  - **Why calls are not memoized**: "There is no intention to add a memo to this." The
+    session had written two reasons from the owner's account, an eviction policy and
+    symbolic calculation; the owner kept the second: "The symbolic concern is very much
+    real. [...] I'm inclined to drop the cache policy claim (since we can do caching locally
+    to just a _single_ expression evaluation and then drop the cache) and keep the symbolic
+    concern, which is the "real" blocker here." Settled: a memo would have to recognize that
+    two calls are the same call, and matching one expression against another is symbolic
+    calculation; "A memo of calls" joins `#Not in this design`.
+  - **The code comments that the page contradicts**, and the hand-off to work order 18: "go
+    ahead and fix the code comments in this PR now, in a separate commit." Settled: B-036,
+    B-042 and B-047 and B-034's two entries on the build's check are corrected in the pull
+    request, with one phrase no bug listed ("its own domain", `src/core/pipeline.ts`); work
+    order 18 links `functions.md#No condition on a result`, a heading the rewrite made, where
+    it said `#An undecided condition`.
+  - **A reason that is only inferred.** Three of the answers above turned on a reason the
+    session had inferred (two struck, one confirmed). Asked whether to record that a page
+    gives no such reason: "the only-inferred rule is soft: it should always be flagged to me,
+    but it doesn't have to be strictly forbidden." A rule of `audit/principles.md`, "An
+    inferred reason is flagged".
+
+  Amends F-311, F-323, item 12 of section 12.2, work orders 00 and 18,
+  `audit/principles.md` and the house style; marks B-036, B-042 and B-047 corrected, and
+  B-034 in part; adds B-075 and B-076.
 
 ### The review's other corrections
 

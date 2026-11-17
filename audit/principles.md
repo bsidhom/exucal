@@ -234,6 +234,33 @@ settles it as one of three: intentionally unspecified, and so left out
 of the docs; a bug, filed and linked from the passage that owns the
 concept (Q-012); or fixed on the spot.
 
+**A developer page quotes no message (the review of the defined
+functions page, 2026-11-17; plan §12.3).** How a message is worded is an
+incidental matter of the interface and no part of the design. A
+developer page says what a message tells the user and what the error
+behind it carries, and quotes none of its text, so that the page need
+not change whenever a wording does. The user pages follow the rule above
+on the interface in general terms.
+
+**Nothing is attributed to another program unless it is checked (the
+review of the defined functions page, 2026-11-17; plan §12.3).** A page
+says of another program only what that program's own documentation
+says, as read by the session that writes the sentence. Where the
+documentation cannot be reached, or the claim cannot be confirmed for
+any reason, the attribution is left out, and the form, the alternative
+or the reason stands on its own. Lineage stated in general terms, as
+that the definitions file's format is inspired by GNU units', is not
+such a claim and stays where the rules below place it.
+
+**An inferred reason is flagged (the review of the defined functions
+page, 2026-11-17; plan §12.3).** A page gives a decision the reason the
+design rests on. Where the sources give none and a session infers one,
+the session says so in its review notes, and the owner confirms the
+reason, replaces it or strikes it. The rule is soft: an inferred reason
+is not forbidden, and it is always flagged. Where no reason is known and
+none is inferred, the page states today's behavior as a plain fact and
+gives no reason.
+
 **Refusal (F-442).** In both corpora "refusal" and "refuse" name only a
 size refusal: the significand limit's or the exponent bound's, a value
 the limits keep from being computed or a literal past a size limit. A

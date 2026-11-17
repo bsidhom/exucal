@@ -401,6 +401,7 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: A5 (L463-469), V1 (L366), D5 (L35, L199), V3 (L759), D2 (L33, L464), V4 (L562), A8 (L150)
 - Docs side: F-317, F-317, F-266, F-185, F-197
 - Rewrite impact: none.
+- Status: the two entries on the first version of the build's check (`src/core/build.ts:50-53`, `src/core/dimension-of.ts:3-4`) were corrected in work order 14's pull request (#255, 2026-11-17; plan §12.3); the others stand.
 
 ### B-035. `quantity.ts`'s header puts the significand limit's refusal in the evaluator
 
@@ -421,6 +422,7 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: D1 (L145, L214, L700), A8 (L150)
 - Docs side: F-310 (the same rule for a function's name in a unit list)
 - Rewrite impact: none.
+- Status: corrected in work order 14's pull request (#255, 2026-11-17; plan §12.3).
 
 ### B-037. `pipeline.ts:95` says the component computes the reciprocal line
 
@@ -481,6 +483,7 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: A6 (L133-143, L427-430)
 - Docs side: F-028
 - Rewrite impact: none.
+- Status: corrected in work order 14's pull request (#255, 2026-11-17; plan §12.3).
 
 ### B-043. `approx.ts`'s header says only an exact zero passes through
 
@@ -531,6 +534,7 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: V4 (L47, L562)
 - Docs side: F-318
 - Rewrite impact: none.
+- Status: corrected in work order 14's pull request (#255, 2026-11-17; plan §12.3).
 
 ### B-048. `builtin.ts:167` says every built-in of the stage takes a fixed count
 
@@ -811,3 +815,27 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: none; stated as a plain fact by the session of work order 12 and put to the owner in its review notes
 - Docs side: — (`devdocs/notation.md#The rule`, rule 5, states the rounding as a defect with its one link; `docs/numbers.md#How numbers are written` says only "anything longer is written as digits", which stays true)
 - Rewrite impact: none — the page is written; the fix rewrites rule 5.
+
+### B-075. The build accepts a unit or a prefix whose value is zero
+
+- Issue: #221 (opened 2026-10-22, in the review of the definitions page, as a question; settled 2026-11-17, in the review of work order 14's pull request: the owner, an oversight)
+
+- Category: behaviour
+- Severity (guess): low — the predefined file holds no such unit, and only that file is loaded
+- Location: `src/core/build.ts` (`evaluateNode`: a unit's and a prefix's value is not checked; `evaluateAnnotation` and `evaluateUnitList` check it where it is used)
+- Description: `zero 0 m`, `zilch 0`, a prefix `nil- 0` and a unit that cannot be told from zero, `(sqrt(2)^2 - 2) m`, each build. Each use guards itself: as the want, an error; as a divisor, a division by zero; as a list's unit, `invalidUnitList`; as an annotation, `zeroDeclaredUnit`; in the have or in a sum, a silent zero. The fix settled: a unit or a prefix whose value is zero is a fault where it is defined. Whether a value that cannot be told from zero is one too waits on B-076.
+- Units: none; raised in the review of the definitions page and settled in the review of work order 14's page
+- Docs side: — (`devdocs/functions.md#Annotations` states it as a defect with its one link, beside the rule that an annotation must be certainly nonzero)
+- Rewrite impact: none — the pages are written; the fix adds one fault to `docs/definitions.md#When the file does not load`.
+
+### B-076. A definitions file can build at one precision limit and fail to build at a lower one
+
+- Issue: #256 (opened 2026-11-17, during the review of work order 14's pull request; the owner: a design hole, with no answer yet)
+
+- Category: behaviour
+- Severity (guess): low today — no definition of the predefined file meets it (it builds at every precision limit tried, from 1 to 2,453 digits); high once a user can write definitions
+- Location: `src/system-build.ts` (the table is built at the ceiling of the precision limit in force, and built again when it changes); `src/core/build.ts` (`zeroDeclaredUnit`, `invalidUnitList` and the build's `undecidedCondition`, each decided on values computed at that ceiling); `src/app-shell.ts` (the failure's message)
+- Description: `faint (sqrt(2)^2 - 2 + 1e-3000) m` with `weigh(x: faint) = x`, the same unit in a list `span ft;faint`, and `chill tempC(approx(-273.15) + 1e-3000)` each build at the default limit of 1,000 digits (a ceiling of 4,040) and fail at a limit of 500 (a ceiling of 2,040). So lowering the setting can stop a file from loading. The app then says that the unit definitions could not be loaded, calls it a bug in the app and names no setting; Retry fails again; the stored setting brings the failure back at every start. The settings panel stays within reach, and raising the limit builds the table again.
+- Units: none; found by the session of work order 14 in its review, from the owner's question on a unit that cannot be told from zero
+- Docs side: — (`devdocs/functions.md#Build-time checks`, "A check at the ceiling depends on the precision limit", states it as a defect of the design with its one link)
+- Rewrite impact: none — the page is written; the answer, when there is one, rewrites that passage.

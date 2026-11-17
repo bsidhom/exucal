@@ -195,6 +195,12 @@ answers word:
 
 - B-034: the history in comments goes, under the style guide's rule
   (`devdocs/development.md#Style guide`, after work order 22).
+  Its two entries about the first version of the build's check
+  (`src/core/build.ts`, `src/core/dimension-of.ts`) were corrected with
+  work order 14 (its review, 2026-11-17), and so were B-036, B-042 and
+  B-047, with one phrase no bug lists: "its own domain", for an
+  inverse's conditions, in the header of `src/core/pipeline.ts`. The
+  pass checks these and moves on.
 - B-038 (F-070): `src/core/convert.ts:132-138` stops saying the ratio is
   never `tooLarge`.
 - B-041 (F-022): "four times the precision limit plus the guard"

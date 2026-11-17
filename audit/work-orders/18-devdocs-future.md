@@ -6,7 +6,8 @@ The session that rewrites this page reads this file,
 nothing else. Written 2026-10-12 from the owner's answers
 (`audit/decisions.md`, recorded in `audit/plan/12-open-questions.md`,
 sections 12.1 to 12.3; amended 2026-10-13 after the review of the apply
-step) and the consolidated audit. Ids: F-nnn is a finding in
+step, and 2026-11-17 after the review of work order 14) and the
+consolidated audit. Ids: F-nnn is a finding in
 `audit/findings.md`, Q-nnn an open item in `audit/open-items.md`, B-nnn a
 bug in `audit/bugs.md`; each is read at its id. A report pointer such as
 `V6 (L181-191)` is `audit/reports/V6/fable.md`, lines 181 to 191. `§7.1`
@@ -213,8 +214,14 @@ page links (Q-012).
   warning, #131; dimension-generic functions with type bounds, #133,
   for which the parser reserves `name[`; whether ranges could narrow
   a result's ball, #134; linking `functions.md#Conditions`, `#Names
-  and shadowing` and `#An undecided condition` for the current
-  design); user definitions (V6 L189; #132; `buildTable` takes one
+  and shadowing` and `#No condition on a result` for the current
+  design: the reasoning on a result's range was a paragraph of `#An
+  undecided condition` until work order 14 gave it that heading of its
+  own, and the `#Deferred` text as it left the page is in the review
+  notes of work order 14's pull request, #255; `functions.md` links
+  this page at `#Extensions that fit`, for each of these, and at
+  `#Symbolic values`, for the reason it keeps no memo of calls, so
+  both headings stay); user definitions (V6 L189; #132; `buildTable` takes one
   list of definitions, storage and an editor are what is missing,
   definitions typed into the app the first step); equality operators
   and conditional expressions, `!=` included (R-5); where a quotient's

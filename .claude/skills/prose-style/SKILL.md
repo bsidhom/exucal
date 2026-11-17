@@ -203,7 +203,17 @@ it to the whole text, not only to the sentence that prompted it.
 - In human-facing prose, name mechanisms in words, not by identifiers.
   An identifier appears only when the reader must go to it.
 - When comparing with other work, link each thing compared to its own
-  site, and say of it only what its own documentation says.
+  site, and say of it only what its own documentation says. Where that
+  documentation cannot be checked, leave the comparison or the credit
+  out: the point then stands on its own.
+- Give a decision the reason the design rests on. A reason that you
+  inferred, because the sources give none, is flagged to the owner as
+  inferred, who confirms it, replaces it or strikes it; an inferred
+  reason is allowed, and it is never passed off as the design's. Where
+  no reason is known, state the fact about today and give none.
+- In developer documentation, say what a message tells the user and
+  quote none of its text. A message's wording is an incidental matter of
+  the interface, and a quote has to change whenever the wording does.
 - A borrowed term is introduced as ours, with its source credited in a
   clause ("the word is borrowed from GNU units"), never as a
   description of what the other program does, which the reader does
@@ -314,3 +324,6 @@ reviewer then reads a text that has passed that first reading.
     system's semantics imply, where a link would do?
 13. Any behavior described that no one designed, where the owner has
     not said whether it is intended?
+14. Any reason that you inferred and have not flagged, any claim about
+    another program that you have not checked against its own
+    documentation, or any message quoted in developer documentation?

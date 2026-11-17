@@ -306,7 +306,9 @@ rule, so that one rule covers an annotation in either position. An
 annotation names units only, so the check can fail only through a unit
 of the file: one defined as zero, or one defined as an inexact value
 around zero. The build accepts the definition of such a unit, which is a
-defect ([#221](https://github.com/bsidhom/exucal/issues/221)).
+defect ([#221](https://github.com/bsidhom/exucal/issues/221)). The check
+is decided at the ceiling, so its answer depends on a setting
+([Build-time checks](#build-time-checks)).
 
 ### Other readings of an annotation
 
@@ -659,7 +661,9 @@ condition left undecided there fails the build too, as in
 `cold tempC(approx(-273.15))`: the error is the build's
 `undecidedCondition`, which carries no error of a body. A unit's value
 has nowhere to carry a warning, and no later pass could decide the
-condition, since the table is built at the ceiling.
+condition, since the table is built at the ceiling. The ceiling follows
+from a setting, so this failure depends on the setting too
+([Build-time checks](#build-time-checks)).
 
 ### No condition on a result
 
@@ -1006,6 +1010,49 @@ It is checked in its place in the file's order:
 The checked inverses are attached to their functions at the end of the
 build. The table holds each function as `UnitFunction` in `table.ts`,
 and [The walk](architecture.md#the-walk) lists what that holds.
+
+### A check at the ceiling depends on the precision limit
+
+Two of the build's checks of functions are decided on values computed at
+the ceiling:
+
+- An annotation must be certainly nonzero.
+- A call in a unit's body must leave no condition undecided.
+
+The ceiling follows from the precision limit, a setting. The shell, the
+app's top-level component, builds the table again when that setting
+changes ([The definitions](architecture.md#the-definitions)). So a file
+can build at one precision limit and fail to build at a lower one. Say
+the file defines:
+
+```
+faint (sqrt(2)^2 - 2 + 1e-3000) m
+weigh(x: faint) = x
+chill tempC(approx(-273.15) + 1e-3000)
+```
+
+| Definition | At the default precision limit, 1,000 digits | At a precision limit of 500 digits                                          |
+| ---------- | -------------------------------------------- | --------------------------------------------------------------------------- |
+| `weigh`    | builds                                       | a build error: `faint` cannot be told from zero (`zeroDeclaredUnit`)        |
+| `chill`    | builds                                       | a build error: the condition of `tempC` is undecided (`undecidedCondition`) |
+
+Each value differs from its bound by `1e-3000`. The default ceiling
+computes enough digits to see the difference, and the lower one does
+not.
+
+A user who lowers the precision limit can therefore turn a file that
+loaded into one that does not load, and the failure is hard to trace to
+the setting:
+
+- The shell shows the failure in place of the converter. Its message
+  names the error and calls it a bug in the app, and nothing names the
+  precision limit.
+- The message's Retry button builds at the same ceiling and fails again.
+- The settings are stored, so the failure returns at every start of the
+  app until the limit is raised.
+
+The settings panel stays within reach throughout, and raising the
+precision limit builds the table again.
 
 ### The check evaluates no body
 

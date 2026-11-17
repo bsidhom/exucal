@@ -39,15 +39,15 @@ These words are used in a particular sense:
 - The **build** is the construction of the **definitions table** from
   the definitions, as the app starts. The table holds every unit,
   prefix, unit list and function by name. The user docs say that the
-  file is loaded, and a build error is a fault that keeps the file from
-  loading.
+  file is loaded. A build error is an error that the build raises, from
+  the parsed definitions.
 - A **rejection** is the definitions parser's error for text that it
-  read and does not accept. It carries the span of the text at fault,
-  the offsets of that text, so "rejected at" names the text. The parser
-  raises a rejection as it reads the file. The build raises a build
-  error afterwards, from the parsed definitions. Either keeps the file
-  from loading. The name an error has in the code follows it in
-  parentheses, as in (`duplicate`).
+  read and does not accept, raised as it reads the file. It carries the
+  span of the text at fault, the offsets of that text, so "rejected at"
+  names the text.
+- A rejection and a build error each keep the file from loading, and the
+  user docs call either a fault. The name an error has in the code
+  follows it in parentheses, as in (`duplicate`).
 - A **plain number** is a dimensionless quantity: one with neither a
   dimension nor a kind.
 - A scalar is a `Ball`: a midpoint and a radius that bounds the error of
@@ -57,9 +57,10 @@ These words are used in a particular sense:
   passes at rising precision, up to the **ceiling**, the highest
   precision any pass computes at
   ([Passes and errors](architecture.md#passes-and-errors)).
-- The pipeline is the code that parses, evaluates and converts the two
-  texts (`pipeline.ts`). The outcome is the module that composes the
-  output lines from the pipeline's result (`src/outcome.ts`).
+- The **pipeline** is the code that parses, evaluates and converts the
+  have and the want (`src/core/pipeline.ts`). The **outcome** is the
+  module that composes the output lines from the pipeline's result
+  (`src/outcome.ts`).
 
 The design rests on these decisions, each described in the section
 linked:
@@ -69,7 +70,7 @@ linked:
 - **An annotation checks a dimension and changes no value.** The want
   chooses the unit a result is written in, never the head
   ([Annotations](#annotations)).
-- **A parameter may shadow a unit, except a unit that an annotation of its own head names.**
+- **A parameter may shadow a unit, unless one of its function's annotations uses that unit.**
   A definition may not take a built-in's name
   ([Names and shadowing](#names-and-shadowing)).
 - **A condition is a chain of comparisons, and each comparison holds, fails or is undecided.**
@@ -176,8 +177,7 @@ of the line and what each loses.
   function of no parameters names a computed constant without fixing its
   value in the table.
 - **A parameter without an annotation takes a plain number.** `x: 1`
-  says the same explicitly, and the table gives a parameter without an
-  annotation the annotation `1` too.
+  says the same explicitly.
 - **The result's annotation is optional.** Without one, the build infers
   the result's dimension from the body. With one, the build also checks
   the inferred dimension against it ([Annotations](#annotations),
@@ -260,9 +260,10 @@ dimension: `kinetic` gives an energy, which converts into `J`, `kcal` or
 
 ### An annotation is a unit expression
 
-An annotation only checks conformance. So nothing in an annotation may
-read as something that will be applied: not a scale, and not an
-operation. Every limit below follows from that.
+An annotation only checks conformance, and it applies nothing to an
+argument. That intent is behind the limits on an annotation. A number
+reads as a scale to apply, and an annotation applies none. A sum, a
+difference, a negation or a call names no unit to conform to.
 
 An annotation is the expression grammar restricted to these:
 
@@ -279,13 +280,11 @@ parser rejects anything else, at the text at fault:
   and `f(x): kg/2` alike.
 - A sum, a difference, a negation or a call is an `annotationNotUnits`.
 
-A number in an annotation reads as a scale to apply, and an annotation
-applies none, since conformance ignores the scalar. So `: 2` misleads
-under either reading. Read as `: 1`, it deceives a reader who expects a
-scale. Read as a scale, it breaks the rule that an annotation changes no
-value. The parser rejects the number, and a scale is written in the
-body. The `1` is kept because a plain result needs a spelling and
-`1 / s` needs a numerator.
+Conformance ignores the scalar, so `: 2` misleads under either reading.
+Read as `: 1`, it deceives a reader who expects a scale. Read as a
+scale, it breaks the rule that an annotation changes no value. A scale
+is written in the body. The `1` is kept because a plain result needs a
+spelling and `1 / s` needs a numerator.
 
 A unit's name does not read as a scale to apply, so it is accepted
 whatever the unit's scalar. `: percent` asserts a plain number and
@@ -301,14 +300,15 @@ the annotation's value ([Display](#display)). So `2 ft` into `twelve` is
 
 The count is a quotient, so an annotation must be certainly nonzero. An
 annotation whose value is zero, or cannot be told from zero, is a build
-error (`zeroDeclaredUnit`). The result's annotation is held to the same
-rule, so that one rule covers an annotation in either position. An
-annotation names units only, so the check can fail only through a unit
-of the file: one defined as zero, or one defined as an inexact value
-around zero. The build accepts the definition of such a unit, which is a
+error (`zeroDeclaredUnit`). Nothing divides by the result's annotation.
+It is held to the same rule all the same, so that an annotation follows
+one rule wherever it stands. An annotation names units only, so the
+check can fail only through a unit of the file: one defined as zero, or
+one defined as an inexact value around zero. The build accepts the definition of such a unit, which is a
 defect ([#221](https://github.com/bsidhom/exucal/issues/221)). The check
-is decided at the ceiling, so its answer depends on a setting
-([Build-time checks](#build-time-checks)).
+is decided at the ceiling, which follows from the precision limit, so
+its answer depends on that setting
+([A check at the ceiling depends on the precision limit](#a-check-at-the-ceiling-depends-on-the-precision-limit)).
 
 ### Other readings of an annotation
 
@@ -379,7 +379,7 @@ alone:
 - **A parameter named twice**, `f(x, x)`, is rejected at its second
   occurrence (`duplicateParameter`). No rule could say which one the
   body means.
-- **A parameter named like a unit that an annotation of its own head names**
+- **A parameter named like a unit that one of the function's annotations uses**
   is rejected at the annotation's use of the name
   (`parameterNamesUnit`). In `kinetic(m: kg, v: m/s) = m v^2 / 2`, the
   `m` of `m/s` is the meter and the `m` of the body is the mass. Each
@@ -416,10 +416,10 @@ states when a comparison is decided.
   condition on an expression, as `abs(x) >= 1` is.
 - **There is no equality and no `!=`.** The four comparisons are
   orderings, and `=` ends the head. Both operators are future work
-  ([Extensions that fit](future.md#extensions-that-fit)). An equality
-  condition could never be decided for an inexact argument: a ball can
-  be found apart from another or found to overlap it, and never found
-  equal to it.
+  ([Extensions that fit](future.md#extensions-that-fit)). A design for
+  them has one fact to face. An equality condition could never be found
+  to hold for an inexact argument: a ball can be found apart from
+  another or found to overlap it, and never found equal to it.
 - **A term is any expression**, calls of the built-ins and of other
   defined functions included. Those calls check their own conditions in
   turn. A unit list is not an expression, and neither is a comparison.
@@ -484,7 +484,7 @@ case:
   An earlier condition may be a guard. In `| x > 0, ln(x) > 1`, a
   negative argument certainly fails the first condition, and `ln` is
   never reached. When the first condition is undecided, the argument's
-  ball reaches below zero, and `ln` cannot be computed on it. The values
+  ball reaches zero or below it, and `ln` cannot be computed on it. The values
   it fails on are the ones the guard excludes, so the failure decides
   nothing.
 - **An undecided condition is assumed to hold, and the check goes on.**
@@ -533,13 +533,15 @@ difference and the right side is zero:
 | `straddles`: reaching across it, or of unbounded radius | undecided | undecided | undecided | undecided |
 
 A ball is closed, so an end that lies exactly on the other value leaves
-equality possible. An inexact argument that equals a condition's bound
-therefore never makes a strict comparison hold. It makes a non-strict
-comparison hold only when its ball ends exactly on the bound, from the
-side the comparison admits. `approx`, the one operation whose purpose is
-to make a value inexact, gives such an argument: the ball of
-`approx(-273.15)` straddles `-273.15`, so `tempC(approx(-273.15))` stays
-undecided up to the ceiling.
+equality possible. So an inexact argument whose ball touches or
+straddles a condition's bound never makes a strict comparison hold. It
+makes a non-strict comparison hold only when its ball ends exactly on
+the bound, from the side the comparison admits.
+
+`approx` is the one operation whose purpose is to make a value inexact,
+and it gives such an argument. The ball of `approx(-273.15)` straddles
+`-273.15`, so `tempC(approx(-273.15))` stays undecided up to the
+ceiling.
 
 In decimal mode every value is exact. Every comparison decides there,
 and no condition is undecided. A condition's terms are no part of a
@@ -660,8 +662,8 @@ condition left undecided there fails the build too, as in
 `undecidedCondition`, which carries no error of a body. A unit's value
 has nowhere to carry a warning, and no later pass could decide the
 condition, since the table is built at the ceiling. The ceiling follows
-from a setting, so this failure depends on the setting too
-([Build-time checks](#build-time-checks)).
+from the precision limit, so this failure depends on that setting
+([A check at the ceiling depends on the precision limit](#a-check-at-the-ceiling-depends-on-the-precision-limit)).
 
 ### No condition on a result
 
@@ -671,10 +673,12 @@ the call or anywhere downstream.
 
 A condition on a result is ruled out for two reasons:
 
-- It would check the author's body against the author's own claim, at
-  every call, on a ball, where it could be undecided. The check of a
-  result's dimension is a check of the same sort, made once, at build,
-  for every argument at once.
+- It would check the author's own work. A condition on an argument
+  checks what a caller passes against what the author admits. A
+  condition on a result would check the author's body against the
+  author's own claim. Such a check belongs at build, where the result's
+  dimension is checked once for every argument. A check of a value
+  cannot be made there, since the build's check evaluates no body.
 - Nothing would use the range. No part of the evaluator narrows a value
   by what is known of its range, and a value's ball is all that the rest
   of an expression learns of it. A built-in can use what it knows of its
@@ -772,7 +776,7 @@ nothing. For a function, each pass takes these steps
    A value certainly other than the have is an `inverseMismatch` on the
    want side, and so is a failure of the function's body there. Two
    exact values are compared exactly. Any other two certainly differ
-   when their difference lies wholly on one side of zero (`disjoint`).
+   when their difference lies wholly on one side of zero.
 7. The count is computed: the recovered argument divided by the value
    of the parameter's annotation.
 
@@ -897,9 +901,9 @@ in `outcome.ts`):
   the annotation from its expression, as it writes a want. So an
   annotation written `(in)` shows as `in`.
 - An annotation whose text is `1` adds no unit, so an argument that is a
-  plain number is written bare. A parameter without an annotation has
-  the annotation `1` in the table, so the one test covers both. The
-  outcome reads the text for nothing else.
+  plain number is written bare. The table gives a parameter without an
+  annotation the annotation `1`, so the outcome meets one case for both.
+  It reads an annotation's text for nothing else.
 - The line takes the count's relation: `=` when the count shows exactly
   at the display digits, as for any value.
 - Under the ratio notation an exact count may be a ratio. A ratio is
@@ -1010,11 +1014,15 @@ the ceiling:
 - An annotation must be certainly nonzero.
 - A call in a unit's body must leave no condition undecided.
 
-The ceiling follows from the precision limit, a setting. The shell, the
-app's top-level component, builds the table again when that setting
-changes ([The definitions](architecture.md#the-definitions)). So a file
-can build at one precision limit and fail to build at a lower one. Say
-the file defines:
+The ceiling follows from the precision limit, a setting. It is four
+times the sum of the precision limit and ten digits: 4,040 digits at the
+default limit of 1,000, and 2,040 digits at a limit of 500
+([Working precision and the schedule](numbers.md#working-precision-and-the-schedule)).
+The shell, the app's top-level component, builds the table again when
+that setting changes
+([The definitions](architecture.md#the-definitions)). So a file can
+build at one precision limit and fail to build at a lower one. Say the
+file defines:
 
 ```
 faint (sqrt(2)^2 - 2 + 1e-3000) m
@@ -1027,13 +1035,14 @@ chill tempC(approx(-273.15) + 1e-3000)
 | `weigh`    | builds                                       | a build error: `faint` cannot be told from zero (`zeroDeclaredUnit`)        |
 | `chill`    | builds                                       | a build error: the condition of `tempC` is undecided (`undecidedCondition`) |
 
-Each value differs from its bound by `1e-3000`. The default ceiling
-computes enough digits to see the difference, and the lower one does
-not.
+`faint` differs from zero by `1e-3000`, and the argument of `tempC`
+differs from the bound of its condition by as much. A ceiling of 4,040
+digits sees a difference at the 3,000th digit, and a ceiling of 2,040
+digits does not. `faint` itself builds at either limit, since nothing
+checks a unit's value.
 
-A user who lowers the precision limit can therefore turn a file that
-loaded into one that does not load, and the failure is hard to trace to
-the setting:
+Lowering the precision limit can thus stop a file from loading, and the
+failure is hard to trace to the setting:
 
 - The shell shows the failure in place of the converter. Its message
   names the error and calls it a bug in the app, and nothing names the
@@ -1043,13 +1052,15 @@ the setting:
   app until the limit is raised.
 
 The settings panel stays within reach throughout, and raising the
-precision limit builds the table again.
+precision limit builds the table again. A user can meet the failure only
+through a file that holds such a definition, and the predefined
+definitions file holds none.
 
 ### The check evaluates no body
 
 The check of a function or of an inverse never evaluates the body. The
-build runs a body only where a definition that it evaluates, such as a
-unit's, calls the function. A body that fails at some value, or at every
+build evaluates a function's body only where a body that it does
+evaluate, as a unit's is, calls the function. A body that fails at some value, or at every
 value, builds and fails at the call that reaches it. `ln(x - 1)`,
 `asin(x + 1)` and `1 / ln(x)` each fail at some value, and each is a
 fine function. Evaluating a body at a value chosen by the build would
@@ -1074,9 +1085,8 @@ significand limit:
 [Functions](../docs/definitions.md#functions) states what a call costs a
 user, and
 [Identities and cancellation](../docs/numbers.md#identities-and-cancellation)
-gives the examples: a parameter used twice, which reads one ball as two
-independent values, and a function written by hand in place of a
-built-in.
+gives the examples: a parameter used twice, and a function written by
+hand in place of a built-in.
 
 A defined function's value is its body's value as an expression, and the
 machinery that certifies an expression certifies it:
@@ -1101,8 +1111,8 @@ for a call as they hold for its body typed out:
   in full costs as much, so a call sets no new limit. A definition that
   reads small can still be large. A memo is ruled out for two reasons:
   - A memo of calls would need a policy for what it keeps and what it
-    evicts. The memos that the core does keep need none: each holds one
-    value, and the ceiling fixes its size
+    evicts. The memos of constants need none: each holds one value, and
+    the ceiling fixes its size
     ([Memoized constants](numbers.md#memoized-constants)).
   - Treating two calls in one expression as one value is a step into
     symbolic calculation, which the design does not take on

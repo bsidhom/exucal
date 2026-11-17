@@ -772,27 +772,27 @@ Dividing a temperature by a unit does not give a reading back. A
 temperature divided by `degF` is the number of Fahrenheit degrees above
 absolute zero: `tempF(212) / degF` is `= 671.67`. The reading is that
 number less the scale's offset: `tempF(212) / degF - 459.67` is `= 212`.
-The Celsius reading is `tempC(100) / K - 273.15` in the same way. A
+The Celsius reading is `tempC(100) / degC - 273.15` in the same way. A
 conversion into `tempF` or `tempC` computes exactly this.
 
-The body of a defined function is where the difference bites. A formula
-fitted to pounds divides its argument by `lb` to get the number it was
-fitted to ([A quantity carries no unit](#a-quantity-carries-no-unit)). A
-formula fitted to Fahrenheit readings must subtract the offset as well.
-With `t / degF` alone it computes from the wrong number, and nothing
-reports an error. Say the file defines a function that gives the
-Fahrenheit reading of a temperature as a plain number:
+A defined function whose formula is fitted to readings has to do the
+same in its body. A formula fitted to pounds divides its argument by
+`lb` to get the number it was fitted to
+([A quantity carries no unit](#a-quantity-carries-no-unit)). A formula
+fitted to Fahrenheit readings must subtract the offset as well. A body
+that only divides by `degF` computes from the wrong number, and nothing
+reports an error. Say the file defines two functions of a temperature,
+the second with the offset left out:
 
 ```
 readingF(t: K): 1 = t / degF - 459.67
+countF(t: K): 1 = t / degF
 ```
 
-| You type                     | Exucal shows | Note                                                    |
-| ---------------------------- | ------------ | ------------------------------------------------------- |
-| `tempF(212) / degF`          | `= 671.67`   | Fahrenheit degrees above absolute zero, not the reading |
-| `tempF(212) / degF - 459.67` | `= 212`      | the Fahrenheit reading                                  |
-| `tempC(100) / K - 273.15`    | `= 100`      | the Celsius reading                                     |
-| `readingF(tempC(100))`       | `= 212`      | the body subtracts the offset                           |
+| You type               | Exucal shows | Note                                                  |
+| ---------------------- | ------------ | ----------------------------------------------------- |
+| `readingF(tempC(100))` | `= 212`      | the Fahrenheit reading of boiling water               |
+| `countF(tempC(100))`   | `= 671.67`   | no error, and not the reading: the offset is left out |
 
 A logarithmic level is not a multiple either: twenty decibels is a
 ratio of a hundred, while thirty decibels is a ratio of a thousand; the

@@ -1141,9 +1141,7 @@ definition takes a built-in's name
 
 - **A call of an inverse in an expression**, `~tempC(373.15 K)`. An
   inverse is applied by a conversion alone. A call of one would change
-  the call's grammar and its lookup. Each use would also need the check
-  that a conversion makes, the function applied back at every pass,
-  since nothing else checks that an inverse inverts.
+  the call's grammar and its lookup.
 - **A disjunction in a condition**
   ([The grammar of a condition](#the-grammar-of-a-condition)).
 - **A condition on a result's value**

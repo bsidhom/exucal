@@ -768,6 +768,32 @@ twenty kelvin and not a reading of twenty degrees, so into `tempF` it
 is `= tempF(-423.67)`; the reading is `tempC(20)`. A reading and a
 difference add: `tempC(20) + 5 degC` is `= 298.15 K`.
 
+Dividing a temperature by a unit does not give a reading back. A
+temperature divided by `degF` is the number of Fahrenheit degrees above
+absolute zero: `tempF(212) / degF` is `= 671.67`. The reading is that
+number less the scale's offset: `tempF(212) / degF - 459.67` is `= 212`.
+The Celsius reading is `tempC(100) / K - 273.15` in the same way. A
+conversion into `tempF` or `tempC` computes exactly this.
+
+The body of a defined function is where the difference bites. A formula
+fitted to pounds divides its argument by `lb` to get the number it was
+fitted to ([A quantity carries no unit](#a-quantity-carries-no-unit)). A
+formula fitted to Fahrenheit readings must subtract the offset as well.
+With `t / degF` alone it computes from the wrong number, and nothing
+reports an error. Say the file defines a function that gives the
+Fahrenheit reading of a temperature as a plain number:
+
+```
+readingF(t: K): 1 = t / degF - 459.67
+```
+
+| You type                     | Exucal shows | Note                                                    |
+| ---------------------------- | ------------ | ------------------------------------------------------- |
+| `tempF(212) / degF`          | `= 671.67`   | Fahrenheit degrees above absolute zero, not the reading |
+| `tempF(212) / degF - 459.67` | `= 212`      | the Fahrenheit reading                                  |
+| `tempC(100) / K - 273.15`    | `= 100`      | the Celsius reading                                     |
+| `readingF(tempC(100))`       | `= 212`      | the body subtracts the offset                           |
+
 A logarithmic level is not a multiple either: twenty decibels is a
 ratio of a hundred, while thirty decibels is a ratio of a thousand; the
 level is a logarithm and not a factor. So `decibel`, `bel` and `neper`

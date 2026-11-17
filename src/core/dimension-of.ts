@@ -1,17 +1,16 @@
 // The dimension of an expression without its value: the abstract
 // interpretation of the evaluator over dimensions alone, which the build
-// runs on a function's bodies in place of evaluating them at one of the
-// declared unit (devdocs/functions.md, "Build-time checks"). A body's
-// dimension never depends on the value
-// of its argument, so the check catches at load time exactly what
-// evaluating at a value caught, a body of the wrong dimension or one that
-// refers to nothing, without refusing a body that happens to fail at that
-// value: `1 / (x - 1)`, `ln(x - 1)`, `1 / ln(x)` build, and fail only at
-// the call that reaches the value.
+// runs on a function's bodies in place of evaluating them
+// (devdocs/functions.md, "Build-time checks"). A body's dimension never
+// depends on the value of its argument, so the check catches at load time
+// a body of the wrong dimension or one that refers to nothing, and it
+// accepts a body that fails at some value: `1 / (x - 1)`, `ln(x - 1)`
+// and `1 / ln(x)` build, and fail only at the call that reaches the
+// value.
 //
 // The rules are the evaluator's, minus the arithmetic: a number is
 // dimensionless; a unit is its dimension through the lookup, which is the
-// walk's, so an unknown name and a cycle are found as before; a sum or
+// walk's, so an unknown name and a cycle are found there; a sum or
 // difference checks that its operands conform, as the evaluator does, and
 // has the left's dimension; a product or quotient combines; a power raises
 // by the `^` exponent, reduced within the significand limit as the evaluator
@@ -24,10 +23,10 @@
 // errors are the evaluator's own of those kinds (`nonconformingOperands`,
 // `arityMismatch`, `argumentMismatch`, `builtinArgument`), so their spans
 // and messages hold; nothing here is new to the user. A literal is not
-// checked against the significand limit, so a body of `1e30000` builds and fails
-// at the call, as a body that fails for every value now does; a `^`
-// exponent is, since its reduction is what the limit bounds, and the
-// build's context supplies the limit.
+// checked against the significand limit, so a body whose literal has more
+// digits than the limit allows builds and fails at the call, as a body
+// that fails for every value does; a `^` exponent is, since its reduction
+// is what the limit bounds, and the build's context supplies the limit.
 //
 // The lookup is over dimensions, `DimensionLookup`, with the same two
 // resolvers as the evaluator's `Lookup`; the build wraps its own lookup,

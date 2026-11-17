@@ -49,11 +49,10 @@
 // dimension, or one that refers to nothing, at load time, so that a call
 // at run time can fail only on its argument or on a value; a body that
 // fails at some value, or at every value (`1 / (x - 1)`, `1 / 0`), builds
-// and fails at the call, where the first version of the check, which
-// evaluated the body at one of the declared unit, refused it. An
-// annotation whose ball contains zero (an exact zero, or an inexact value
-// around it) is rejected as well, since a recovered argument is written
-// as a count of the parameter's and nothing is a count of either.
+// and fails at the call. An annotation whose ball contains zero (an exact
+// zero, or an inexact value around it) is rejected as well, since a
+// recovered argument is written as a count of the parameter's and nothing
+// is a count of either.
 // A function's conditions are checked as its body is, over dimensions:
 // each term's dimension taken with the parameters bound, each conforming
 // to the next (`nonconformingComparison`), and each condition mentioning a

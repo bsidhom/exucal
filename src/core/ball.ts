@@ -409,10 +409,12 @@ export type Order = ReturnType<typeof position>;
  * difference, so that the comparison is never refused for size; an
  * inexact value against an exact one placed against it directly, by
  * `position`; and two inexact values by their difference, `a - b` at
- * `context`, against zero, a difference refused as too large to form
- * (or straddling the bound) answering `straddles`, the conservative
+ * `context`, against zero. That difference always aligns, the smaller
+ * operand absorbed into the radius (devdocs/numbers.md, "Sums and
+ * alignment"), and one that cannot be formed as a value, past the
+ * exponent bound or straddling it, answers `straddles`, the conservative
  * answer. Conditions on a function's arguments are decided on it
- * (devdocs/functions.md, "Conditions").
+ * (devdocs/functions.md, "The check at a call").
  */
 export function orderOf(a: Ball, b: Ball, context: NumberContext): Order {
   if (isExact(b)) return position(a, b.mid);

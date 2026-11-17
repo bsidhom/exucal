@@ -13,8 +13,9 @@
 // gives; two or more items are a list typed out, and the conversion is the
 // sum `convertToList` gives, with each item's text kept beside its unit for
 // the UI to show. A list's or a function's name is not a unit, so it means
-// the list or the function only when it stands alone: `2 time` and
-// `2 tempC` are unknown units.
+// the list or the function only when it stands alone: `2 time` is an
+// unknown unit, and `2 tempC` is a `functionAsUnit`, a function used as a
+// unit.
 //
 // A function as the `want` (devdocs/functions.md, "A function as the
 // want") is answered by the call that
@@ -22,7 +23,7 @@
 // needs the function's inverse, `~tempC`, and a function without one is a
 // `noInverse` on the want side. The `have` must conform to the function's
 // result, which is the ordinary conformance error of the pair when it does
-// not, and must meet the inverse's conditions, its own domain; the
+// not, and must meet the inverse's own conditions; the
 // inverse's body then recovers the argument, `invertFunction` evaluating
 // it with the inverse's parameter bound to the `have`, and the argument
 // must meet the function's conditions, so that a conversion stays within
@@ -33,7 +34,8 @@
 // a value disjoint from the `have` is an `inverseMismatch`, an answer
 // certainly wrong. Overlap is what balls can decide, so the check refutes
 // and never proves; two exact values are compared exactly, and a
-// difference too large to form refutes nothing. The conversion carries the
+// difference that cannot be formed as a value refutes nothing. The
+// conversion carries the
 // recovered argument and the unit the parameter takes with its text, and
 // the argument as a count of that unit, which is what the UI writes inside
 // the call. A `want` that is itself a call, `tempC(100)`, is not special:
@@ -870,8 +872,9 @@ function underAssumption(
 /**
  * Whether `a` and `b` certainly differ: two exact values compared exactly,
  * and otherwise their difference lying wholly on one side of zero. A
- * difference refused as too large to form, or one whose radius the
- * coarse bounds cannot place, is not certain, and refutes nothing.
+ * difference that cannot be formed as a value, past the exponent bound or
+ * straddling it, or one whose radius the coarse bounds cannot place, is
+ * not certain, and refutes nothing.
  */
 function disjoint(a: Ball, b: Ball, context: NumberContext): boolean {
   if (isExact(a) && isExact(b)) return !equals(a.mid, b.mid);

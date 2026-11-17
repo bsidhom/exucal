@@ -758,7 +758,8 @@ nothing. For a function, each pass takes these steps
 (`convertToFunction`):
 
 1. The function must have an inverse. A function without one is a
-   `noInverse` on the want side.
+   `noInverse` on the want side. The message names the form that would
+   give the function an inverse.
 2. The have must conform to the function's result dimension. A failure
    is the ordinary mismatch of the pair.
 3. The have is checked against the inverse's conditions, as an argument
@@ -777,13 +778,6 @@ nothing. For a function, each pass takes these steps
    when their difference lies wholly on one side of zero (`disjoint`).
 7. The count is computed: the recovered argument divided by the value
    of the parameter's annotation.
-
-The message of a `noInverse` names the form that would give the function
-an inverse:
-
-```
-"normcdf" has no inverse, so it cannot be the unit to convert to. Define "~normcdf(y) = …" to give it one.
-```
 
 The count is the one value shown, so it is the last step of the
 conversion. Steps 3 to 6 compute and check its operand, the recovered

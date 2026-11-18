@@ -284,7 +284,21 @@ significand-limit refusal, and its message, which names the limit, is
 correct: the limit is the promise that no number beyond it is produced
 at any point. No page calls such a refusal one of cost; a page may say
 that the limit covers the internal extended working precision, nothing
-more (the review of the built-ins page, 2026-10-25; plan §12.3).
+more (the review of the built-ins page, 2026-10-25; plan §12.3). The
+rule covers only a call whose working precision does pass the limit, as
+that of `beta(1e20000, 2)` does. The incomplete gamma and beta functions
+also refuse a call that passes a fixed limit on its terms, convergents
+or steps: a constant of the code, which no setting moves and which is
+the same at every pass. They report it with the same refusal, although
+the working precision of such a call is far within the limit
+(`uppergammareg(1e6, 1.5e6)` works at under two hundred bits). That
+refusal is not the significand limit's, and its message misnames its
+cause, which is a defect (#107, where letting the limit grow as the
+precision allows is studied). A page states it as a fixed limit on the
+steps of a call and says that raising the significand limit does not
+change it; the developer page that owns it says that the message
+misnames the cause and links the issue (the review of the built-in
+functions developer page, 2026-11-18).
 
 **Topological order (Q-008).** The pages are written in topological
 order, each after the pages it depends on: the user pages first

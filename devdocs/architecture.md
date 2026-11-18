@@ -35,11 +35,17 @@ Two rules bind all of the code:
   that the input can cause is returned as a `Result`, a discriminated
   union of a value or an error, and each module defines its own error
   type. A throw marks a violated precondition, which is a bug and never
-  an input. Two breaches of that are known: a throw where the product
-  of a prefix and a unit is refused
-  ([The lookup's throw](#the-lookups-throw)), and a throw in the
-  verification of a root ([Failures](numbers.md#failures)). The UI is a thin layer that
-  calls into the core.
+  an input. The UI is a thin layer that calls into the core. The rule
+  has known breaches, where an input does reach a throw. Each is a
+  defect, described with the code it is in:
+  - The table's lookup throws where the product of a prefix and a unit
+    is refused ([The lookup's throw](#the-lookups-throw)).
+  - The verification of a root of degree three or more throws for a
+    positive ball whose radius is large against its midpoint
+    ([Roots and powers](numbers.md#roots-and-powers)).
+  - `erf`, `erfc` and the incomplete beta functions throw for a ball
+    whose radius is too large or too small to form
+    ([A wide argument gets a trivial bound](builtins.md#a-wide-argument-gets-a-trivial-bound)).
 - **Lit is the one third-party dependency of the app.** Lit is the
   library the UI's components are built on. Nothing else is pulled in,
   so the arithmetic is the project's own, built on `bigint`. A new

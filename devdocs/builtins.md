@@ -328,6 +328,18 @@ of the hull are special:
 - For two results whose midpoints are too far apart to align, the hull
   takes the sum of their magnitudes as its bound.
 
+One case is a defect. The two ends are formed from the exact value of
+the radius, and a radius above `2^65536` or below `2^-65536` is too
+costly to form. For a ball with such a radius, `erf`, `erfc` and the
+incomplete beta functions throw an exception, where every failure that
+an input can cause is meant to be an error
+([#258](https://github.com/bsidhom/exucal/issues/258)).
+
+| You type                                 | Exucal shows          | Note                      |
+| ---------------------------------------- | --------------------- | ------------------------- |
+| `erf(approx(1e19700) - approx(1e19700))` | `≈ 0`, within a bound | the two ends, hulled      |
+| `erf(approx(1e19800) - approx(1e19800))` | an exception          | the defect: a huge radius |
+
 ### An argument outside the domain is an error, and one at an edge is retried
 
 A built-in applies the rule of the edges

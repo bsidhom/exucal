@@ -1661,7 +1661,7 @@ estimate. The upper function takes the fraction wherever the complement
 of the series would lose half the working bits to cancellation, since
 the pass would then not certify.
 
-#### The exponential, the complement and the limits
+#### The exponential, the complement and the two refusals
 
 The kernel gives the factor of order one. The built-in forms the rest as
 one exponential in log space, `e^(s ln x - x - ln s + ln Σ)` for the
@@ -1669,8 +1669,7 @@ series and the like for the fraction, with the classifier on the whole
 exponent. So a value past the exponent bound is refused as a value of
 `exp` is. The logarithm is formed at the working bits plus the bits of
 the magnitudes of `s` and `x`, since the exponent
-`s ln x - x - ln Γ(s + 1)` cancels. Past the significand limit that
-count of bits is `tooLarge`.
+`s ln x - x - ln Γ(s + 1)` cancels.
 
 The regularized forms carry `ln Γ(s)` in the exponent, through
 `logGamma`, and do not divide by `gamma(s)`. The lower form carries
@@ -1682,15 +1681,31 @@ digits below one are kept: `uppergammareg(1e6, 1.01e6)` is about
 `1.06e-23`. Where the function computed passes the bottom of the
 exponent bound, its complement is `Γ(s)`, or one, within `10^-(10^18)`.
 
-Where neither route runs within its limits, the call is refused as past
-the significand limit: a `tooLarge` with the reach `exceeds` and no
-count of bits
-([Rules every built-in follows](../docs/builtins.md#rules-every-built-in-follows)
-in the user docs states the rule). A large order with the argument at or
-past it is such a call. The refusal is never wrong about the value, as
-digits that nothing certifies would be.
-[What the costs come from](cost.md#what-the-costs-come-from) names this
-regime among the causes.
+A call is refused for its size in two places, and the two differ:
+
+- **The working bits pass the significand limit.** The working bits of a
+  call are the pass's bits plus the bits of the magnitudes of `s` and
+  `x`. Past the significand limit the call is `tooLarge`, with the reach
+  `exceeds` and the count of bits. The count is left out where a
+  magnitude alone has more bits than the limit. This is the refusal that
+  [Rules every built-in follows](../docs/builtins.md#rules-every-built-in-follows)
+  in the user docs states.
+- **Neither route is within its limits.** The limits on terms,
+  convergents and steps are constants of the module. No setting moves
+  them, and they are the same at every pass. A large order with the
+  argument at or past it is such a call. It is refused as a `tooLarge`
+  too, with the reach `exceeds` and no count of bits.
+
+The second refusal misnames its cause, which is a defect. The working
+bits of such a call are far within the significand limit:
+`uppergammareg(1e6, 1.5e6)` works at under two hundred bits at the first
+pass of the default settings. So the message names a limit that raising
+does not satisfy
+([#107](https://github.com/bsidhom/exucal/issues/107)). The limits bound
+the time a call may take
+([What the costs come from](cost.md#what-the-costs-come-from) names the
+regime). A refusal claims nothing false about the value, where digits
+that nothing certifies would.
 
 An argument whose radius is above `2^-16` of its magnitude is taken at
 its two ends, and the results are hulled, since each function is
@@ -1704,13 +1719,14 @@ below the ceiling is cheap, and the cost lies at the ceiling, where each
 term of the series also costs a division at full precision
 ([What the costs come from](cost.md#what-the-costs-come-from)).
 
-| You type                     | Exucal shows                        | Note                            |
-| ---------------------------- | ----------------------------------- | ------------------------------- |
-| `uppergamma(2, 0)`           | `= 1`                               | `Γ(2)`, at `x = 0`              |
-| `lowergamma(1, 2)`           | `≈ 0.86466472`                      | the closed form `1 - e^-x`      |
-| `uppergammareg(1e6, 1.01e6)` | `≈ 1.0606997e-23`                   | the digits below one are kept   |
-| `uppergammareg(1e6, 1.5e6)`  | refused: past the significand limit | neither route within its limits |
-| `lowergammareg(1e8, 1e8)`    | refused: past the significand limit | neither route within its limits |
+| You type                     | Exucal shows                        | Note                                        |
+| ---------------------------- | ----------------------------------- | ------------------------------------------- |
+| `uppergamma(2, 0)`           | `= 1`                               | `Γ(2)`, at `x = 0`                          |
+| `lowergamma(1, 2)`           | `≈ 0.86466472`                      | the closed form `1 - e^-x`                  |
+| `uppergammareg(1e6, 1.01e6)` | `≈ 1.0606997e-23`                   | the digits below one are kept               |
+| `lowergammareg(1e19700, 1)`  | refused: past the significand limit | the working bits pass the limit             |
+| `uppergammareg(1e6, 1.5e6)`  | refused: past the significand limit | the fixed limits: neither route within them |
+| `lowergammareg(1e8, 1e8)`    | refused: past the significand limit | the fixed limits                            |
 
 ### `erf` and `erfc`
 
@@ -1787,11 +1803,16 @@ exponential is taken on the working grid, so that a complement keeps the
 digits below one. A tiny `x` whose complement does not align within the
 significand limit has its complement as one within `|x|`.
 
-Each orientation has a limit of 50,000 terms. Past it in both, the call
-is refused as past the significand limit, as an incomplete gamma
-function past its limits is. Large parameters
-with `x` near the median are such a call, as `incbetareg(1e6, 1e6, 0.5)`
-is at a thousand display digits.
+The function has the two refusals of the incomplete gamma functions
+([The incomplete gamma functions](#the-incomplete-gamma-functions)):
+
+- Working bits past the significand limit are a `tooLarge` with the
+  count of bits, as for `incbetareg(1e20000, 2, 0.5)`.
+- Each orientation has a limit of 50,000 terms, a constant of the
+  module. Past it in both orientations the call is a `tooLarge` with no
+  count, and its message misnames the cause in the same way. Large
+  parameters with `x` near the median are such a call, as
+  `incbetareg(1e6, 1e6, 0.5)` is at a thousand display digits.
 
 A term whose error reaches its value ends the sum, as happens for wide
 parameters, whose intervals grow through the ratios. Where no tail bound
@@ -1821,14 +1842,15 @@ both orientations then take many terms
   at most ten thousand. The unregularized function takes its `B(a, b)`
   from `beta`.
 
-| You type                      | Exucal shows                        | Note                                     |
-| ----------------------------- | ----------------------------------- | ---------------------------------------- |
-| `incbetareg(2, 3, 0.5)`       | `= 0.6875`                          | the polynomial                           |
-| `incbeta(2, 3, 1)`            | `≈ 0.083333333`                     | exactly `B(2, 3)`, `1/12`                |
-| `incbetareg(5001, 5000, 1/2)` | `≈ 0.49601068`                      | exact: `a + b - 1` is ten thousand       |
-| `incbetareg(5002, 5000, 1/2)` | `≈ 0.49202215`                      | inexact: past ten thousand               |
-| `incbetareg(2, 3, 1e-20)`     | `≈ 6e-40`                           | at the first pass                        |
-| `incbetareg(1e7, 1e7, 0.5)`   | refused: past the significand limit | past the term limit in both orientations |
+| You type                      | Exucal shows                        | Note                                  |
+| ----------------------------- | ----------------------------------- | ------------------------------------- |
+| `incbetareg(2, 3, 0.5)`       | `= 0.6875`                          | the polynomial                        |
+| `incbeta(2, 3, 1)`            | `≈ 0.083333333`                     | exactly `B(2, 3)`, `1/12`             |
+| `incbetareg(5001, 5000, 1/2)` | `≈ 0.49601068`                      | exact: `a + b - 1` is ten thousand    |
+| `incbetareg(5002, 5000, 1/2)` | `≈ 0.49202215`                      | inexact: past ten thousand            |
+| `incbetareg(2, 3, 1e-20)`     | `≈ 6e-40`                           | at the first pass                     |
+| `incbetareg(1e20000, 2, 0.5)` | refused: past the significand limit | the working bits pass the limit       |
+| `incbetareg(1e7, 1e7, 0.5)`   | refused: past the significand limit | the fixed limit, in both orientations |
 
 ### What the families cost
 

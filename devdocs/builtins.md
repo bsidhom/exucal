@@ -1189,15 +1189,23 @@ are defined on exact rationals and on quantities of one dimension.
 | `mod(-30 deg, 360 deg)` | `deg` | `≈ 330 deg`  | two angles              |
 | `div(7 ft, 2 ft)`       |       | `= 3`        | a count, a plain number |
 
-Boute sets three definitions side by side:
+The design follows Boute's paper on purpose. He sets three definitions
+side by side:
 
 - the truncated pair, whose remainder has the dividend's sign;
 - the floored pair, whose remainder has the divisor's sign;
 - the Euclidean pair, whose remainder is never negative.
 
 His case is that each is consistent only as a pair, and that the
-Euclidean pair has the cleanest theory. The floored pair is chosen here
-for two reasons:
+Euclidean pair has the cleanest theory. Two rules of the design come
+from the paper:
+
+- `div` and `mod` are always one concordant pair, and never the quotient
+  of one definition beside the remainder of another.
+- The pair is the floored one or the Euclidean one.
+
+The floored pair is the one built in today. It came first for two
+reasons:
 
 - `div(a, b) = floor(a / b)` is one sentence, and it makes `div` agree
   with `floor` as well as with `mod`. The Euclidean pair lacks that
@@ -1207,8 +1215,9 @@ for two reasons:
   the divisor at hand.
 
 The floored and the Euclidean pairs differ only for a negative divisor,
-and the Euclidean pair is one call away: `mod(a, abs(b))` and
-`sign(b) div(a, abs(b))`.
+and the Euclidean pair is one call away today: `mod(a, abs(b))` and
+`sign(b) div(a, abs(b))`. Functions of its own for the Euclidean pair
+are future work ([Extensions that fit](future.md#extensions-that-fit)).
 
 ### The exact functions on an inexact argument
 
@@ -1950,9 +1959,12 @@ Two designs are excluded on purpose:
 
 These two are facts about today:
 
-- **Truncated and Euclidean division have no built-ins of their own.**
-  [Floored division](#floored-division) gives the Euclidean pair as an
-  expression, and the truncated quotient is `trunc(a / b)`.
+- **The Euclidean pair of `div` and `mod` has no functions of its own.**
+  [Floored division](#floored-division) gives it as an expression. Its
+  absence is not a decision against it: the design allows the floored
+  pair and the Euclidean pair alike, and the second is future work
+  ([Extensions that fit](future.md#extensions-that-fit)). The truncated
+  quotient is `trunc(a / b)`.
 - **No built-in takes or gives a complex value.** No argument leaves the
   real line, since the language has no complex literal
   ([Real values only](../docs/numbers.md#real-values-only) states it for

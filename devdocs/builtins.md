@@ -354,6 +354,9 @@ a user) this way:
   that edge. So is one that straddles any other point where the result
   depends on the side. The retry loop raises the precision, and at the
   ceiling the message says that the value cannot be told from the edge.
+- A built-in that cannot bound its result over a wide ball returns
+  `unresolved` too, as its way to ask for a narrower ball
+  ([The incomplete beta function](#the-incomplete-beta-function)).
 - A ball that touches an end of a domain counts as one that straddles
   it, even where the end belongs to the domain. `asin` of the interval
   `[0.5, 1]`, `acosh` of `[1, 1.5]` and `atanh` of `[0.5, 1]` are
@@ -1456,8 +1459,8 @@ The poles are zero and the negative integers:
 - An exact pole is a `domain` error.
 - A ball that touches or straddles a pole is `unresolved` at the pole,
   as an argument of `tan` is.
-- A ball too wide for the series is reported the same way, as
-  `unresolved` at the nearest pole below it.
+- A positive ball whose lower end reaches zero at the working bits is
+  `unresolved` at the pole too, since zero is a pole.
 
 `digamma` has no exact case, since no rational value of it at a rational
 argument is known:
@@ -1533,6 +1536,15 @@ in the true function and not in the interval. For a ball of midpoint
 narrower ball shows its digits, and the retry loop narrows the ball of
 an `approx`.
 
+Past a width the looseness becomes a defect. The interval of the shift's
+product grows with each factor, and for a wide ball it reaches zero. The
+logarithm of the product then has no positive interval to take, and
+`lgamma` throws an exception. So does every function that calls it:
+`gamma`, `beta`, the incomplete beta functions and the regularized
+incomplete gamma functions. The shift is longest at the ceiling pass,
+where a ball of midpoint `2` throws from a radius of about `0.1`
+([#259](https://github.com/bsidhom/exucal/issues/259)).
+
 At the ceiling, a call on an inexact argument costs several times a call
 on the same argument typed exactly with a short denominator, and the
 loop of the shift is most of it. As a rough, illustrative figure, the
@@ -1545,16 +1557,18 @@ since an exact argument of long denominator takes the loop too.
 [What the costs come from](cost.md#what-the-costs-come-from) names the
 shift of a wide argument among the causes.
 
-| You type                | Exucal shows                                      | Note                                           |
-| ----------------------- | ------------------------------------------------- | ---------------------------------------------- |
-| `digamma(1)`            | `≈ -0.57721566`                                   | no exact case                                  |
-| `digamma(approx(-2))`   | an error: the argument cannot be told from a pole | `unresolved`, at a pole                        |
-| `digamma(1e-999999999)` | `≈ -1e+999999999`                                 | the expansion at zero                          |
-| `lgamma(2)`             | `= 0`                                             | an exact case                                  |
-| `gamma(5)`              | `= 24`                                            | the exact `factorial(4)`                       |
-| `gamma(20001)`          | `≈ 1.8192063e+77337`                              | the kernel's value: the factorial does not fit |
-| `gamma(1e19)`           | refused: too large to compute                     | `overflow`                                     |
-| `gamma(-1e19 - 0.5)`    | refused: too small to compute                     | `underflow`                                    |
+| You type                                      | Exucal shows                                      | Note                                           |
+| --------------------------------------------- | ------------------------------------------------- | ---------------------------------------------- |
+| `digamma(1)`                                  | `≈ -0.57721566`                                   | no exact case                                  |
+| `digamma(approx(-2))`                         | an error: the argument cannot be told from a pole | `unresolved`, at a pole                        |
+| `digamma(1e-999999999)`                       | `≈ -1e+999999999`                                 | the expansion at zero                          |
+| `lgamma(2)`                                   | `= 0`                                             | an exact case                                  |
+| `gamma(5)`                                    | `= 24`                                            | the exact `factorial(4)`                       |
+| `gamma(20001)`                                | `≈ 1.8192063e+77337`                              | the kernel's value: the factorial does not fit |
+| `gamma(1e19)`                                 | refused: too large to compute                     | `overflow`                                     |
+| `gamma(-1e19 - 0.5)`                          | refused: too small to compute                     | `underflow`                                    |
+| `lgamma(2 + approx(1e4047) - approx(1e4047))` | `≈ 0`, within a bound                             | a wide ball: sound but loose                   |
+| `lgamma(2 + approx(1e4048) - approx(1e4048))` | an exception                                      | the defect: a wider ball                       |
 
 ### `beta`
 
@@ -1816,8 +1830,21 @@ The function has the two refusals of the incomplete gamma functions
 
 A term whose error reaches its value ends the sum, as happens for wide
 parameters, whose intervals grow through the ratios. Where no tail bound
-holds at that term, the call is `unresolved`, and it is retried with a
-narrower ball.
+holds at that term, the built-in cannot bound its result. It returns
+`unresolved`, which asks the retry loop for a narrower ball. No edge is
+the cause, so the error names one at hand, in three places:
+
+- Here, it names `1` for `x`.
+- Where the interval of the series' sum reaches zero, it names zero for
+  `x`.
+- In the incomplete gamma functions, where a wide order puts the
+  interval of the kernel's factor at zero, it names zero for the wider
+  of the order and the argument.
+
+The retry is the purpose, and the result is sound. A call that is still
+too wide at the ceiling shows a message about an edge that is not the
+cause. What such a call should report is the subject of
+[#260](https://github.com/bsidhom/exucal/issues/260).
 
 A wide ball of `x` is taken at its two ends, since the function rises
 with `x`. So is a ball that touches an end of the domain, `0` or `1`,
@@ -1842,15 +1869,16 @@ both orientations then take many terms
   at most ten thousand. The unregularized function takes its `B(a, b)`
   from `beta`.
 
-| You type                      | Exucal shows                        | Note                                  |
-| ----------------------------- | ----------------------------------- | ------------------------------------- |
-| `incbetareg(2, 3, 0.5)`       | `= 0.6875`                          | the polynomial                        |
-| `incbeta(2, 3, 1)`            | `≈ 0.083333333`                     | exactly `B(2, 3)`, `1/12`             |
-| `incbetareg(5001, 5000, 1/2)` | `≈ 0.49601068`                      | exact: `a + b - 1` is ten thousand    |
-| `incbetareg(5002, 5000, 1/2)` | `≈ 0.49202215`                      | inexact: past ten thousand            |
-| `incbetareg(2, 3, 1e-20)`     | `≈ 6e-40`                           | at the first pass                     |
-| `incbetareg(1e20000, 2, 0.5)` | refused: past the significand limit | the working bits pass the limit       |
-| `incbetareg(1e7, 1e7, 0.5)`   | refused: past the significand limit | the fixed limit, in both orientations |
+| You type                                                  | Exucal shows                           | Note                                     |
+| --------------------------------------------------------- | -------------------------------------- | ---------------------------------------- |
+| `incbetareg(2, 3, 0.5)`                                   | `= 0.6875`                             | the polynomial                           |
+| `incbeta(2, 3, 1)`                                        | `≈ 0.083333333`                        | exactly `B(2, 3)`, `1/12`                |
+| `incbetareg(5001, 5000, 1/2)`                             | `≈ 0.49601068`                         | exact: `a + b - 1` is ten thousand       |
+| `incbetareg(5002, 5000, 1/2)`                             | `≈ 0.49202215`                         | inexact: past ten thousand               |
+| `incbetareg(2, 3, 1e-20)`                                 | `≈ 6e-40`                              | at the first pass                        |
+| `incbetareg(1e20000, 2, 0.5)`                             | refused: past the significand limit    | the working bits pass the limit          |
+| `incbetareg(1e7, 1e7, 0.5)`                               | refused: past the significand limit    | the fixed limit, in both orientations    |
+| `incbeta(0.4 + approx(1e4048) - approx(1e4048), 30, 0.3)` | an error: `x` cannot be told from zero | the first parameter is too wide to bound |
 
 ### What the families cost
 

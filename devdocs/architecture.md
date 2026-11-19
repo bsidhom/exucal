@@ -46,6 +46,9 @@ Two rules bind all of the code:
   - `erf`, `erfc` and the incomplete beta functions throw for a ball
     whose radius is too large or too small to form
     ([A wide argument gets a trivial bound](builtins.md#a-wide-argument-gets-a-trivial-bound)).
+  - `lgamma` and the functions that call it throw for a positive ball
+    wide enough that the product of the shift loses its sign
+    ([`lgamma` and `gamma`](builtins.md#lgamma-and-gamma)).
 - **Lit is the one third-party dependency of the app.** Lit is the
   library the UI's components are built on. Nothing else is pulled in,
   so the arithmetic is the project's own, built on `bigint`. A new

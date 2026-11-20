@@ -14,7 +14,9 @@ The built-ins follow these rules:
 
 - **Every built-in takes plain numbers unless its entry says otherwise**
   ([Rules every built-in follows](#rules-every-built-in-follows)).
-- **A call that computes inside at more digits than the significand limit holds is refused as past it, even where its result would fit**
+- **A call that computes inside at more digits than the significand limit holds is refused as past it, even where its result would fit.**
+  The incomplete functions also refuse a call that would take more steps
+  than a fixed count
   ([Rules every built-in follows](#rules-every-built-in-follows)).
 - **The elementary functions are exact at a few arguments and inexact everywhere else.**
   - `pi()` has no exact case ([Constants](#constants)).
@@ -66,11 +68,16 @@ A value the size limits cannot hold is a refusal
 built-in also computes inside a call at a **working precision** above
 the pass's, and those digits are held within the significand limit like
 any value. So a call that would need more of them than the limit holds
-is refused as past it even where its result would fit, such as the
-incomplete gamma functions at large orders and arguments
-([Incomplete gamma](#incomplete-gamma)) and the incomplete beta
-functions at large parameters with the argument near the point where the
-regularized value is one half ([Incomplete beta](#incomplete-beta)).
+is refused as past it even where its result would fit, as `beta` and the
+incomplete functions are at an argument with more digits before the
+point than the limit holds ([Gamma family](#gamma-family)).
+
+The incomplete gamma and beta functions also limit the steps that one
+call may take, by a fixed count that no setting changes. A call past the
+count is refused with the same message, although its working precision
+is within the significand limit. Raising the limit does not change the
+refusal ([Incomplete gamma](#incomplete-gamma),
+[Incomplete beta](#incomplete-beta)).
 
 ## Constants
 
@@ -367,10 +374,13 @@ inexact.
 The working precision of a call includes the digits before the point of
 the order and the argument, so an order or argument with more of them
 than the significand limit holds is refused as past it
-([Rules every built-in follows](#rules-every-built-in-follows)). It also
-grows with the order and the argument together, and with the precision
-asked for, so a call is past the limit at a very large order, or at a
-smaller order with the argument far above it or at a high precision.
+([Rules every built-in follows](#rules-every-built-in-follows)).
+
+A call is also refused where it would take more steps than the fixed
+count allows. The steps grow with the order and the argument together,
+and with the precision asked for. So a call is refused at a very large
+order, or at a smaller order with the argument far above it or at a high
+precision.
 
 | You type                    | Exucal shows                        | Note                                              |
 | --------------------------- | ----------------------------------- | ------------------------------------------------- |
@@ -423,11 +433,13 @@ that is. Every other value is inexact.
 The working precision of a call includes the digits before the point of
 the parameters, so a parameter with more of them than the significand
 limit holds is refused as past it
-([Rules every built-in follows](#rules-every-built-in-follows)). It also
-grows with the parameters where `x` lies near the median, the point
-where the regularized value is one half, so a call with large parameters
-near the median is past the limit too, and a higher precision moves the
-refusal to smaller parameters.
+([Rules every built-in follows](#rules-every-built-in-follows)).
+
+A call is also refused where it would take more steps than the fixed
+count allows. The steps grow with the parameters where `x` lies near the
+median, the point where the regularized value is one half. So a call
+with large parameters near the median is refused, and a higher precision
+moves the refusal to smaller parameters.
 
 | You type                                | Exucal shows                        | Note                                                           |
 | --------------------------------------- | ----------------------------------- | -------------------------------------------------------------- |

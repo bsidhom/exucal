@@ -272,12 +272,16 @@ the same scaling in `rootBall`.
 
 ### A wide argument gets a trivial bound
 
-An argument can be too wide for a routine's series. Each routine has a
-threshold:
+An argument can be too wide for a routine. Over a wide interval the
+terms of a series stop shrinking, or a value that the routine needs
+positive is no longer so under the error rules. Each routine has a
+threshold on the radius:
 
-- about a fifth of a radian, for `sin` and `cos`;
-- one, for `atan`;
-- a radius of one half, for `asinh`, `tanh` and `exp`.
+- For `sin` and `cos`, the magnitude of the reduced argument plus its
+  radius reaches one radian. The reduced argument lies within `pi/4` of
+  zero, so the radius is about a fifth of a radian at the least.
+- For `atan`, `asinh`, `exp`, `sinh`, `cosh` and `tanh`, the radius is
+  one half.
 
 The series is not run on such an argument. The answer is a
 **trivial bound**: a ball that covers every value the function takes
@@ -296,11 +300,12 @@ over the argument.
 - `asinh` gives the value at the midpoint, with the argument's radius
   added to the result's, since the slope of `asinh` is at most one
   everywhere. The routine's own formula, `ln(x + sqrt(x^2 + 1))`, does
-  not serve at such a width.
-  The product rule centers the interval of `x^2` on the midpoint's
-  square
+  not serve a wide ball. The product rule centers the interval of `x^2`
+  on the midpoint's square
   ([Error bounds for the four operations](numbers.md#error-bounds-for-the-four-operations)),
-  so `x^2 + 1` under the root would reach below zero.
+  and for a wide enough ball that interval reaches below `-1`, so that
+  `x^2 + 1` under the root is not positive. A radius of one half keeps
+  clear of that.
 
 A trivial bound certifies no digit. The next pass computes the argument
 at a higher precision, which narrows it.
@@ -1400,8 +1405,8 @@ numbers through the ratios of consecutive ones, `|B_(2k+2) / B_2k|`
 term before it times the ratio, an index factor and `1 / y^2`.
 
 - The numbers are exact rationals. A **run** computes as many as a
-  series asks for, about `bits / (2 log2 y)`, from the tangent numbers,
-  which are integers found by one recurrence.
+  series asks for, from the tangent numbers, which are integers found by
+  one recurrence.
 - The ratios are formed from one run, in fixed point, and memoized by
   their count and by the bits they serve. The run's numbers are released
   once the ratios are formed.
@@ -1410,9 +1415,10 @@ term before it times the ratio, an index factor and `1 / y^2`.
 
 These figures give the memo's size:
 
-- At the default ceiling the memo holds 730 to 1,430 ratios, about 0.8
-  to 1 MB in all. The first are held at the ceiling's bits plus the
-  margin, and the last at about two hundred bits.
+- At the default ceiling the memo holds about 730 ratios for an exact
+  shift and about 1,420 for the loop's shorter one, about 0.8 to 1 MB in
+  all. The first are held at the ceiling's bits plus the margin, and the
+  last of the longer run at about two hundred bits.
 - While a run is computed, its exact numbers take up to about 1.8 MB and
   the tangent numbers up to about 2.2 MB.
 - At a thousand digits the memo is about 80 KB, and at forty digits it
@@ -1459,7 +1465,8 @@ Two details keep the bound tight:
   alone is taken at those bits.
 - The square `1 / y^2` is formed as the square of `1 / y`, and not as
   the reciprocal of `y^2`. The interval that the product rule gives
-  `y^2` can reach zero where the interval of `y` does not.
+  `y^2` can reach zero where the interval of `y` does not, and the
+  series takes `1 / y` as well.
 
 For a negative `x` that is not an integer, `digamma` takes the
 reflection `ψ(1 - x) - ψ(x) = π cot(π x)`, at the fractional part folded

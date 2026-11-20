@@ -1,98 +1,102 @@
 # On-ramp: the numeric core
 
-Exucal computes every value as a `Ball`: an exact rational midpoint and
-a bound on its error. Exact inputs stay exact under `+`, `-`, `*`, `/`
+Exucal computes every value as a `Ball`: a rational midpoint and a
+bound on its error. Exact inputs stay exact under `+`, `-`, `*`, `/`
 and integer powers. Every other result carries a rigorous error bound,
-and the display shows the digits that the bound certifies. This is ball
-arithmetic, as in [Arb](https://arblib.org/), except that the midpoint
-is an exact rational and not a rounded float.
+and the display says which digits the bound **certifies**: those that
+every value within the bound rounds to. This is ball arithmetic, as in
+[Arb](https://arblib.org/), with one change: the midpoint is a
+rational, and it is rounded only once the value is inexact.
 
-Six types carry the design, in three layers. The first four form a
-ladder: each adds one idea to the type before it. The last two belong
-to the **kernel**, the integer routines that compute irrational values.
+An expression is evaluated in **passes**. A pass computes everything at
+one **working precision** $p$, a count of digits that sets how long its
+inexact values are kept. A later pass has a larger $p$. The first pass
+has $p = d + 10$, where $d$ is the **display digits**, the count of
+digits asked for.
 
-| Layer  | Type       | Denotes                            | Fields                   | Adds                        |
-| ------ | ---------- | ---------------------------------- | ------------------------ | --------------------------- |
-| exact  | `Rational` | $p/q$                              | `num`, `den`             | an exact fraction           |
-| exact  | `Scaled`   | $m \cdot 10^{e}$                   | `significand`, `exp`     | a power of ten, held apart  |
-| ball   | `Radius`   | $s \cdot 2^{j}$                    | `significand`, `exp`     | a cheap upper bound         |
-| ball   | `Ball`     | $c \pm r$                          | `mid`, `rad`             | an error bound on a value   |
-| kernel | `Fixed`    | $(v \pm \varepsilon) \cdot 2^{-k}$ | `value`, `error`, `bits` | the kernel's number         |
-| kernel | `Floating` | $f \cdot 2^{j}$, $f$ a `Fixed`     | `significand`, `exp`     | a kernel result of any size |
+Six types carry the design, in three layers. The **kernel** is the set
+of integer routines that compute irrational values.
+
+| Layer  | Type       | Is                                                     | Fields                      |
+| ------ | ---------- | ------------------------------------------------------ | --------------------------- |
+| exact  | `Rational` | an exact fraction                                      | `num`, `den`                |
+| exact  | `Scaled`   | a `Rational` times a power of ten, $m \cdot 10^{e}$    | `significand`, `exp`        |
+| ball   | `Radius`   | a coarse bound: a 30-bit integer times a power of two  | `significand`, `exp`        |
+| ball   | `Ball`     | a midpoint and its error bound, $c \pm r$              | `mid`, `rad`, `uncertified` |
+| kernel | `Fixed`    | a ball in integers, $(v \pm \varepsilon) \cdot 2^{-k}$ | `value`, `error`, `bits`    |
+| kernel | `Floating` | a `Fixed` times a power of two                         | `significand`, `exp`        |
 
 [Numbers and precision](numbers.md) is the full design, with the
-alternatives it rules out. Two things built on the ball are out of
-scope here: the built-in functions, and quantities, which pair a ball
-with a dimension.
+alternatives it rules out. The built-in functions are out of scope
+here, and so are quantities, which pair a ball with a dimension.
 
-## The ladder
+## The exact layer
 
 ### `Rational`
 
-A `Rational` is $p/q$ for `bigint` $p$ and $q$, with $q \gt 0$ and
-$\gcd(p, q) = 1$. Equal values have equal fields. Arithmetic is exact,
-and nothing here bounds the length of $p$ and $q$. The significand
-limit does ([Size limits](#size-limits)).
+A `Rational` is a fraction of two `bigint` values in lowest terms, with
+a positive denominator. Arithmetic is exact, at whatever length the
+result needs.
 
 ### `Scaled`
 
 A `Scaled` is a `Rational` $m$ times $10^{e}$, with a `bigint` $e$.
 Every midpoint is a `Scaled`, and so is every exact value. The form is
-**canonical**, one per value. For $x \ne 0$:
+**canonical**: a value $x \ne 0$ has exactly one,
 
 $$e = \min(\nu_2(x), \nu_5(x)) \qquad m = x / 10^{e}$$
 
-Here $\nu_p(x)$ is the exponent of the prime $p$ in $x$, and zero is
+where $\nu_2$ and $\nu_5$ are the 2-adic and 5-adic valuations. Zero is
 $0 \cdot 10^{0}$. Equivalently, $m$ is in lowest terms, its denominator
 is coprime to ten, and its numerator is not divisible by ten. `2.54`,
 `254/100` and `127/50` are all $254 \cdot 10^{-2}$, and `1/6` is
 $\frac{5}{3} \cdot 10^{-1}$.
 
-Five things follow:
+Four things follow:
 
 - **Equality is structural.** Equal values have equal fields and equal
   cost, whatever computed them.
-- **A decimal is an integer.** $x$ has a finite decimal expansion
-  exactly when $m$ is an integer, and $m$ is then its digits. So a
-  literal enters exactly.
+- **A finite decimal has an integer significand.** $x$ has a finite
+  decimal expansion exactly when $m$ is an integer, and $m$ is then its
+  digits.
 - **Magnitude is free.** `1e999999999` is $1 \cdot 10^{999999999}$. A
   product adds exponents, and a quotient subtracts them. Comparison,
   rounding and formatting never form $10^{e}$.
-- **A sum must align.** One significand is multiplied by
-  $10^{\lvert \Delta e \rvert}$, the gap between the two exponents.
-  `1e999999999 + 1` is an exact value too long to hold.
-- **A power of two in a denominator costs extra.** $2^{-n}$ is held as
-  $5^{n} \cdot 10^{-n}$, about 2.32 times its binary length.
+- **Two things cost extra.** A sum must first align its operands: one
+  significand is multiplied by ten to the gap between the exponents.
+  And $2^{-n}$ is held as $5^{n} \cdot 10^{-n}$, about 2.32 times its
+  binary length.
 
-The exponent is decimal because literals, the display and decimal mode
-are decimal. Only the kernel is binary.
+The exponent is decimal because the input and the output are decimal: a
+literal enters exactly, and digits leave without a change of base.
 
-Two readings of a magnitude never form $10^{e}$. The **decimal
-exponent** $\lfloor \log_{10} \lvert x \rvert \rfloor$ is exact. The
-**coarse bounds** are a lower and an upper bound on
-$\log_2 \lvert x \rvert$, about $2^{-30}$ apart, read from the leading
-bits of $m$.
+## The ball layer
 
 ### `Radius`
 
-A `Radius` is an upper bound on an absolute error: a 30-bit integer
-times a power of two, with a `bigint` exponent. Zero is the radius of
-an exact value, and `unbounded` says that no bound is known.
+A `Radius` is a coarse magnitude: a 30-bit integer times a power of
+two, with a `bigint` exponent. It has two uses. The radius of a ball is
+an upper bound on an absolute error. The **coarse bounds** of a
+midpoint bracket its magnitude: one lies at or below it and one at or
+above it, each within a relative $2^{-28}$. They are read from the
+leading bits of $m$ and from $e$, so $10^{e}$ is never formed.
 
-Every operation rounds toward safety: up, or down where a lower bound
-is needed, as in a divisor. A radius is therefore always a true bound,
-loosened by a relative $2^{-29}$ per operation. Its length is fixed, so
-carrying it costs almost nothing. Its exponent is a `bigint` because a
-radius spans the range of the values themselves, far beyond a float64.
+Every operation rounds to the safe side: up for a bound, and down for a
+magnitude that a rule divides by. A radius is therefore always a true
+bound, loosened by a relative $2^{-29}$ per sum, product or quotient.
+Its length is fixed, so carrying it costs almost nothing.
+
+Zero is the radius of an exact value. The value `unbounded` stands for
+a bound that is not known, and nothing creates one.
 
 ### `Ball`
 
 A `Ball` is a midpoint $c$, a `Scaled`, and a radius $r$, a `Radius`.
 Its contract is that the true value $x$ satisfies
 $\lvert x - c \rvert \le r$. A ball is **exact** when $r = 0$ and
-**inexact** otherwise. Only two things create a nonzero radius: an
-inexact function, which the kernel computes, and `approx`, the one
-operation whose purpose is to make a value inexact.
+**inexact** otherwise. In an expression, only two things create a
+nonzero radius: an inexact function, and `approx`, the one operation
+whose purpose is to make a value inexact.
 
 An operation computes the midpoint exactly, on `Scaled`, and the radius
 by a rule. For operands $a \pm r_a$ and $b \pm r_b$, let
@@ -106,27 +110,27 @@ $\lvert \alpha \rvert \le r_a$ and $\lvert \beta \rvert \le r_b$:
 $$(a + \alpha)(b + \beta) - ab = a \beta + b \alpha + \alpha \beta \qquad \frac{a + \alpha}{b + \beta} - \frac{a}{b} = \frac{b \alpha - a \beta}{b (b + \beta)}$$
 
 Here $\lvert b + \beta \rvert \ge \lvert b \rvert - r_b \gt 0$, since
-the divisor's ball must exclude zero. So a result contains $f(x, y)$
-for every $x$ and $y$ in its operands. By induction, every ball
-contains the true value of its expression.
+the divisor's ball must exclude zero. So the result's ball contains the
+true result for every pair of true values in the operands' balls. By
+induction, every ball contains the true value of its expression.
 
-The rules are evaluated on `Radius` so that every approximation errs
-upward. $\lvert a \rvert$ and $\lvert b \rvert$ come from the upper
-coarse bound in $N$ and from the lower one in the divisor. With
+The rules are evaluated on `Radius`, with every rounding on the safe
+side. In $N$, $\lvert a \rvert$ and $\lvert b \rvert$ are upper coarse
+bounds. In the divisor, $\lvert b \rvert$ is a lower one. With
 $r_a = r_b = 0$ each rule gives zero, so exact operands give an exact
 result.
 
 Four rules complete the arithmetic:
 
-- **Division.** A divisor that is exactly zero is `divisionByZero`. A
-  divisor whose ball contains zero without being exactly zero is
-  `unresolved`: the quotient has no bound, and a narrower ball might
-  exclude zero.
+- **Division.** A divisor that is exactly zero is the error
+  `divisionByZero`. A divisor whose ball contains zero without being
+  exactly zero is `unresolved`: the quotient has no bound, and a
+  narrower ball might exclude zero.
 - **Powers.** An integer power of an exact ball is the exact power. For
   an inexact ball it is the product rule under repeated squaring.
 - **Comparison.** A ball lies below a point, lies above it or straddles
   it. An operation whose result depends on the side returns
-  `unresolved` for a ball that straddles. It never guesses.
+  `unresolved` for a ball that straddles.
 - **No correlation.** Each occurrence of a value is independent.
   `sqrt(2) - sqrt(2)` is $0 \pm 2r$, not an exact zero.
 
@@ -136,12 +140,9 @@ The midpoint of an inexact ball is still an exact rational. Its length
 doubles with each product, and nothing below $r$ carries information.
 So every inexact result is **settled**. Its midpoint is rounded
 half-even onto the **working grid**, the values with $p + 10$
-significant digits, and half a unit of the last digit is added to $r$.
-Here $p$ is the **working precision**, a count of digits that the
-evaluation runs at ([The retry loop](#the-retry-loop)).
-
-An exact ball is never settled. Exact values stay exact and may grow.
-Inexact midpoints stay short.
+significant digits. When that moves the midpoint, half a unit of the
+last digit is added to $r$. An exact ball is never settled: it stays
+exact, at whatever length.
 
 ## The kernel
 
@@ -149,16 +150,16 @@ Inexact midpoints stay short.
 
 No fraction holds an irrational value such as a root, an exponential or
 a logarithm. Something must produce a midpoint for it and prove a
-radius. That takes an iteration or a series: hundreds or thousands of
-multiplications at one precision. On the ladder, each multiplication
-would need a rounding onto a decimal grid, which is a long division,
-and a radius update. Left unrounded, the fractions would double in
-length each time.
+radius. That takes an iteration or a series: tens to hundreds of
+multiplications at one precision. On balls, each of them would end in a
+rounding onto a decimal grid, which is a long division.
 
 The kernel does the same work on plain integers: one multiplication and
-one shift per step, with the error bound as one more small integer. It
-is binary so that scaling is a shift. A value changes base only where
-it enters or leaves, and exact arithmetic never enters at all.
+one shift per step, with the error bound as one more small integer.
+Without that count the extra bits would be guard digits, which prove
+nothing. The kernel is binary so that scaling is a shift. A value
+changes base only where it enters or leaves, and exact arithmetic never
+enters at all.
 
 ### `Fixed`
 
@@ -172,189 +173,196 @@ are integers, counted in ulps.
 The point is fixed: nothing renormalizes, and $k$ changes only where a
 routine says so. Operands are first brought to one $k$ by an exact
 shift. Let
-$N = \lvert v_a \rvert \varepsilon_b + \lvert v_b \rvert \varepsilon_a$.
+$M = \lvert v_a \rvert \varepsilon_b + \lvert v_b \rvert \varepsilon_a$.
 Then:
 
 | Operation     | `value`                                 | `error`                                                                               |
 | ------------- | --------------------------------------- | ------------------------------------------------------------------------------------- |
 | $a \pm b$     | $v_a \pm v_b$                           | $\varepsilon_a + \varepsilon_b$                                                       |
-| $ab$          | $\lfloor v_a v_b / 2^{k} \rfloor$       | $\lceil (N + \varepsilon_a \varepsilon_b) / 2^{k} \rceil + 1$                         |
-| $a/b$         | $\operatorname{trunc}(2^{k} v_a / v_b)$ | $\lceil 2^{k} N / (\lvert v_b \rvert (\lvert v_b \rvert - \varepsilon_b)) \rceil + 1$ |
+| $ab$          | $\lfloor v_a v_b / 2^{k} \rfloor$       | $\lceil (M + \varepsilon_a \varepsilon_b) / 2^{k} \rceil + 1$                         |
+| $a/b$         | $\operatorname{trunc}(2^{k} v_a / v_b)$ | $\lceil 2^{k} M / (\lvert v_b \rvert (\lvert v_b \rvert - \varepsilon_b)) \rceil + 1$ |
 | drop $t$ bits | $\lfloor v / 2^{t} \rfloor$             | $\lceil \varepsilon / 2^{t} \rceil + 1$                                               |
 
 The first three rows are the ball's rules with $a = v_a \cdot 2^{-k}$
 and $r_a = \varepsilon_a \cdot 2^{-k}$, counted in ulps:
 
-- The product's bound is
-  $(N + \varepsilon_a \varepsilon_b) \cdot 2^{-2k}$, which is
-  $(N + \varepsilon_a \varepsilon_b) / 2^{k}$ ulps.
+- The product's bound $N + r_a r_b$ is
+  $(M + \varepsilon_a \varepsilon_b) \cdot 2^{-2k}$, which is
+  $(M + \varepsilon_a \varepsilon_b) / 2^{k}$ ulps.
 - The quotient's bound is a pure ratio, so it is multiplied by $2^{k}$
-  to count ulps. It requires $\lvert v_b \rvert \gt \varepsilon_b$,
-  which the ball layer checks before it calls the kernel.
+  to count ulps. It requires $\lvert v_b \rvert \gt \varepsilon_b$. The
+  caller must establish that before it divides: a breach is a bug, and
+  it throws.
 
-Two roundings remain, and both err upward. A ceiling keeps each count
-an integer. The stored value is the exact result on the midpoints,
-rounded down or toward zero. That moves it by less than one ulp, which
-the final 1 covers. The product and the quotient add it only when the
-rounding cut something. Dropping bits is that rounding alone.
+Two roundings remain, and the count covers both. The count itself is
+rounded up to an integer. The stored value is the exact result on the
+midpoints, rounded down or toward zero. That moves it by less than one
+ulp, which the final 1 covers. The product and the quotient add it only
+when the rounding cut something.
 
 A routine works on values of order one, so the count is a relative
-error too. It grows by about one ulp per operation, and a series of a
-thousand terms loses about ten bits. A pass at working precision $p$
-therefore runs the kernel at $\lceil p \log_2 10 \rceil + 32$ bits, of
-which 32 are guard bits.
-
-An integer count is the cheapest design that still gives a proof. A
-ball at every step costs a radius operation per step. Two endpoints
-cost twice the arithmetic. Guard digits alone prove nothing.
+error too. It grows by about one ulp per operation. A pass therefore
+runs the kernel at $\lceil p \log_2 10 \rceil + 32$ bits. The 32 guard
+bits are 9.6 digits, which round up to the ten of the working grid.
+They are headroom and no part of the proof. When a routine spends more
+of them, the count says so, fewer digits certify, and a later pass
+makes up for it.
 
 ### Entering and leaving the kernel
 
 - **In.** A ball $c \pm r$ becomes a `Fixed` at $k$ bits. $v$ is
   $c \cdot 2^{k}$ rounded to nearest. $\varepsilon$ counts one ulp for
-  that rounding, when it moved the value, plus
-  $\lceil r \cdot 2^{k} \rceil$. The argument's radius is thus in the
-  count from the first step. A series runs on the whole interval and
-  needs no bound on a derivative.
+  that rounding, when it moved the value, plus $r \cdot 2^{k}$ rounded
+  up. The argument's radius is thus in the count from the first step. A
+  series runs on the whole interval and needs no bound on a derivative.
 - **Out.** $v \cdot 2^{-k}$ is rounded half-even onto the working grid.
-  The radius is $\varepsilon \cdot 2^{-k}$ plus half a unit of the last
-  digit, rounded up. An exact dyadic would cost $5^{k}$ in canonical
-  form, and the result would be settled in any case.
+  The radius is $\varepsilon \cdot 2^{-k}$, plus half a unit of the
+  last digit when that rounding moved the value. An exact dyadic would
+  cost $5^{k}$ in canonical form, and the result would be settled in
+  any case.
 
-A `Floating` is a `Fixed` in $[1, 2)$ times a power of two, with a
-`bigint` exponent, for a result such as `exp(1e6)`. The routine keeps
-the significand in that range as it runs, so no integer of the result's
-full length is formed. A `Floating` leaves exactly where its power of
-two can be formed, and through its decimal logarithm otherwise, with
-the error still counted.
+A `Floating` is a `Fixed` significand with a `bigint` binary exponent,
+under the same contract scaled by the power of two. It holds a result
+such as `exp(1e6)`. The exponential keeps the significand between one
+and two in magnitude, so no integer of the result's length is formed.
+On the way out, a small exponent is folded back into a `Fixed`. A large
+one becomes a decimal exponent and leading digits through the kernel's
+own logarithm and exponential, with the error still counted
+([The kernel's boundary](numbers.md#the-kernels-boundary)).
 
 ### The shape of a routine: the square root
 
-Every routine has one shape: reduce the argument exactly to order one,
-iterate in integers, bound the error, scale back.
+Every routine has one shape: reduce the argument to order one, iterate
+in integers, bound the error, scale back.
 
 An exact case comes first and never enters the kernel: `sqrt(9/4)` is
-$3/2$, by the integer roots of the numerator and the denominator.
-Otherwise the argument $a$ is scaled by an exact power of four into
-$[1, 4)$. Newton's iteration $y \leftarrow y (3 - a y^{2}) / 2$
-converges to $a^{-1/2}$ with multiplications only, and $w = a y$ is the
-root.
+$3/2$, found by integer square roots. Otherwise the reduction is exact
+and free. The ball takes an even power of ten off the exponent. The
+kernel then scales by a power of four, a move of the binary point, into
+$[1, 4)$. Let $u$ be the reduced midpoint. Newton's iteration
+$y \leftarrow y (3 - u y^{2}) / 2$ converges to $u^{-1/2}$ with
+multiplications only, and $w = u y$ approximates the root.
 
 The iteration is not trusted. Its result is checked. $w$ is squared,
-and $D$ bounds $\lvert w^{2} - a \rvert$ over the argument's whole
-interval: the difference found, one ulp for the squaring's own
-rounding, and the argument's $\varepsilon$. Then
+and $D$ bounds $\lvert w^{2} - x \rvert$ for every $x$ in the
+argument's interval: the difference found, one ulp for the squaring's
+own rounding, and the argument's $\varepsilon$. Then
 
-$$\lvert w - \sqrt{a} \rvert = \frac{\lvert w^{2} - a \rvert}{w + \sqrt{a}} \le \frac{D w}{2 w^{2} - D}$$
+$$\lvert w - \sqrt{x} \rvert = \frac{\lvert w^{2} - x \rvert}{w + \sqrt{x}} \le \frac{D w}{2 w^{2} - D}$$
 
-since $\sqrt{a} \ge w - D/w$. A root of any degree is verified the same
-way: the result is raised back to the power under the product rule. The
-proof never depends on how the iteration converged.
+The identity with $\sqrt{x} \ge 0$ gives
+$\lvert w - \sqrt{x} \rvert \le D/w$. So $\sqrt{x} \ge w - D/w$, and
+the identity again gives the bound, for $D \lt 2 w^{2}$, which the code
+checks.
 
 For `sqrt(2)` at eight display digits, the first pass has $p = 18$. The
 kernel returns a `Fixed` at 92 bits with two ulps of error. The ball
 that leaves is $c = 1.414213562373095048801688724$, on the grid of 28
-digits, with $r \approx 9.04 \cdot 10^{-28}$.
+digits, with $r \approx 9.04 \cdot 10^{-28}$: the two ulps, plus half a
+unit of the last digit.
 
 ## From a ball to digits
 
 ### Certification
 
-A ball **certifies** $d$ digits in a rounding mode when $c - r$ and
-$c + r$ round to the same value of $d$ digits. Rounding is monotone, so
-every value in the ball rounds to that value. The digits shown are then
-the true value's, correctly rounded. A small radius is not enough: a
-ball that straddles a rounding boundary does not certify, however
-narrow it is.
+A ball certifies the $d$ display digits, in a rounding mode, when
+$c - r$ and $c + r$ round to the same value of $d$ digits. Rounding is
+monotone, so every value in the ball rounds to that value. The digits
+shown are then the true value's, correctly rounded. A small radius is
+not enough: a ball that straddles a rounding boundary does not certify,
+however narrow it is.
 
 ### The retry loop
 
-The whole expression is evaluated in **passes** at a rising working
-precision $p$. The first pass has $p = d + 10$, where $d$ is the
-**display digits**, the count of digits asked for. Each later pass
-doubles $p$, up to the **ceiling** $4 (L + 10)$. Here $L$ is the
-precision limit, the setting that caps $d$. The ceiling is 4,040 at the
-default $L$ of 1,000.
+Each pass after the first doubles $p$, and the last pass runs at the
+**ceiling** $4 (L + 10)$. Here $L$ is the precision limit, the setting
+that caps $d$. The ceiling is 4,040 at the default $L$ of 1,000. The
+ten digits that the first pass adds to $d$ absorb the roundings of a
+short expression, so that it certifies at once.
 
-The loop ends at the first pass whose result is exact or certifies $d$
-digits. An `unresolved` result goes to the next pass. At the ceiling
-the loop returns what it has: a line that says how many digits certify,
-or the `unresolved` error. The guarantee is on the whole expression: a
-later pass pays for the digits that a cancellation cost.
+The loop ends at the first pass whose result is exact or certifies. A
+result that certifies fewer digits is kept, and the next pass runs. The
+next pass also runs after an `unresolved` error, and any other error
+ends the loop. At its end the loop returns the best result it kept,
+with a note that says how many digits certify, or the last error when
+it kept none. The guarantee is thus on the whole expression: a later
+pass recovers the digits that a cancellation loses.
 
 On a line, `=` marks an exact value shown entire, and `≈` marks every
-other value. At the default settings:
+other value. At the default settings, with eight display digits:
 
-| You type                  | Exucal shows                                   | Reason                                  |
-| ------------------------- | ---------------------------------------------- | --------------------------------------- |
-| `0.1 + 0.2`               | `= 0.3`                                        | exact, shown entire                     |
-| `1/3`                     | `≈ 0.33333333`                                 | exact, with more digits than shown      |
-| `sqrt(2)`                 | `≈ 1.4142136`                                  | inexact, certified on the first pass    |
-| `sqrt(2)^2 * 1.000000025` | `≈ 2 (7 of 8 digits are certified)`            | the true value is a tie at eight digits |
-| `sqrt(2)^2 - 2`           | `≈ 0 (within 4e-4049 of zero)`                 | never certifies, so every pass runs     |
-| `1 / (sqrt(2)^2 - 2)`     | an error: the divisor cannot be told from zero | `unresolved` at the ceiling             |
+| You type                  | Exucal shows       | Reason                                               |
+| ------------------------- | ------------------ | ---------------------------------------------------- |
+| `0.1 + 0.2`               | `= 0.3`            | exact, shown entire                                  |
+| `1/3`                     | `≈ 0.33333333`     | exact, with more digits than shown                   |
+| `sqrt(2)`                 | `≈ 1.4142136`      | inexact, certified on the first pass                 |
+| `sqrt(2)^2 * 1.000000025` | `≈ 2`, with a note | a tie at eight digits: seven certify                 |
+| `sqrt(2)^2 - 2`           | `≈ 0`, with a note | never certifies: within `4e-4049` of zero at the end |
+| `1 / (sqrt(2)^2 - 2)`     | an error           | the divisor is `unresolved` at the ceiling           |
 
 ### Size limits
 
-Two limits bound a value. A result past either is a **refusal**.
+A value has two size limits. A result past either is a **refusal**.
 
 - The **significand limit** $S$ bounds the bits of the numerator of $m$
   and the bits of its denominator. It is a setting, $2^{16}$ by default
   and at most $2^{20}$. An exact operation predicts the length of its
   result and forms nothing past $S$.
-- The **exponent bound** keeps the decimal exponent within
-  $\pm 10^{18}$. It is fixed.
+- The **exponent bound** keeps
+  $\lfloor \log_{10} \lvert x \rvert \rfloor$ within $\pm 10^{18}$. It
+  is fixed, and it is on the value, not on $e$.
 
-A refusal is final: no pass retries it, and exact mode never rounds an
-exact value to make it fit. An inexact operand changes that. The result
-is inexact in any case, so where the exact step would pass $S$, the
+A refusal is final. No pass retries it, and an exact value is never
+rounded to make it fit. An inexact operand changes that, since the
+result is inexact in any case. Where the exact step would pass $S$, the
 operands are first rounded onto the working grid, and the rounding goes
-into $r$. `approx(x)` is the way to ask for it: it widens $r$ to one
-unit of the grid's last digit and never narrows it.
+into $r$. A sum that still cannot align keeps its larger operand and
+adds the whole of the smaller one to $r$.
 
-The limits meet in one relation,
-$2 (\lceil 4 (L + 10) \log_2 10 \rceil + 32) \le S$, so that two
-midpoints settled at the ceiling multiply within $S$.
+`approx(x)` is the way to ask for this. It widens $r$ to at least one
+unit of the grid's last digit, never narrows it, and leaves a zero as
+it is.
 
-| You type                  | Exucal shows                                    |
-| ------------------------- | ----------------------------------------------- |
-| `2^65535`                 | `≈ 1.001765e+19728`                             |
-| `2^65536`                 | a refusal: past the significand limit           |
-| `1e999999999 + 1`         | a refusal: the sum cannot be aligned within $S$ |
-| `approx(1e999999999) + 1` | `≈ 1e+999999999`, the `1` absorbed into $r$     |
-| `10^1e19`                 | a refusal: too large to compute                 |
+| You type                  | Exucal shows     | Reason                                     |
+| ------------------------- | ---------------- | ------------------------------------------ |
+| `1e999999999 + 1`         | a refusal        | the exact sum cannot be aligned within $S$ |
+| `approx(1e999999999) + 1` | `≈ 1e+999999999` | the `1` goes into $r$                      |
+| `10^1e19`                 | a refusal        | past the exponent bound                    |
 
 ### Decimal mode
 
-**Decimal mode** is the second arithmetic, a hand calculator's. Each
-step's exact result is rounded once, in the rounding mode, to a set
-number of digits. It is exact from then on, with $r = 0$. A call of a
-built-in is one step: the retry schedule runs inside the step until the
-rounding certifies. A call that never certifies is rounded at the
-ceiling and flagged `uncertified`, the third field of a `Ball`.
-`1 / 3 * 3` is `= 0.99999999` there.
+The arithmetic above is **exact mode**, the default. **Decimal mode**
+is a hand calculator's arithmetic. Each step's exact result is rounded
+once, in the rounding mode, to a set number of digits, the display
+digits by default. The rounded value is exact from then on, with
+$r = 0$, so `1 / 3 * 3` is `= 0.99999999`. A call of a built-in is one
+step: the passes run inside the step until its rounding certifies. A
+call that never certifies is rounded at the ceiling and flagged
+`uncertified`, the optional third field of a `Ball`.
 
 ### Failures
 
-A failure that input can cause is a `Result` error and never an
-exception: a refusal, `unresolved`, `divisionByZero` or
+By design, a failure that input can cause is a `Result` error and never
+an exception, such as a refusal, `unresolved`, `divisionByZero` or
 `negativeRadicand`. A violated precondition throws, since it is a bug
-in the caller.
+in the caller. [Failures](numbers.md#failures) names the known
+breaches.
 
 ## Where each part lives
 
 The code is in `src/core/`. The arithmetic on balls takes a
-`NumberContext`: the working precision, the rounding mode, the limits
-and the mode. The tests of `radius.ts`, `ball.ts` and `fixed.ts` check
-each rule by containment, with exact rational arithmetic.
+`NumberContext`: the working precision, the rounding mode, the
+significand limit, the ceiling and the mode. The tests of `radius.ts`,
+`ball.ts` and `fixed.ts` check each rule by containment, with exact
+rational arithmetic.
 
-| Part                            | Code                        | Design                                                                                                               |
-| ------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `Rational`                      | `rational.ts`               | [The types](numbers.md#the-types), [Exact operations](numbers.md#exact-operations)                                   |
-| `Scaled`                        | `scaled.ts`                 | [The types](numbers.md#the-types), [Sums and alignment](numbers.md#sums-and-alignment)                               |
-| `Radius`                        | `radius.ts`                 | [Error bounds for the four operations](numbers.md#error-bounds-for-the-four-operations)                              |
-| `Ball`, settling, certification | `ball.ts`                   | [Settling](numbers.md#settling), [Certification and the display rule](numbers.md#certification-and-the-display-rule) |
-| `Fixed`, `Floating`, the roots  | `fixed.ts`, `digits.ts`     | [The kernel's boundary](numbers.md#the-kernels-boundary), [Roots and powers](numbers.md#roots-and-powers)            |
-| The passes                      | `context.ts`, `pipeline.ts` | [Working precision and the schedule](numbers.md#working-precision-and-the-schedule)                                  |
-| The limits                      | `rational.ts`, `scaled.ts`  | [The significand limit](numbers.md#the-significand-limit), [The exponent bound](numbers.md#the-exponent-bound)       |
-| Decimal mode                    | `ball.ts`                   | [Decimal mode](numbers.md#decimal-mode)                                                                              |
+| Part                            | Code                                     | Design                                                                                                               |
+| ------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `Rational`                      | `rational.ts`                            | [The types](numbers.md#the-types), [Exact operations](numbers.md#exact-operations)                                   |
+| `Scaled`                        | `scaled.ts`                              | [The types](numbers.md#the-types), [Sums and alignment](numbers.md#sums-and-alignment)                               |
+| `Radius`                        | `radius.ts`                              | [Error bounds for the four operations](numbers.md#error-bounds-for-the-four-operations)                              |
+| `Ball`, settling, certification | `ball.ts`                                | [Settling](numbers.md#settling), [Certification and the display rule](numbers.md#certification-and-the-display-rule) |
+| `Fixed`, `Floating`, the roots  | `fixed.ts`, `digits.ts`                  | [The kernel's boundary](numbers.md#the-kernels-boundary), [Roots and powers](numbers.md#roots-and-powers)            |
+| The passes                      | `context.ts`, `pipeline.ts`              | [Working precision and the schedule](numbers.md#working-precision-and-the-schedule)                                  |
+| The limits                      | `rational.ts`, `scaled.ts`, `context.ts` | [The significand limit](numbers.md#the-significand-limit), [The exponent bound](numbers.md#the-exponent-bound)       |
+| Decimal mode                    | `ball.ts`                                | [Decimal mode](numbers.md#decimal-mode)                                                                              |

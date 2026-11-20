@@ -1204,21 +1204,23 @@ from the paper:
   of one definition beside the remainder of another.
 - The pair is the floored one or the Euclidean one.
 
-The floored pair is the one built in today. It came first for two
-reasons:
+The floored pair is the one built in today, because it is the simpler
+core:
 
-- `div(a, b) = floor(a / b)` is one sentence, and it makes `div` agree
-  with `floor` as well as with `mod`. The Euclidean pair lacks that
-  identity: its quotient of `7` by `-2` is `-3`, where `floor(7 / -2)`
-  is `-4`.
-- The remainder has the divisor's sign, so a result can be read without
-  the divisor at hand.
+- `div` is the floor of the quotient. It reuses what the rounding
+  functions do with an inexact argument, and nothing tests the divisor's
+  sign.
+- The Euclidean quotient and remainder are each a small expression over
+  the floored pair: the remainder is `mod(a, abs(b))`, and the quotient
+  is `sign(b) div(a, abs(b))`. The two take one `sign` between them.
+- The opposite derivation is larger. Over a Euclidean core, the floored
+  quotient and the floored remainder each take the divisor's sign on the
+  dividend, and the remainder takes it once more.
 
-The floored and the Euclidean pairs differ only for a negative divisor.
-No function is named for the Euclidean quotient or remainder today, and
-each is one expression over the floored pair: the remainder is
-`mod(a, abs(b))`, and the quotient is `sign(b) div(a, abs(b))`.
-Functions that compute them by name are future work
+The two pairs differ only for a negative divisor: the quotient of `7` by
+`-2` is `-4` floored and `-3` Euclidean. No function is named for the
+Euclidean quotient or remainder today. Functions that compute them by
+name are future work
 ([Extensions that fit](future.md#extensions-that-fit)).
 
 ### The exact functions on an inexact argument

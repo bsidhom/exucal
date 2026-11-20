@@ -1214,10 +1214,12 @@ reasons:
 - The remainder has the divisor's sign, so a result can be read without
   the divisor at hand.
 
-The floored and the Euclidean pairs differ only for a negative divisor,
-and the Euclidean pair is one call away today: `mod(a, abs(b))` and
-`sign(b) div(a, abs(b))`. Functions of its own for the Euclidean pair
-are future work ([Extensions that fit](future.md#extensions-that-fit)).
+The floored and the Euclidean pairs differ only for a negative divisor.
+No function is named for the Euclidean quotient or remainder today, and
+each is one expression over the floored pair: the remainder is
+`mod(a, abs(b))`, and the quotient is `sign(b) div(a, abs(b))`.
+Functions that compute them by name are future work
+([Extensions that fit](future.md#extensions-that-fit)).
 
 ### The exact functions on an inexact argument
 
@@ -1959,12 +1961,14 @@ Two designs are excluded on purpose:
 
 These two are facts about today:
 
-- **The Euclidean pair of `div` and `mod` has no functions of its own.**
-  [Floored division](#floored-division) gives it as an expression. Its
-  absence is not a decision against it: the design allows the floored
-  pair and the Euclidean pair alike, and the second is future work
-  ([Extensions that fit](future.md#extensions-that-fit)). The truncated
-  quotient is `trunc(a / b)`.
+- **No function computes Euclidean division.** `div` and `mod` are the
+  floored quotient and remainder, and no function is named for the
+  Euclidean quotient or the Euclidean remainder.
+  [Floored division](#floored-division) writes both as expressions over
+  `div` and `mod`. That is not a decision against Euclidean division:
+  the design allows either definition, and functions for the second are
+  future work ([Extensions that fit](future.md#extensions-that-fit)).
+  The truncated quotient is `trunc(a / b)`.
 - **No built-in takes or gives a complex value.** No argument leaves the
   real line, since the language has no complex literal
   ([Real values only](../docs/numbers.md#real-values-only) states it for

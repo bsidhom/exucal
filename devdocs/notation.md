@@ -60,9 +60,8 @@ linked:
   ([Where a ratio is written](#where-a-ratio-is-written)).
 - **Every literal written has to parse back.** For that reason a
   rounding that carries a value past the exponent bound, the limit on a
-  value's power of ten, is refused and not written. Three cases fail the
-  requirement today, two under the ratio notation and one in a
-  dimension's exponent
+  value's power of ten, is refused and not written. Two cases under the
+  ratio notation fail the requirement today
   ([Every literal parses back](#every-literal-parses-back)).
 - **The ratio notation applies in exact mode alone**
   ([Not in decimal mode](#not-in-decimal-mode)).
@@ -436,9 +435,10 @@ the outcome secures it by refusing a rounding that carries a value past
 the exponent bound, under either value of the setting. The ratio
 notation meets both requirements except in two cases: a scale past the
 exponent bound, and a denominator past a lowered significand limit. A
-dimension's exponent fails them in one case, under either value of the
-setting: an exponent that nested powers carry past the significand
-limit.
+blank want's line also writes the exponents of a dimension. Such an
+exponent fails the requirements where it has passed the significand
+limit, under either value of the setting
+([The size of a dimension's exponents](architecture.md#the-size-of-a-dimensions-exponents)).
 
 ### A decimal at the exponent bound
 
@@ -509,26 +509,6 @@ written from, exactly. Two cases fail that in today's behavior:
   Typed back, that denominator needs 372 bits and is refused as past the
   significand limit. `0.2^150` parses back at the same settings
   ([#247](https://github.com/bsidhom/exucal/issues/247)).
-
-### The exponents of a dimension
-
-A message and the line of a blank want write a dimension in the
-expression language, each primitive raised to its exponent
-([How dimensions are written in messages](../docs/quantities.md#how-dimensions-are-written-in-messages)).
-An exponent is written as an integer literal, or as a quotient of two.
-Typed back, it is the exponent of a `^`, which the evaluator holds to
-the significand limit
-([The exponent of a power](architecture.md#the-exponent-of-a-power)).
-
-A dimension's exponent can pass that limit, which is a defect. A power
-multiplies each exponent of its base's dimension by its own exponent,
-and nothing holds the product to the limit. At the default limit,
-`m^1e19000` is a value whose line parses back. `(m^1e19000)^1e19000` is
-a value too, and the exponent of its dimension is `10^38000`, which `^`
-refuses at that limit. The line of a blank want writes all 38,001 digits
-of it, in either mode and under either value of the setting. Typed back,
-the line is refused as past the significand limit
-([#262](https://github.com/bsidhom/exucal/issues/262)).
 
 ## Not in decimal mode
 

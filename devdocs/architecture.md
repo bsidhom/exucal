@@ -43,7 +43,7 @@ Two rules bind all of the code:
   - The verification of a root of degree three or more throws for a
     positive ball whose radius is large against its midpoint
     ([Roots and powers](numbers.md#roots-and-powers)).
-  - A product of two inexact values throws at the ceiling pass
+  - An inexact product throws at the ceiling pass
     ([The significand limit](numbers.md#the-significand-limit)).
   - `erf`, `erfc` and the incomplete functions throw for a wide ball
     whose radius is too large or too small to form
@@ -312,7 +312,7 @@ gives the rule. `formatDimension` builds the dimension as an expression
 ([The printer](#the-printer)). The text is therefore in the expression
 language, and it parses back. One case fails that today, an exponent
 past the significand limit
-([The exponents of a dimension](notation.md#the-exponents-of-a-dimension)).
+([The size of a dimension's exponents](#the-size-of-a-dimensions-exponents)).
 
 ### The arithmetic on quantities
 
@@ -339,6 +339,34 @@ conformance check, take the primitives for it, and fail with its
 of the context ([Sums and alignment](numbers.md#sums-and-alignment)).
 Zero is no special case: `0` is dimensionless, and `1 m + 0` is a
 dimension mismatch.
+
+### The size of a dimension's exponents
+
+The dimension arithmetic takes no context, and the evaluator checks the
+size of a result's scalar alone. So nothing holds an exponent of a
+dimension to the significand limit, which is a defect
+([#262](https://github.com/bsidhom/exucal/issues/262)).
+
+The evaluator holds the exponent of each `^` to the limit as it reads it
+([The exponent of a power](#the-exponent-of-a-power)). The arithmetic
+then combines those exponents with no check:
+
+- A power `x^t` multiplies every exponent of the dimension of `x` by
+  `t`.
+- A product adds the exponents of its two factors, and a quotient
+  subtracts them. The sum of two fractions can have the product of their
+  denominators.
+
+So an expression can keep every `^` within the limit and still have a
+dimension with an exponent past it. At the default limit,
+`(m^1e19000)^1e19000` has the exponent `10^38000`, which `^` itself
+refuses. Two things follow:
+
+- The text of such a dimension does not parse back. A message and the
+  line of a blank want each write all 38,001 digits of that exponent,
+  and the line is refused when it is typed as a have.
+- Nothing bounds the size of an exponent, or the cost of forming and
+  writing it. Each nested power adds the bits of its own exponent.
 
 ## Conversion
 
@@ -1489,6 +1517,8 @@ A `<copy-button>` beside each line (`src/copy-button.ts`) copies the
 result as the printer writes it with `*`. That text parses back. Typed
 as a have and converted into the line's own unit, it gives the line
 again, which `outcome.test.ts` checks.
+[Every literal parses back](notation.md#every-literal-parses-back) lists
+the cases that fail today.
 
 #### The relation and the note
 

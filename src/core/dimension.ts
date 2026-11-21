@@ -6,7 +6,7 @@
 // A dimension maps each primitive name to its exponent, with zero exponents
 // left out, so that a dimensionless quantity is the empty map and equal
 // dimensions are equal maps. Exponents are rational, so that roots are exact
-// on the dimension side (`sqrt(m)` is `m^(1/2)`).
+// on the dimension side (`m^(1/2)` is a dimension, and `(m^2)^(1/2)` is `m`).
 //
 // Primitives come in two roles, declared in the definitions file: dimension
 // primitives (`m`, `kg`, `s`) are the physical base quantities, and kind

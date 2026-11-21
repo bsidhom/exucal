@@ -1190,7 +1190,6 @@ function summed(
 /** A lookup failure as `evaluateBound` boxes it. */
 type Boxed<E> = Extract<BodyError<E>, { kind: "lookup" }>;
 
-/** Attaches `span` to the failure of `result`, if it failed. */
 /** What `reduceExponent` gives: the fraction, or why not (the doc there). */
 export type ReducedExponent =
   | { readonly ok: true; readonly value: Rational }
@@ -1257,6 +1256,7 @@ function atTheBound(error: BallError): boolean {
   );
 }
 
+/** Attaches `span` to the failure of `result`, if it failed. */
 function locate(
   result: Result<Quantity, BallError>,
   span: Span,

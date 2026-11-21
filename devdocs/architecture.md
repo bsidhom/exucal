@@ -312,7 +312,7 @@ gives the rule. `formatDimension` builds the dimension as an expression
 (`dimensionExpr`) and hands it to the printer
 ([The printer](#the-printer)). The text is therefore in the expression
 language, and it parses back. One case fails that today, an exponent
-that `^` refuses
+that is refused when it is typed
 ([The size of a dimension's exponents](#the-size-of-a-dimensions-exponents)).
 
 ### The arithmetic on quantities
@@ -359,17 +359,20 @@ then combines those exponents with no check:
   denominators.
 
 So an expression can keep every `^` within the limit and still have a
-dimension with an exponent that `^` refuses. At the default limit of
-65,536 bits, `m^1e19000` is a value: its exponent has 63,117 bits.
-`(m^1e19000)^1e19000` is a value too, and its exponent, `10^38000`, has
-126,234 bits. Two things follow:
+dimension with an exponent that is refused when it is typed. At the
+default limit of 65,536 bits, `m^1e19000` is a value: its exponent has
+63,117 bits. `(m^1e19000)^1e19000` is a value too, and its exponent,
+`10^38000`, has 126,234 bits. Two things follow:
 
 - The text of such a dimension does not parse back. A message and the
   line of a blank want each write all 38,001 digits of that exponent,
-  and the line is refused when it is typed as a have.
+  and the line is refused when it is typed as a have. The evaluator
+  refuses the exponent at the significand limit, and the parser refuses
+  a literal past the hard bound of `2^20` bits.
 - The limit does not bound the cost of an expression. As a rough
-  figure, 128 nested powers, some 1,300 characters of input, take
-  several seconds and write a line of more than two million characters.
+  figure, `m` under 128 nested powers of `1e19000`, some 1,300
+  characters of input, takes several seconds and writes a line of more
+  than two million characters.
 
 ## Conversion
 

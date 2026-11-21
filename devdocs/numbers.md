@@ -2274,11 +2274,12 @@ The relation counts each midpoint as `bitsFor` of the ceiling: the
 ceiling's digits in bits, and the kernel's 32 guard bits. A midpoint
 settled at the ceiling can have ten digits more than the ceiling
 ([Working precision and the schedule](#working-precision-and-the-schedule)),
-and ten digits take 33.2 bits. So the longest midpoints are one or two
-bits longer than the relation counts, depending on the ceiling. A
-product is sized by the sum of its operands' lengths, so the product of
-two of the longest midpoints is sized two or four bits past the
-relation's left side. That shortfall of two or four bits is a defect
+and ten digits take 33.2 bits, 1.2 more than the guard. In whole bits,
+the longest midpoints are one or two bits longer than the relation
+counts, depending on the ceiling. A product is sized by the sum of its
+operands' lengths, so the product of two of the longest midpoints is
+sized two or four bits past the relation's left side. That shortfall of
+two or four bits is a defect
 ([#261](https://github.com/bsidhom/exucal/issues/261)).
 
 Where the significand limit exceeds the left side by less than the
@@ -2289,7 +2290,7 @@ longer than counted, so the shortfall is two bits. In exact mode:
 
 | You type          | Significand limit     | Exucal shows                   |
 | ----------------- | --------------------- | ------------------------------ |
-| `sqrt(50)^2 - 50` | 26,906 or 26,907 bits | no line: the square throws     |
+| `sqrt(50)^2 - 50` | 26,906 or 26,907 bits | the square throws              |
 | `sqrt(50)^2 - 50` | 26,908 bits           | `≈ 0 (within 4e-4048 of zero)` |
 
 The expression cancels to zero, so no pass certifies it and the retry
@@ -2504,15 +2505,19 @@ so it is never refused for its exact operand's size. When the prediction
 refuses the exact step, each operand is first put on the working grid by
 `onGrid`, as in a sum that cannot align
 ([Sums and alignment](#sums-and-alignment)), and the product or quotient
-is taken again. The second attempt is meant never to be refused. The
-relation between the two limits is there so that the fraction of two
-grid significands fits, and a `tooLarge` on that attempt is treated as a
-bug and thrown. A quotient always fits, since each of its two parts is
-no longer than an operand. A product fits except within the relation's
-shortfall. Two inexact operands meet the same exception: both are on the
-grid already, so the second attempt repeats the first. The exact operand
-is rounded only because the result was inexact already. Two exact
-operands are refused at the node, as described above.
+is taken again. The exact operand is rounded only because the result was
+inexact already. Two exact operands are refused at the node, as
+described above.
+
+The second attempt is meant never to be refused. The relation between
+the two limits is there so that the fraction of two grid significands
+fits, and a `tooLarge` on that attempt is treated as a bug and thrown. A
+quotient always fits, since each of its two parts is no longer than an
+operand. A product does not always fit: for two of the longest midpoints
+at the ceiling the relation is two or four bits short, the defect
+described with the relation. Two inexact operands reach the throw by the
+same path, since both are on the grid already and the second attempt
+repeats the first.
 
 `approx` changes the significand limit's reach in three places, and
 nothing else about the limit:

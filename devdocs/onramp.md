@@ -352,8 +352,8 @@ call that never certifies is rounded at the ceiling and flagged
 By design, a failure that input can cause is a `Result` error and never
 an exception, such as a refusal, `unresolved`, `divisionByZero` or
 `negativeRadicand`. A violated precondition throws, since it is a bug
-in the caller. [Failures](numbers.md#failures) names the known
-breaches.
+in the caller. [Failures](numbers.md#failures) names the known breaches
+in the arithmetic.
 
 ## The quantity layer
 

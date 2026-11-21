@@ -434,10 +434,10 @@ decimal display the parser's acceptance is the one thing to secure, and
 the outcome secures it by refusing a rounding that carries a value past
 the exponent bound, under either value of the setting. The ratio
 notation meets both requirements except in two cases: a scale past the
-exponent bound, and a denominator past a lowered significand limit. A
-blank want's line also writes the exponents of a dimension. Such an
-exponent fails the requirements where it has passed the significand
-limit, under either value of the setting
+exponent bound, and a denominator past a lowered significand limit. The
+line of a blank want writes the have in the primitives, with the
+exponents of its dimension. An exponent that `^` refuses does not parse
+back, under either value of the setting
 ([The size of a dimension's exponents](architecture.md#the-size-of-a-dimensions-exponents)).
 
 ### A decimal at the exponent bound

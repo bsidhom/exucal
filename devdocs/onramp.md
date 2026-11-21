@@ -8,9 +8,10 @@ every value within the bound rounds to. This is ball arithmetic, as in
 [Arb](https://arblib.org/), with one change: the midpoint is a
 rational, and it is rounded only once the value is inexact.
 
-A `Quantity` pairs a ball with a dimension, a vector of exponents over
-base quantities such as the meter. A unit is a name for a quantity, and
-a conversion is one quotient of two quantities.
+A `Quantity` pairs a ball with a dimension: a vector of exponents over
+the **primitives**, the names that every unit is defined from, the
+meter among them. A unit is a name for a quantity, and a conversion
+into a unit is one quotient of two quantities.
 
 An expression is evaluated in **passes**. A pass computes everything at
 one **working precision** $p$, a count of digits that sets how long its
@@ -356,61 +357,65 @@ breaches.
 
 ## The quantity layer
 
+The layer is described in exact mode. Decimal mode rounds each of its
+steps as it rounds any other, and it never rounds a dimension.
+
 ### `Dimension`
 
-The **definitions file** is a text file that the app loads as it
-starts. It declares the **primitives**, base quantities such as `m`,
-`kg` and `s`. A `Dimension` is a vector of rational exponents over
-them, held as a map with the zeros left out. `N` is `kg m / s^2`, the
-vector $(1, 1, -2)$ on `m`, `kg` and `s`.
+A `Dimension` is a vector of rational exponents over the primitives,
+held as a map with the zeros left out. `N` is `kg m / s^2`, the vector
+$(1, 1, -2)$ on `m`, `kg` and `s`. A quantity whose vector is zero is
+**dimensionless**.
 
 Dimensions form a vector space over $\mathbb{Q}$. A product of two
 quantities adds their vectors, a quotient subtracts them, and a power
-multiplies the vector by the exponent. So `(1 m^2)^(1/2)` is exactly
-`1 m`, and this arithmetic never fails. The exponents stay rational
-because `^` reads its exponent from the text, as a number or a ratio of
-two numbers, and never computes it.
+multiplies the vector by the power's exponent. So the square root of
+`m^2` is `m`, exactly.
 
-A primitive has one of two roles. A **dimension primitive** is a base
-quantity. A **kind primitive**, such as `radian`, is a marker with no
-dimension of its own. It keeps apart quantities that the dimension
-primitives cannot: an angle from a dimensionless quantity, and `rad/s`
-from `Hz`. Both roles are coordinates of the one vector, and the
-arithmetic does not tell them apart.
+The coordinates stay rational because `^` reads its exponent from the
+text, as a number or a ratio of two numbers, held to the significand
+limit as any literal is. `2^(1+1)` is an error. A computed power is the
+built-in function `pow`, whose base must be dimensionless.
+
+The **definitions file**, `src/units.txt`, is a text file that Exucal
+loads as it starts. It declares the primitives, each in one of two
+roles. A **dimension primitive** is a base quantity, such as `m`. A
+**kind primitive**, such as `radian`, is a marker that keeps apart
+quantities which the base quantities cannot: `rad/s` from `Hz`, and the
+angle that `sin` takes from a dimensionless number. Both are
+coordinates of the one vector, and the roles differ only in the name
+that a mismatch gets.
 
 ### `Quantity`
 
 A `Quantity` is a `Ball`, its **scalar**, with a `Dimension`. The code
-names the scalar `magnitude`. A quantity carries no unit. A **unit** is
-a name that the definitions file gives to a quantity, and a quantity is
-held in the primitives as soon as it is read. So `100 lb` and
-`45.359237 kg` are one quantity: the scalar 45.359237 with the
-dimension `kg`.
+names the scalar `magnitude`. A **unit** is a name that the definitions
+file gives to a quantity. A quantity carries no unit. It is held in the
+primitives as soon as it is read, so `100 lb` and `45.359237 kg` are
+one quantity: the scalar 45.359237 with the dimension `kg`.
 
-Each operation is a ball operation beside a dimension operation, and
-only the ball operation can fail. Rounding touches the scalar alone, so
-a dimension is exact in both modes.
+A product, a quotient and a power are each a ball operation beside a
+dimension operation, and the dimension operation cannot fail.
 
-A sum or a difference has one more requirement. Its operands must
-**conform**: their vectors must be equal. The check compares the
-dimension primitives first, and a difference there is a
-**dimension mismatch**. It then compares the kind primitives, where a
-difference is a **kind mismatch**. Zero is no exception: `0` is
-dimensionless, so `1 m + 0` is a dimension mismatch.
+The operands of a sum or a difference must **conform**: their vectors
+must be equal. A difference in a dimension primitive is a
+**dimension mismatch**. Otherwise a difference in a kind primitive is a
+**kind mismatch**. Zero is no exception: `0` is dimensionless, so
+`1 m + 0` is a dimension mismatch.
 
-| You type         | Into | Exucal shows     | Reason                |
-| ---------------- | ---- | ---------------- | --------------------- |
-| `2 kg * 3 m/s^2` |      | `= 6 m kg / s^2` | the vectors added     |
-| `(1 m^2)^(1/2)`  |      | `= 1 m`          | the vector halved     |
-| `1 m + 2 ft`     |      | `= 1.6096 m`     | operands that conform |
-| `1 m + 1 s`      |      | an error         | a dimension mismatch  |
-| `1 rad/s`        | `Hz` | an error         | a kind mismatch       |
+| You type         | Exucal shows     | Reason                |
+| ---------------- | ---------------- | --------------------- |
+| `2 kg * 3 m/s^2` | `= 6 m kg / s^2` | the vectors added     |
+| `(1 m^2)^(1/2)`  | `= 1 m`          | the vector halved     |
+| `1 m + 2 ft`     | `= 1.6096 m`     | operands that conform |
+| `1 m + 1 s`      | an error         | a dimension mismatch  |
+| `1 radian + 1`   | an error         | a kind mismatch       |
 
 ### The definitions table
 
-The definitions file gives every name its meaning, in six forms: a
-primitive, a prefix, a unit, a unit list, a function and an inverse.
-Seven of its lines show them, with the primitive in both roles:
+The definitions file defines its names in six forms: a primitive, a
+prefix, a unit, a unit list, a function and an inverse. Seven of its
+lines show them, with the primitive in both roles:
 
 ```
 m         !
@@ -422,44 +427,79 @@ tempC(x) | x >= -273.15 = x K + 273.15 K
 ~tempC(y) = y / K - 273.15
 ```
 
-The **definitions table** is built from the file. A unit's body is an
-expression, and its value is the quantity that the name stands for:
-`in` is the scalar 0.0254 with the dimension `m`. A literal is read
-exactly, so a unit is exact unless its definition goes through an
-inexact function, as that of `deg` goes through `pi()`. The table is
-built once, at the ceiling, so an inexact unit never holds a pass back.
+The **definitions table** holds what the names mean: a quantity for
+each unit, the primitives among them, a dimensionless factor for each
+prefix, the units of each list and the body of each function. A unit's
+quantity is the value of its body: `in` is the scalar 0.0254 with the
+dimension `m`. A literal is read exactly, so a unit is exact unless its
+definition goes through an inexact step, as that of `deg` goes through
+`pi()`.
+
+The table is built once for a ceiling, at the ceiling's precision, and
+a pass only reads it. So an inexact unit is always at least as precise
+as the pass that uses it.
 
 A name is read as the unit of that name, and otherwise as one prefix
-followed by a unit. So `min` is the minute, and `km` is a thousand
-meters. A prefix is a dimensionless factor. Building the table fails
-for a name that divides two ways, so no reading is ambiguous.
+followed by a unit. The whole name wins: `min` is the minute and not a
+milli-inch, while `kilometer` is `kilo` and `meter`. The table does not
+build when a name splits two ways into a prefix and a unit, so no
+reading is ambiguous.
+
+### Functions
+
+A unit acts by multiplication, so a scale with an offset has no unit.
+The Celsius scale is one: zero degrees Celsius is not zero kelvin. A
+reading on such a scale is the argument of a **defined function**, one
+that the file defines: `tempC(20)` is the temperature that a reading of
+20 denotes. The last two lines above define `tempC`. A call's result is
+a quantity like any other.
+
+A definition may add three things to the body:
+
+- An **annotation**, on a parameter or on the result, is a unit that
+  the argument or the result must conform to. A parameter without one
+  takes a dimensionless argument, as that of `tempC` does.
+- A **condition** is a comparison that the arguments must meet, such as
+  `x >= -273.15`. A condition that no pass can decide is assumed to
+  hold, and the result carries a warning.
+- An **inverse** is a second body, which recovers the argument from the
+  function's value. Its parameter stands for that value, so `y` above
+  is a temperature. Nothing checks, when the table is built, that an
+  inverse undoes its function.
 
 ### Conversion
 
-A conversion takes two quantities, the **have** and the **want**, which
-must conform. Its answer is the ball quotient of the two scalars. No
-factor is looked up, since both are held in the primitives. `3 ft` is
-0.9144 and `in` is 0.0254, both with the dimension `m`, and the
-quotient is exactly 36.
+Exucal has two fields. The **have** is an expression, whose value is a
+quantity. The **want** says what to convert it into, and its form
+selects the form of the answer:
 
-The form of the want selects the form of the answer:
-
-- **One unit**, or any other expression, answers with that ratio. A
-  want of exact zero is an error, and a want whose ball contains zero
-  is `unresolved`.
+- **An expression**, most often one unit, answers with a ratio. Its
+  value must conform to the have, and the ratio is the ball quotient of
+  the two scalars. No factor is looked up, since both are held in the
+  primitives. `3 ft` is 0.9144 and `in` is 0.0254, both with the
+  dimension `m`, and the quotient is exactly 36.
 - **A blank want** answers with the have in the primitives.
-- **A unit list**, such as `ft;in`, answers with a sum. Its units must
+- **A unit list** answers with a sum. The list is typed out, as
+  `ft;in`, or named in the file, as `time` is above. Its units must
   conform to the have, be positive and decrease. Each unit but the last
-  gets a count: the quotient of what is left by the unit, truncated
-  toward zero. A quotient whose ball straddles an integer takes that
-  integer. The counts are exact integers. The last unit gets the
-  remainder, a ball computed from what the counts leave, so the terms
-  contain the have.
-- **A function that has an inverse** answers with the call that gives
-  the have.
+  gets a count, an exact integer: the quotient of what is left by the
+  unit, truncated toward zero. The last unit gets the remainder, a ball
+  computed from what the counts leave. So the terms, each times its
+  unit, contain the have whatever the counts are, and no count needs
+  the side of an integer decided: where the quotient's ball reaches the
+  integer nearest its midpoint, the count is that integer.
+  [Unit lists](architecture.md#unit-lists) has two more cases, at the
+  size limits.
+- **The name of a function that has an inverse** answers with a call.
+  The have must conform to the function's result. The inverse gives the
+  **recovered argument**, and the function is applied to it. A result
+  that is certainly other than the have is an error. Two balls that
+  overlap refute nothing, so the check refutes a wrong answer and
+  proves no answer right.
 
-The passes cover the conversion. The value that must certify is the
-ratio, each term of a list, or the argument of the call.
+Each pass redoes the conversion, and the retry loop ends when every
+value of the answer is exact or certifies. In the table, the want is
+under "Into":
 
 | You type | Into    | Exucal shows            | Reason                                        |
 | -------- | ------- | ----------------------- | --------------------------------------------- |
@@ -467,36 +507,8 @@ ratio, each term of a list, or the argument of the call.
 | `1 m`    | `in`    | `≈ 39.370079 in`        | exactly 5000/127, with more digits than shown |
 | `1 in`   |         | `= 0.0254 m`            | a blank want                                  |
 | `1 m`    | `ft;in` | `≈ 3 ft + 3.3700787 in` | a count and a remainder                       |
-| `300 K`  | `tempF` | `= tempF(80.33)`        | a function as the want                        |
-
-### Functions
-
-A unit acts by multiplication, so a scale with an offset is not a unit.
-A Celsius reading is such a scale: zero degrees is not zero kelvin. It
-is a **defined function** instead, a body with parameters, as `tempC`
-is above with its condition and its inverse. A call evaluates the body
-with the parameters bound to the arguments, and its result is a
-quantity like any other.
-
-A function may declare three more things:
-
-- An **annotation** on a parameter is a unit that the argument must
-  conform to. Without one, the argument must be dimensionless.
-- A **condition** is a comparison that the arguments must meet. A
-  comparison of balls holds, fails or is undecided. An undecided
-  condition is assumed to hold, and the next pass tries again. At the
-  ceiling the result carries a warning.
-- An **inverse** recovers the argument from the value. It is written by
-  hand, and nothing checks at the build that it undoes the function.
-
-A conversion into a function therefore checks its own answer. It
-computes the **recovered argument** by the inverse and applies the
-function to it. A result that is certainly other than the have is an
-error. Two balls that overlap refute nothing, so the check catches a
-wrong inverse and proves no inverse right.
-
-A **built-in** pairs a function on balls with a rule on dimensions:
-`sin` takes an angle, and `abs` keeps the dimension of its argument.
+| `3661 s` | `time`  | `= 1 hr + 1 min + 1 s`  | a list named in the file                      |
+| `300 K`  | `tempC` | `= tempC(26.85)`        | a function as the want                        |
 
 ## Where each part lives
 
@@ -507,18 +519,18 @@ significand limit, the ceiling and the mode. The tests of `radius.ts`,
 rational arithmetic. [Quantities](../docs/quantities.md) states the
 rules of the quantity layer as a user meets them.
 
-| Part                            | Code                                     | Design                                                                                                               |
-| ------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `Rational`                      | `rational.ts`                            | [The types](numbers.md#the-types), [Exact operations](numbers.md#exact-operations)                                   |
-| `Scaled`                        | `scaled.ts`                              | [The types](numbers.md#the-types), [Sums and alignment](numbers.md#sums-and-alignment)                               |
-| `Radius`                        | `radius.ts`                              | [Error bounds for the four operations](numbers.md#error-bounds-for-the-four-operations)                              |
-| `Ball`, settling, certification | `ball.ts`                                | [Settling](numbers.md#settling), [Certification and the display rule](numbers.md#certification-and-the-display-rule) |
-| `Fixed`, `Floating`, the roots  | `fixed.ts`, `digits.ts`                  | [The kernel's boundary](numbers.md#the-kernels-boundary), [Roots and powers](numbers.md#roots-and-powers)            |
-| The passes                      | `context.ts`, `pipeline.ts`              | [Working precision and the schedule](numbers.md#working-precision-and-the-schedule)                                  |
-| The limits                      | `rational.ts`, `scaled.ts`, `context.ts` | [The significand limit](numbers.md#the-significand-limit), [The exponent bound](numbers.md#the-exponent-bound)       |
-| Decimal mode                    | `ball.ts`                                | [Decimal mode](numbers.md#decimal-mode)                                                                              |
-| `Dimension`, conformance        | `dimension.ts`                           | [Quantities, dimensions and kinds](architecture.md#quantities-dimensions-and-kinds)                                  |
-| `Quantity`                      | `quantity.ts`                            | [The arithmetic on quantities](architecture.md#the-arithmetic-on-quantities)                                         |
-| The definitions table           | `table.ts`, `build.ts`, `names.ts`       | [Definitions](architecture.md#definitions)                                                                           |
-| Conversion, unit lists          | `convert.ts`, `pipeline.ts`              | [Conversion](architecture.md#conversion)                                                                             |
-| Functions                       | `evaluate.ts`, `builtin.ts`              | [Defined functions](functions.md), [Built-in functions](builtins.md)                                                 |
+| Part                            | Code                                                 | Design                                                                                                               |
+| ------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `Rational`                      | `rational.ts`                                        | [The types](numbers.md#the-types), [Exact operations](numbers.md#exact-operations)                                   |
+| `Scaled`                        | `scaled.ts`                                          | [The types](numbers.md#the-types), [Sums and alignment](numbers.md#sums-and-alignment)                               |
+| `Radius`                        | `radius.ts`                                          | [Error bounds for the four operations](numbers.md#error-bounds-for-the-four-operations)                              |
+| `Ball`, settling, certification | `ball.ts`                                            | [Settling](numbers.md#settling), [Certification and the display rule](numbers.md#certification-and-the-display-rule) |
+| `Fixed`, `Floating`, the roots  | `fixed.ts`, `digits.ts`                              | [The kernel's boundary](numbers.md#the-kernels-boundary), [Roots and powers](numbers.md#roots-and-powers)            |
+| The passes                      | `context.ts`, `pipeline.ts`                          | [Working precision and the schedule](numbers.md#working-precision-and-the-schedule)                                  |
+| The limits                      | `rational.ts`, `scaled.ts`, `context.ts`             | [The significand limit](numbers.md#the-significand-limit), [The exponent bound](numbers.md#the-exponent-bound)       |
+| Decimal mode                    | `ball.ts`                                            | [Decimal mode](numbers.md#decimal-mode)                                                                              |
+| `Dimension`, conformance        | `dimension.ts`                                       | [Quantities, dimensions and kinds](architecture.md#quantities-dimensions-and-kinds)                                  |
+| `Quantity`                      | `quantity.ts`                                        | [The arithmetic on quantities](architecture.md#the-arithmetic-on-quantities)                                         |
+| The definitions table           | `definitions.ts`, `build.ts`, `table.ts`, `names.ts` | [Definitions](architecture.md#definitions)                                                                           |
+| Conversion, unit lists          | `convert.ts`, `pipeline.ts`                          | [Conversion](architecture.md#conversion)                                                                             |
+| Functions                       | `evaluate.ts`, `builtin.ts`                          | [Defined functions](functions.md), [Built-in functions](builtins.md)                                                 |

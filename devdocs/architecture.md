@@ -43,6 +43,8 @@ Two rules bind all of the code:
   - The verification of a root of degree three or more throws for a
     positive ball whose radius is large against its midpoint
     ([Roots and powers](numbers.md#roots-and-powers)).
+  - A product of two inexact values throws at the ceiling pass
+    ([The significand limit](numbers.md#the-significand-limit)).
   - `erf`, `erfc` and the incomplete functions throw for a wide ball
     whose radius is too large or too small to form
     ([A wide argument gets a trivial bound](builtins.md#a-wide-argument-gets-a-trivial-bound)).
@@ -308,7 +310,9 @@ in a call and in a conversion.
 gives the rule. `formatDimension` builds the dimension as an expression
 (`dimensionExpr`) and hands it to the printer
 ([The printer](#the-printer)). The text is therefore in the expression
-language, and it parses back.
+language, and it parses back. One case fails that today, an exponent
+past the significand limit
+([The exponents of a dimension](notation.md#the-exponents-of-a-dimension)).
 
 ### The arithmetic on quantities
 

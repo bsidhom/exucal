@@ -114,8 +114,9 @@ linked:
 - **`approx` is a function that widens a radius and never narrows one**
   ([approx](#approx)).
 - **A failure that the user's input can cause is a `Result` error.** It
-  is never an exception. A violated precondition throws, and one known
-  breach remains in a root's verification ([Failures](#failures)).
+  is never an exception. A violated precondition throws, and two known
+  breaches remain, in a root's verification and in a product at the
+  ceiling ([Failures](#failures)).
 - **Formatting never forms a value's power of ten**
   ([Formatting](#formatting)).
 
@@ -2261,14 +2262,32 @@ The user sets both
 ([How the settings bound each other](../docs/settings.md#how-the-settings-bound-each-other)),
 since both are cost limits whose right value depends on the device. The
 two limits meet in one relation. A settled midpoint at the ceiling is
-itself a significand, an integer over one. It must fit the significand
-limit with room for a product of two such midpoints, which is
+itself a significand, an integer over one. The relation is meant to keep
+a product of two such midpoints within the significand limit:
 `2 × bitsFor(4 × (L + 10)) ≤ S` for a precision limit `L` and a
 significand limit `S`. `precisionLimitFor(S)` is the largest `L` that
 satisfies the relation. At the default `S` of 65,536 bits it is 2,453
 digits: a ceiling of 9,852 digits is 32,760 bits, and twice that is just
-under 65,536. The relation counts the kernel's 32 guard bits, which
-`bitsFor` includes, and has no other slack.
+under 65,536.
+
+The relation counts each midpoint as `bitsFor` of the ceiling: the
+ceiling's digits in bits, and the kernel's 32 guard bits. A midpoint
+settled at the ceiling can have ten digits more than the ceiling
+([Working precision and the schedule](#working-precision-and-the-schedule)),
+and ten digits take 33.2 bits. So the longest midpoints have one or two
+bits more than the relation counts, and their product has up to four.
+That shortfall is a defect
+([#261](https://github.com/bsidhom/exucal/issues/261)).
+
+Where the two sides of the relation are within three bits of each other,
+the limit can refuse the product of two of the longest midpoints at the
+ceiling. The code expects no refusal there, and it throws. A precision
+limit of 1,000 digits puts the left side at 26,906 bits.
+`sqrt(50)^2 - 50` cancels to zero, so no pass certifies it and the retry
+loop reaches the ceiling pass. There the square throws at a significand
+limit of 26,906 or 26,907 bits, and at 26,908 bits the expression is a
+value. The default limit of 65,536 bits is safe at every precision limit
+it allows.
 
 The limit has a hard bound, a floor and a default:
 
@@ -2468,17 +2487,23 @@ bound of its own:
   at most about 2.33 times the bits of its fraction, and the fraction
   fits the limit.
 
+A dimension's exponents are not checked either, and nothing bounds them,
+which is a defect
+([The exponents of a dimension](notation.md#the-exponents-of-a-dimension)).
+
 A product or a quotient with one inexact operand is inexact in any case,
 so it is never refused for its exact operand's size. When the prediction
 refuses the exact step, each operand is first put on the working grid by
 `onGrid`, as in a sum that cannot align
 ([Sums and alignment](#sums-and-alignment)), and the product or quotient
-is taken again. The fraction of two grid significands always fits, by
-the relation that `precisionLimitFor` keeps between the two limits. The
-second attempt therefore cannot be refused, and a `tooLarge` there is a
-bug, thrown. The exact operand is rounded only because the result was
-inexact already. Two exact operands are refused at the node, as
-described above.
+is taken again. The second attempt is meant never to be refused: the
+relation between the two limits is there so that the fraction of two
+grid significands fits, and the code takes a `tooLarge` there for a bug
+and throws. A quotient always fits, since each of its two parts is no
+longer than an operand. A product fits except where the relation falls
+short, and there it throws. The exact operand is rounded only because
+the result was inexact already. Two exact operands are refused at the
+node, as described above.
 
 `approx` changes the significand limit's reach in three places, and
 nothing else about the limit:
@@ -2616,8 +2641,11 @@ numerics through `divideBalls`, `powBall` and `rootBall`, which report
 it. The ball checks the kernel's preconditions, such as a positive
 interval under a root, before it calls the kernel. A failed internal
 assertion throws too, such as an exact result past the limit after its
-prediction allowed it. One breach of the rule lies in the numerics: the
-root's verification throws ([Roots and powers](#roots-and-powers)).
+prediction allowed it. Two breaches of the rule lie in the numerics. The
+root's verification throws ([Roots and powers](#roots-and-powers)), and
+a product of two midpoints at the ceiling throws where the relation
+between the two limits falls short
+([The significand limit](#the-significand-limit)).
 [Architecture](architecture.md) states the rule for the whole core and
 lists every known breach.
 

@@ -1,4 +1,4 @@
-# On-ramp: the numeric core
+# On-ramp: numbers and quantities
 
 Exucal computes every value as a `Ball`: a rational midpoint and a
 bound on its error. Exact inputs stay exact under `+`, `-`, `*`, `/`
@@ -8,27 +8,33 @@ every value within the bound rounds to. This is ball arithmetic, as in
 [Arb](https://arblib.org/), with one change: the midpoint is a
 rational, and it is rounded only once the value is inexact.
 
+A `Quantity` pairs a ball with a dimension, a vector of exponents over
+base quantities such as the meter. A unit is a name for a quantity, and
+a conversion is one quotient of two quantities.
+
 An expression is evaluated in **passes**. A pass computes everything at
 one **working precision** $p$, a count of digits that sets how long its
 inexact values are kept. A later pass has a larger $p$. The first pass
 has $p = d + 10$, where $d$ is the **display digits**, the count of
 digits asked for.
 
-Six types carry the design, in three layers. The **kernel** is the set
+Eight types carry the design, in four layers. The **kernel** is the set
 of integer routines that compute irrational values.
 
-| Layer  | Type       | Is                                                     | Fields                      |
-| ------ | ---------- | ------------------------------------------------------ | --------------------------- |
-| exact  | `Rational` | an exact fraction                                      | `num`, `den`                |
-| exact  | `Scaled`   | a `Rational` times a power of ten, $m \cdot 10^{e}$    | `significand`, `exp`        |
-| ball   | `Radius`   | a coarse bound: a 30-bit integer times a power of two  | `significand`, `exp`        |
-| ball   | `Ball`     | a midpoint and its error bound, $c \pm r$              | `mid`, `rad`, `uncertified` |
-| kernel | `Fixed`    | a ball in integers, $(v \pm \varepsilon) \cdot 2^{-k}$ | `value`, `error`, `bits`    |
-| kernel | `Floating` | a `Fixed` times a power of two                         | `significand`, `exp`        |
+| Layer    | Type        | Is                                                     | Fields                            |
+| -------- | ----------- | ------------------------------------------------------ | --------------------------------- |
+| exact    | `Rational`  | an exact fraction                                      | `num`, `den`                      |
+| exact    | `Scaled`    | a `Rational` times a power of ten, $m \cdot 10^{e}$    | `significand`, `exp`              |
+| ball     | `Radius`    | a coarse bound: a 30-bit integer times a power of two  | `significand`, `exp`              |
+| ball     | `Ball`      | a midpoint and its error bound, $c \pm r$              | `mid`, `rad`, `uncertified`       |
+| kernel   | `Fixed`     | a ball in integers, $(v \pm \varepsilon) \cdot 2^{-k}$ | `value`, `error`, `bits`          |
+| kernel   | `Floating`  | a `Fixed` times a power of two                         | `significand`, `exp`              |
+| quantity | `Dimension` | a vector of rational exponents over the primitives     | a map from a name to a `Rational` |
+| quantity | `Quantity`  | a ball with a dimension                                | `magnitude`, `dimension`          |
 
-[Numbers and precision](numbers.md) is the full design, with the
-alternatives it rules out. The built-in functions are out of scope
-here, and so are quantities, which pair a ball with a dimension.
+[Numbers and precision](numbers.md) is the full design of the numbers,
+with the alternatives it rules out, and [Architecture](architecture.md)
+has the rest. The built-in functions are out of scope here.
 
 ## The exact layer
 
@@ -348,13 +354,158 @@ an exception, such as a refusal, `unresolved`, `divisionByZero` or
 in the caller. [Failures](numbers.md#failures) names the known
 breaches.
 
+## The quantity layer
+
+### `Dimension`
+
+The **definitions file** is a text file that the app loads as it
+starts. It declares the **primitives**, base quantities such as `m`,
+`kg` and `s`. A `Dimension` is a vector of rational exponents over
+them, held as a map with the zeros left out. `N` is `kg m / s^2`, the
+vector $(1, 1, -2)$ on `m`, `kg` and `s`.
+
+Dimensions form a vector space over $\mathbb{Q}$. A product of two
+quantities adds their vectors, a quotient subtracts them, and a power
+multiplies the vector by the exponent. So `(1 m^2)^(1/2)` is exactly
+`1 m`, and this arithmetic never fails. The exponents stay rational
+because `^` reads its exponent from the text, as a number or a ratio of
+two numbers, and never computes it.
+
+A primitive has one of two roles. A **dimension primitive** is a base
+quantity. A **kind primitive**, such as `radian`, is a marker with no
+dimension of its own. It keeps apart quantities that the dimension
+primitives cannot: an angle from a dimensionless quantity, and `rad/s`
+from `Hz`. Both roles are coordinates of the one vector, and the
+arithmetic does not tell them apart.
+
+### `Quantity`
+
+A `Quantity` is a `Ball`, its **scalar**, with a `Dimension`. The code
+names the scalar `magnitude`. A quantity carries no unit. A **unit** is
+a name that the definitions file gives to a quantity, and a quantity is
+held in the primitives as soon as it is read. So `100 lb` and
+`45.359237 kg` are one quantity: the scalar 45.359237 with the
+dimension `kg`.
+
+Each operation is a ball operation beside a dimension operation, and
+only the ball operation can fail. Rounding touches the scalar alone, so
+a dimension is exact in both modes.
+
+A sum or a difference has one more requirement. Its operands must
+**conform**: their vectors must be equal. The check compares the
+dimension primitives first, and a difference there is a
+**dimension mismatch**. It then compares the kind primitives, where a
+difference is a **kind mismatch**. Zero is no exception: `0` is
+dimensionless, so `1 m + 0` is a dimension mismatch.
+
+| You type         | Into | Exucal shows     | Reason                |
+| ---------------- | ---- | ---------------- | --------------------- |
+| `2 kg * 3 m/s^2` |      | `= 6 m kg / s^2` | the vectors added     |
+| `(1 m^2)^(1/2)`  |      | `= 1 m`          | the vector halved     |
+| `1 m + 2 ft`     |      | `= 1.6096 m`     | operands that conform |
+| `1 m + 1 s`      |      | an error         | a dimension mismatch  |
+| `1 rad/s`        | `Hz` | an error         | a kind mismatch       |
+
+### The definitions table
+
+The definitions file gives every name its meaning, in six forms: a
+primitive, a prefix, a unit, a unit list, a function and an inverse.
+Seven of its lines show them, with the primitive in both roles:
+
+```
+m         !
+radian    !kind
+kilo-     1e3
+in        2.54 cm
+time      hr;min;s
+tempC(x) | x >= -273.15 = x K + 273.15 K
+~tempC(y) = y / K - 273.15
+```
+
+The **definitions table** is built from the file. A unit's body is an
+expression, and its value is the quantity that the name stands for:
+`in` is the scalar 0.0254 with the dimension `m`. A literal is read
+exactly, so a unit is exact unless its definition goes through an
+inexact function, as that of `deg` goes through `pi()`. The table is
+built once, at the ceiling, so an inexact unit never holds a pass back.
+
+A name is read as the unit of that name, and otherwise as one prefix
+followed by a unit. So `min` is the minute, and `km` is a thousand
+meters. A prefix is a dimensionless factor. Building the table fails
+for a name that divides two ways, so no reading is ambiguous.
+
+### Conversion
+
+A conversion takes two quantities, the **have** and the **want**, which
+must conform. Its answer is the ball quotient of the two scalars. No
+factor is looked up, since both are held in the primitives. `3 ft` is
+0.9144 and `in` is 0.0254, both with the dimension `m`, and the
+quotient is exactly 36.
+
+The form of the want selects the form of the answer:
+
+- **One unit**, or any other expression, answers with that ratio. A
+  want of exact zero is an error, and a want whose ball contains zero
+  is `unresolved`.
+- **A blank want** answers with the have in the primitives.
+- **A unit list**, such as `ft;in`, answers with a sum. Its units must
+  conform to the have, be positive and decrease. Each unit but the last
+  gets a count: the quotient of what is left by the unit, truncated
+  toward zero. A quotient whose ball straddles an integer takes that
+  integer. The counts are exact integers. The last unit gets the
+  remainder, a ball computed from what the counts leave, so the terms
+  contain the have.
+- **A function that has an inverse** answers with the call that gives
+  the have.
+
+The passes cover the conversion. The value that must certify is the
+ratio, each term of a list, or the argument of the call.
+
+| You type | Into    | Exucal shows            | Reason                                        |
+| -------- | ------- | ----------------------- | --------------------------------------------- |
+| `3 ft`   | `in`    | `= 36 in`               | an exact ratio                                |
+| `1 m`    | `in`    | `≈ 39.370079 in`        | exactly 5000/127, with more digits than shown |
+| `1 in`   |         | `= 0.0254 m`            | a blank want                                  |
+| `1 m`    | `ft;in` | `≈ 3 ft + 3.3700787 in` | a count and a remainder                       |
+| `300 K`  | `tempF` | `= tempF(80.33)`        | a function as the want                        |
+
+### Functions
+
+A unit acts by multiplication, so a scale with an offset is not a unit.
+A Celsius reading is such a scale: zero degrees is not zero kelvin. It
+is a **defined function** instead, a body with parameters, as `tempC`
+is above with its condition and its inverse. A call evaluates the body
+with the parameters bound to the arguments, and its result is a
+quantity like any other.
+
+A function may declare three more things:
+
+- An **annotation** on a parameter is a unit that the argument must
+  conform to. Without one, the argument must be dimensionless.
+- A **condition** is a comparison that the arguments must meet. A
+  comparison of balls holds, fails or is undecided. An undecided
+  condition is assumed to hold, and the next pass tries again. At the
+  ceiling the result carries a warning.
+- An **inverse** recovers the argument from the value. It is written by
+  hand, and nothing checks at the build that it undoes the function.
+
+A conversion into a function therefore checks its own answer. It
+computes the **recovered argument** by the inverse and applies the
+function to it. A result that is certainly other than the have is an
+error. Two balls that overlap refute nothing, so the check catches a
+wrong inverse and proves no inverse right.
+
+A **built-in** pairs a function on balls with a rule on dimensions:
+`sin` takes an angle, and `abs` keeps the dimension of its argument.
+
 ## Where each part lives
 
 The code is in `src/core/`. The arithmetic on balls takes a
 `NumberContext`: the working precision, the rounding mode, the
 significand limit, the ceiling and the mode. The tests of `radius.ts`,
 `ball.ts` and `fixed.ts` check each rule by containment, with exact
-rational arithmetic.
+rational arithmetic. [Quantities](../docs/quantities.md) states the
+rules of the quantity layer as a user meets them.
 
 | Part                            | Code                                     | Design                                                                                                               |
 | ------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -366,3 +517,8 @@ rational arithmetic.
 | The passes                      | `context.ts`, `pipeline.ts`              | [Working precision and the schedule](numbers.md#working-precision-and-the-schedule)                                  |
 | The limits                      | `rational.ts`, `scaled.ts`, `context.ts` | [The significand limit](numbers.md#the-significand-limit), [The exponent bound](numbers.md#the-exponent-bound)       |
 | Decimal mode                    | `ball.ts`                                | [Decimal mode](numbers.md#decimal-mode)                                                                              |
+| `Dimension`, conformance        | `dimension.ts`                           | [Quantities, dimensions and kinds](architecture.md#quantities-dimensions-and-kinds)                                  |
+| `Quantity`                      | `quantity.ts`                            | [The arithmetic on quantities](architecture.md#the-arithmetic-on-quantities)                                         |
+| The definitions table           | `table.ts`, `build.ts`, `names.ts`       | [Definitions](architecture.md#definitions)                                                                           |
+| Conversion, unit lists          | `convert.ts`, `pipeline.ts`              | [Conversion](architecture.md#conversion)                                                                             |
+| Functions                       | `evaluate.ts`, `builtin.ts`              | [Defined functions](functions.md), [Built-in functions](builtins.md)                                                 |

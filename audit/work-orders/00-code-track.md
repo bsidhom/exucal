@@ -139,7 +139,12 @@ future work (plan §12.3).
 
 - B-015: the incomplete gamma refusal (`src/messages.ts:357-360`)
   blames the significand limit for a cost limit (#107); the message
-  says which limit it is.
+  says which limit it is. As amended on 2026-11-22 (plan §12.3): the
+  refusal in question is the one for the fixed limits on terms,
+  convergents and steps, in the incomplete gamma and beta functions
+  alike; the refusal for working bits past the significand limit keeps
+  its message. #107 decides whether the limits flex with the precision,
+  and the message follows that decision.
 - B-016 (Q-054, ok): `round`'s second-argument errors
   (`src/messages.ts:241-244`; `src/core/builtins/round.ts:356`) are
   worded by the argument's place, for example "the number of places of
@@ -209,6 +214,9 @@ answers word:
   precision limit and ten".
 - B-042 (F-028): `orderOf` and `disjoint` comments drop "a difference
   refused as too large to form".
+- (B-045, B-046 and B-051 were corrected in work order 15's pull
+  request, #257, with B-080 and B-081: the pass checks them and moves
+  on.)
 - B-045 (F-292), B-046, B-047, B-048, B-049, B-050 ("Most bits" becomes
   the significand limit), B-051, B-052, B-055 ("under the Mode radios"),
   B-058: as described.

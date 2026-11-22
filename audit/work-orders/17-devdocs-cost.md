@@ -64,7 +64,13 @@ order the tables bear out, and the issues, one link each.
 
 ## 3. Rules that bind the page, applied to the drafts
 
-- **The issue links (Q-012 A, Q-013 B, Q-011).** This page keeps the
+- **The issue links (Q-012 A, Q-013 B, Q-011).** `devdocs/builtins.md`
+  links #107 as well, since the review of its pull request (2026-11-22,
+  plan §12.3): there the link is for the refusal that misnames its
+  cause, and here it stays for the regime's cost. The regime is refused
+  by fixed limits on terms, convergents and steps, not by the working
+  precision, which this page's text must not say otherwise. This page
+  keeps the
   one link of #107, #125, #149, #150, #151 and #152, each once: #150
   and #149 in their bullets of `#What the costs come from` (V6 L152,
   L153), #107 beside #149 (V6 L153), #125 in the Gamma bullet (V6

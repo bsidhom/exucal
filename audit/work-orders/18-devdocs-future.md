@@ -234,10 +234,18 @@ page links (Q-012).
   the incomplete beta functions' cap on their exact case, `a + b - 1` at
   most ten thousand, refined or made a setting (#236, raised in the
   review of the built-ins page on 2026-10-24; `devdocs/builtins.md`
-  states the cap as it is); the division modes as first-class built-ins,
-  floor and Euclidean at least, with `div` and `mod` made consistent
-  (#237, raised in the review of the built-ins page on 2026-10-25,
-  citing Boute's paper, which the docs cite when the modes land); the
+  states the cap as it is); the division modes, floor and Euclidean at
+  least, with `div` and `mod` made consistent (#237, raised in the
+  review of the built-ins page on 2026-10-25; as the owner clarified on
+  2026-11-20, plan §12.3: the floored pair stays the implemented core,
+  the Euclidean pair is preferred for the bare names `div` and `mod`,
+  and the second pair comes as built-ins or as defined functions over
+  the first; `devdocs/builtins.md#Floored division` cites Boute's paper
+  and the two rules taken from it, and links this page's `#Extensions
+  that fit` twice for the Euclidean pair, so that heading stays); what a
+  built-in reports for an argument too wide to bound (#260, a study for
+  after the revamp, which `devdocs/builtins.md` links where it states
+  today's behaviour); the
   display policy (#178, #173); the generated grammar; the generated
   built-in reference; the generated units page; the generated message
   catalogue; the conversion-target toggle; typographic characters; the

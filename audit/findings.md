@@ -2464,6 +2464,7 @@ link they write to the old name targets the new one.
 - Proposed call: doc wrong: the refusal is deliberate ("a refusal that is never wrong about the value", page L808) and the bullets omit its wording and its dependence on the precision; check "at a high precision" for bullet 14 against the default-settings refusals before it lands (whether the docs name the precision at all is D7 (Q-067)). The message's own wording (cost against size; the stray comma in "would need a significand, past the significand limit") is bugs.md's.
 - Related: Q-067, B-015, B-020, F-444
 - Decision: Stands (doc wrong); follows Q-067 (ok: "at a high precision") and Q-009; amended by F-442 and F-444 ("refused as past the significand limit" is a size refusal: the right word); the session checks "at a high precision" for bullet 14; B-015 and B-020 are the code side. Amended by the owner on 2026-10-24 (plan §12.3, the review of the built-ins page): the corrected statements' quantities ("within a few percent", "past some millions", "at a high precision" as a threshold) do not land, since each holds in one regime and fails in another: `uppergammareg(1e5, 1.5e5)` is refused at the default digits and at one digit alike, `lowergammareg(1e6, 1e6)` is a value at eight digits and at three hundred, and `incbetareg(1e6, 1e6, 0.5)` is a value at eight digits and at two hundred and refused at five hundred. The page states the dependence on the order, the argument and the precision loosely, in words, with verified examples on either side, and the devdocs keep the counts (Q-067 as amended). Amended again by the owner on 2026-10-25 (plan §12.3): the refusal is a significand-limit refusal, the message correct as it stands, since the limit caps the working precision at any point of a computation; the docs drop "the limit there being one of cost rather than of size" and say at most that the limit covers the working precision.
+- Amended on 2026-11-22 (plan §12.3, the review of the built-in functions developer page): the code refuses in two places under one message. The working bits past the significand limit are a true refusal at that limit. The fixed limits on terms, convergents and steps are a second refusal, whose message misnames its cause (B-015 as amended, #107). Both pages state the two apart.
 
 #### F-160. Not verified: the incomplete functions' truncation bounds (bullets 14, 16)
 
@@ -3993,6 +3994,7 @@ link they write to the old name targets the new one.
 - Proposed call: **doc wrong** (imprecise wording); settle by whether the test at `hyperbolic.ts:218` bounds the radius or the width.
 - Related: B-051
 - Decision: Stands (doc wrong); low confidence: the session settles from `hyperbolic.ts:218`; B-051 is the code side.
+- Amended on 2026-11-22 (plan §12.3): settled from the code as a radius, and widened: `atan`, `sinh` and `cosh` take their trivial bound at a radius of one half too, and `sin` and `cos` where the reduced argument plus its radius reaches one radian. B-051 is corrected.
 
 #### F-264. `#The rules every built-in follows`: "about 181,727" not recomputed
 
@@ -4167,6 +4169,7 @@ link they write to the old name targets the new one.
 - Rewrite: present tense, no timing: the gcd strips the common power of two first because settled midpoints are dyadics of the ceiling's size, on which Euclid's gcd would dominate a sum (D5 L34); V3 adds "and runs Lehmer's algorithm on the odd parts" (L39).
 - Proposed call: Confirm `keep as intent`.
 - Decision: Stands (keep as intent); Q-018 lets "tens of milliseconds a sum" stay as a rough duration if the session keeps it.
+- Amended on 2026-11-22 (plan §12.3): the sentence is removed, not kept. The gcd is the numbers page's, which describes it, and settled midpoints are no longer dyadics (B-080). `devdocs/builtins.md` says instead that the built-in `gcd` calls the core's one gcd.
 
 #### F-278. `#The elementary routines`: "the four costliest routines" rests on a benchmark
 
@@ -4452,6 +4455,7 @@ link they write to the old name targets the new one.
 - Proposed call: keep them as the quantitative reason the ratio schedule and the rate constant rest on, §12 q25 naming timings (D7's Q1; V3's Q3 proposes the same for bit, term and convergent counts and memory sizes); the owner settles it with the plan's "measurements kept" (V3 (F-510)).
 - Related: Q-016, F-510
 - Decision: Follows Q-016 (A, with the note): the memory figures, ratio counts, convergent counts and term counts stay as the quantitative reason the schedule rests on.
+- Amended on 2026-11-22 (plan §12.3): the ratio counts were measured (730 for an exact shift, 1,423 for the loop's, at the default ceiling) and stay; the formula `bits / (2 log2 y)` for a run's count gave 428 and 555 there and is removed.
 
 #### F-301. Not verified: kernel-side statements of the families section
 
@@ -6223,6 +6227,7 @@ link they write to the old name targets the new one.
 - Proposed call: owner decides between `devdocs/builtins.md#The Gamma and Beta families` (the expansions are the incomplete gamma's algorithm; D7, V3) and `devdocs/cost.md#What the costs come from` (the regime is a catalogued cost; V6), in one decision with #125, #149 and #150; the other passage names the regime and links that section.
 - Related: Q-011, Q-012, F-303, F-347, F-360
 - Decision: Follows Q-012 (A): `devdocs/cost.md#What the costs come from` keeps the one link; `builtins.md` names the regime and links `cost.md`.
+- Amended on 2026-11-22 (plan §12.3): `devdocs/builtins.md` links #107 too, where it states that the fixed limits' refusal misnames its cause, a defect in today's behaviour (Q-012's rule for a bug). `cost.md` keeps its link for the regime's cost.
 
 #### F-417. Issue #115: `builtins.md` agreed; `future.md` points at the wrong section
 

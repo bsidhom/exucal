@@ -1802,6 +1802,9 @@ decision, are listed after the answers.
     #264 (B-084; the probe times its expression about a fifth low at the default limit and
     almost three times low at a precision limit of 20,000), #265 (B-083; `beta` does the
     same) and #266 (B-082). The page links the first three where it states the behaviour.
+    A fifth reading, of the passages rewritten from the paper, merged the paper's
+    conclusions and the design's rules into one list and changed the example of a true
+    count of bits to a parameter under the limit.
 
   Amends F-159, F-263, F-277, F-300, F-416, B-015, work orders 00, 17 and 18 and
   `audit/principles.md`; marks B-045, B-046 and B-051 corrected; adds B-077 to B-085;

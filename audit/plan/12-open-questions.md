@@ -1766,9 +1766,24 @@ decision, are listed after the answers.
   - **Code comments** that the page contradicts are corrected in the pull request, in
     commits of comments only: B-045, B-046 and B-051, the header of `erf.ts` (B-081) and
     the comment on the gcd of `rational.ts` (B-080).
+  - **The fourth reading** (2026-11-22), by a fresh reader, of the passages changed in the
+    review. Its doubts were checked against the code, and five were right about the
+    behaviour and not only the wording. The incomplete gamma functions throw as `erf` does
+    (B-077 and #258 said that no input reaches them; both are amended). `factorial` past
+    one million names its count of bits, and only `doublefactorial` and `binomial` name
+    none. Zero is no boundary for `trunc`. No built-in special-cases the base `-1` of
+    `pow`: the parity rule serves every negative base. The convergent counts on the page
+    (768 and 443,000) did not match the estimate beside them; measured again for `s = 1/2`
+    and `x = 1.5`, the counts are about 700 and 440,000, and the page says that the
+    estimate runs high. The page also defines the terms the reader found used before their
+    definition (the call's bits, the stepped shift, the index factor), and gives `pow`'s
+    cases as one ordered list. Four observations are recorded for the code track and not
+    filed as issues, pending the owner: B-082 to B-085. Two attributions on the page are
+    still unchecked against Boute's paper, which this environment cannot reach: the term
+    "F-division" and the word "concordant" (both in the terminology table, F-449).
 
   Amends F-159, F-263, F-277, F-300, F-416, B-015, work orders 00, 17 and 18 and
-  `audit/principles.md`; marks B-045, B-046 and B-051 corrected; adds B-077 to B-081.
+  `audit/principles.md`; marks B-045, B-046 and B-051 corrected; adds B-077 to B-085.
 
 ### The review's other corrections
 

@@ -1075,13 +1075,6 @@ other inverses are compositions of those four. The probe evaluates the
 expression at the ceiling it is testing, against a table of the one
 primitive that the angle needs.
 
-One cost outside the kernel shows in that expression. Its sum adds two
-settled midpoints, which is exact arithmetic on operands of the
-ceiling's size, and a sum of fractions takes a gcd. Euclid's algorithm
-on such operands would dominate the cost of a sum. So that gcd, which is
-not the built-in `gcd`, strips the common power of two first and runs
-Lehmer's algorithm on the odd parts.
-
 ## The exact functions
 
 [Magnitude, sign and rounding](../docs/builtins.md#magnitude-sign-and-rounding),
@@ -1143,6 +1136,14 @@ positive denominator of a fraction. Euclid's identity,
 `gcd(a, b) = gcd(b, a - q b)`, holds for any quotient `q`, however a
 division defines it, and the implementation takes absolute values
 first.
+
+The built-in `gcd` has no algorithm of its own. The core has one gcd,
+the function that reduces a fraction to lowest terms
+([Exact operations](numbers.md#exact-operations)), and the built-in is a
+thin layer over it. The layer takes each argument's exact integer as a
+`bigint`, takes the absolute values, and answers a zero second argument
+itself, since that function requires a positive one. `lcm` divides the
+product of the absolute values by the same gcd.
 
 ### `round` and the rounding mode
 

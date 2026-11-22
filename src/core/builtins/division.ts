@@ -2,7 +2,7 @@
 // division and its remainder as one definition,
 // `div(a, b) = floor(a / b)` and `mod(a, b) = a - b × div(a, b)`, so that
 // `a = b × div(a, b) + mod(a, b)` exactly and the remainder is zero or has
-// the divisor's sign (Boute's F-division). Both take two quantities of one
+// the divisor's sign (Boute's F-definition). Both take two quantities of one
 // dimension, being invariant under the unit's scale; `div` is a count and
 // `mod` has the arguments' dimension.
 //

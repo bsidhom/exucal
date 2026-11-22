@@ -523,11 +523,11 @@ function trailingZeros(n: bigint): bigint {
 
 /**
  * The greatest common divisor of the non-negative `a` and the positive
- * `b`, exported for its tests and its benchmark: the common power of two,
- * read off the trailing zeros, times Lehmer's gcd on the odd parts. On a
- * settled midpoint, a dyadic of thousands of bits over a power of two,
- * the odd parts take a step or two when one of them is small, and none
- * when both are one.
+ * `b`: the common power of two, read off the trailing zeros, times
+ * Lehmer's gcd on the odd parts. It is the one gcd of the core. The
+ * reductions of this module call it, and so does the built-in `gcd`
+ * (builtins/integers.ts), which is why it is exported, as it is for its
+ * tests and its benchmark.
  */
 export function gcd(a: bigint, b: bigint): bigint {
   if (a === 0n) return b;

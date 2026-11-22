@@ -207,6 +207,7 @@ listed last: they are not defects, but the pages will quote their result.
 - Docs side: F-159
 - Rewrite impact: none — `devdocs/builtins.md#The Gamma and Beta families` keeps the sentence with #107 inline.
 - Decision (the owner, 2026-10-25; plan §12.3): not a bug. The significand limit caps the working precision at any point of a computation, so the message names the right limit; the docs call the refusal a significand-limit refusal and no longer a cost limit, and `devdocs/builtins.md` drops "where the limit is one of cost" when it is rewritten (work order 15).
+- Amended (the owner, 2026-11-22, in the review of work order 15's pull request, #257; plan §12.3): a bug after all, for the refusals this entry names. The code refuses in two places. Where the working bits pass the significand limit, the decision above stands. Where no route is within its fixed limit on terms, convergents or steps (`routeOf` in `incomplete.ts`, `chooseOrientation` in `incbeta.ts`), the working bits are far within the limit (`uppergammareg(1e6, 1.5e6)` works at 175 bits) and the message misnames the cause. #107 tracks the limits, a bound that flexes with the precision and the message.
 
 ### B-016. `round`'s second-argument errors are worded for a function of integers
 
@@ -514,6 +515,7 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: D7 (L55, L250, L252)
 - Docs side: F-292
 - Rewrite impact: none.
+- Status: corrected in work order 15's pull request (#257, 2026-11-22; plan §12.3).
 
 ### B-046. `beta.ts` uses an exact case as its logarithm example
 
@@ -524,6 +526,7 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: D7 (L59, L250)
 - Docs side: F-293, F-293
 - Rewrite impact: none.
+- Status: corrected in work order 15's pull request (#257, 2026-11-22; plan §12.3).
 
 ### B-047. `dimension-of.ts` keeps an example that does not fail
 
@@ -575,6 +578,7 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: V3 (L759)
 - Docs side: F-263
 - Rewrite impact: none.
+- Status: corrected in work order 15's pull request (#257, 2026-11-22; plan §12.3).
 
 ### B-052. `parser.ts` misquotes the `3 m ^` error
 
@@ -839,3 +843,61 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: none; found by the session of work order 14 in its review, from the owner's question on a unit that cannot be told from zero
 - Docs side: — (`devdocs/functions.md#Build-time checks`, "A check at the ceiling depends on the precision limit", states it as a defect of the design with its one link)
 - Rewrite impact: none — the page is written; the answer, when there is one, rewrites that passage.
+
+### B-077. `erf`, `erfc` and the incomplete beta functions throw for a ball whose radius is not formed
+
+- Issue: #258 (opened 2026-11-18, during the review of work order 15's pull request)
+
+- Category: behaviour
+- Severity (guess): high — an exception a user can reach (`erf(approx(1e19800) - approx(1e19800))`, `erf(approx(1e-19700) - approx(1e-19700))`)
+- Location: `atEnds` in `src/core/builtins/erf.ts`, `incbeta.ts` and `incomplete.ts`; `radiusValue` and `radiusScaled` in `src/core/ball.ts` (`FORMABLE_RADIUS_BITS`)
+- Description: each `atEnds` forms the two ends of a ball from `radiusValue`, and throws when it returns `undefined`, taking that to mean an unbounded radius. `radiusScaled` also returns `undefined` for a bounded radius whose power of two is past `2^65536` in either direction, which it does not form. The incomplete gamma functions carry the same lines; no input was found that reaches them.
+- Units: none; found by the session of work order 15 while it ran the page's examples
+- Docs side: — (`devdocs/builtins.md`, "A wide argument gets a trivial bound", states it as a defect with its one link; `devdocs/architecture.md` lists it among the breaches of the rule on exceptions)
+- Rewrite impact: none — the page is written; the fix removes the passage and its two examples.
+
+### B-078. `lgamma` and the functions that call it throw for a wide positive ball
+
+- Issue: #259 (opened 2026-11-20, during the review of work order 15's pull request)
+
+- Category: behaviour
+- Severity (guess): high — an exception a user can reach (`lgamma(2 + approx(1e4048) - approx(1e4048))`)
+- Location: `lgammaFixed` in `src/core/fixed-gamma.ts` (the shift's product and its logarithm); `positiveLogGamma` in `src/core/builtins/gamma.ts` (the guard); `lnFixed` in `src/core/fixed-log.ts` (the precondition)
+- Description: the shift multiplies the factors `x (x + 1) …` as intervals, and for a ball wide enough the product's interval reaches zero; `lnFixed` then throws on its precondition. The guard catches only a ball whose own interval reaches zero. `gamma`, `beta`, `incbeta`, `incbetareg`, `lowergammareg` and `uppergammareg` throw with it; `digamma`, whose shift is a sum, does not. At the ceiling pass of the default settings a ball of midpoint 2 throws from a radius of about 0.1, and at the first pass from 0.3.
+- Units: none; found by the session of work order 15 while it checked what a wide ball of the Gamma family returns
+- Docs side: — (`devdocs/builtins.md`, "`lgamma` and `gamma`", states it as a defect with its one link; `devdocs/architecture.md` lists it among the breaches)
+- Rewrite impact: none — the page is written; the fix rewrites that passage.
+
+### B-079. A built-in that cannot bound its result reports `unresolved` at an edge that is not the cause
+
+- Issue: #260 (opened 2026-11-20, during the review of work order 15's pull request, as a tracking issue to study after the revamp; the owner: the result is correct, and a more precise report is a larger design change)
+
+- Category: behaviour
+- Severity (guess): low — the result is sound and the retry is the purpose; at the ceiling the message names an edge that is not the cause (`incbeta(0.4 + approx(1e4048) - approx(1e4048), 30, 0.3)` says that `0.3` cannot be told from zero)
+- Location: `valueOf` in `src/core/builtins/incbeta.ts` (two sites); `scaled` in `src/core/builtins/incomplete.ts`
+- Description: where wide parameters leave the series no tail bound, or put the interval of a sum or a factor at zero, the built-in returns `unresolved` to be retried with a narrower ball, naming `1` or zero for an argument that is not at that edge.
+- Units: none; found by the session of work order 15
+- Docs side: — (`devdocs/builtins.md`, "The incomplete beta function", states it as the design's way to ask for a narrower ball, with its one link)
+- Rewrite impact: none.
+
+### B-080. `rational.ts` says that a settled midpoint is a dyadic
+
+- Category: misleading comment
+- Severity (guess): low — describes what the code no longer does
+- Location: `src/core/rational.ts` (the comment on `gcd`)
+- Description: a kernel result is rounded onto the decimal grid as it leaves the kernel (`scaled.ts`, `fixed.ts`), and a dyadic is built without a gcd, so no settled midpoint is a dyadic over a power of two.
+- Units: none; found by the session of work order 15
+- Docs side: F-277
+- Rewrite impact: none.
+- Status: corrected in work order 15's pull request (#257, 2026-11-22; plan §12.3).
+
+### B-081. `erf.ts` puts the tiny-argument threshold on the square
+
+- Category: misleading comment
+- Severity (guess): low — the code tests the argument
+- Location: `src/core/builtins/erf.ts` (the header)
+- Description: the expansion at zero is taken for an argument below `2^-significandLimitBits` throughout (`isTiny`), not for one whose square is.
+- Units: none; found by the session of work order 15
+- Docs side: F-297
+- Rewrite impact: none.
+- Status: corrected in work order 15's pull request (#257, 2026-11-22; plan §12.3).

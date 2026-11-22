@@ -1678,6 +1678,98 @@ decision, are listed after the answers.
   `audit/principles.md` and the house style; marks B-036, B-042 and B-047 corrected, and
   B-034 in part; adds B-075 and B-076.
 
+- **The review of the built-in functions developer page (2026-11-18 to 2026-11-22).** The
+  page's review notes (#257) put twelve questions to the owner, who took them and the style
+  points left open one at a time. Three defects, two tracking notes and two rules came out
+  of the answers.
+  - **An exception in `erf`, `erfc` and the incomplete beta functions**, found while the
+    page's examples were run: "File the issue now and link it." The cause is a radius whose
+    power of two is past `2^65536` in either direction, which `radiusValue` does not form
+    and the three `atEnds` take to be unbounded. Filed as #258 (B-077); the page states the
+    defect where it describes the two ends of a wide ball.
+  - **Where the breaches of the rule on exceptions are listed.** The rule stood on two
+    pages, each with a count. The owner: the count on the numbers page is not the home for a
+    fault of a special function. Settled: `devdocs/architecture.md`, under "The core is
+    pure", holds the one list, with no count, each item linking the passage that describes
+    the defect; `devdocs/numbers.md#Failures` keeps the rule for the numerics and the one
+    breach that is its own. Both pages are edited in the pull request.
+  - **The incomplete functions' refusal.** The owner asked for the code to be read: "If the
+    limit is due to a hard (hidden and unconfigurable) internal bound rather than true
+    working precision bound [...] then we should consider reworking the error message. But
+    my inclination in that case is actually allow the number of terms to flex as needed with
+    precision." The code has two refusals under one message: the working bits past the
+    significand limit, and fixed limits on terms, convergents and steps (50,000, 20,000 and
+    20,000; 50,000 for the incomplete beta), which no setting moves. The examples the docs
+    gave are of the second kind, at under two hundred working bits. Settled: both developer
+    and user pages state the two apart; `devdocs/builtins.md` says that the second misnames
+    its cause and links #107 directly, an exception to Q-012's one place for that issue;
+    #107 carries the findings, measurements with the limits lifted and the idea of a bound
+    that flexes with the precision; `docs/builtins.md` is corrected in the pull request; and
+    the rule of 2026-10-25 on a refusal for working precision is scoped in
+    `audit/principles.md` to calls whose precision does pass the limit. Amends F-159, F-416
+    and B-015.
+  - **`unresolved` where no edge is the cause.** The code was read. `digamma`'s case is
+    true to its edge (a positive ball whose lower end reaches zero, a pole), and the page's
+    sentence was wrong. `lgamma`, and every function that calls it, throws for a positive
+    ball wide enough that the product of the shift loses its sign: filed as #259 (B-078),
+    stated on the page and listed among the breaches. The incomplete beta and gamma
+    functions return `unresolved` with an edge at hand where wide parameters leave them no
+    bound. The owner: "We're technically using this wide radius as an escape hatch so the
+    unresolved result is "correct". We could certainly be more precise, but this is a bigger
+    design change that I don't want to get into now." Settled: the page states it as the
+    design's way to ask for a narrower ball and links #260 (B-079), a tracking issue to study
+    after the revamp.
+  - **Euclidean division.** The old page listed "Truncated or Euclidean `div` and `mod`"
+    among the designs ruled out. The owner: "The ruled-out wording is _incorrect_ and that
+    was an oversight. The plan all along was to start with a coherent pair (either Euclidean
+    or floor) and then to provide the other pair as well eventually, either as a pair of
+    builtins or defined functions over the other pair [...]. The key is that I want to
+    follow the recommendations in the Boute paper and ensure that it's referenced in the
+    appropriate place." Settled: `devdocs/builtins.md#Floored division` cites the paper,
+    states that the design follows it on purpose and takes two rules from it (one
+    concordant pair; the floored one or the Euclidean one), and links `future.md` for
+    functions that compute the Euclidean pair by name; `#Not in this design` states the
+    absence as a fact about today. The user page keeps its entry and cites nothing until the
+    second pair lands. #237 records the intent.
+  - **Why the floored pair is the one built in.** The old page's reasons (one sentence;
+    the remainder's sign; what other calculators do) are not the design's. The owner: "if I
+    just started with one of Ediv or Fdiv, it would be simpler/more efficient to implement
+    Euclidean in terms of floor, so the latter should be _implemented_ as the core. I
+    actually have a strong preference for Euclidean division as the "unprefixed" pair for
+    mathematical reasons", simpler and more efficient meaning "a smaller expression over
+    fewer operations", not difficulty or speed. Settled: the page gives simplicity as the
+    reason, with the two derivations (one `sign` for the Euclidean pair over the floored
+    one, three for the reverse); the preference for Euclidean under the bare names is
+    future work, recorded on #237 for `devdocs/future.md` (work order 18).
+  - **Attributions to other programs** (GNU units, C, Python, JavaScript, mpmath, V8), which
+    the session could not check, its network policy refusing their sites: they stay
+    dropped; the citations of Boute's paper and of DLMF 8.17.22 stay. The claim that V8
+    multiplies by the schoolbook rule at these sizes is gone as a claim, a timing not
+    bearing it out.
+  - **Facts settled from the code**, the owner having allowed the session to read it where
+    a point turned on it: the thresholds for a wide argument are all radii (F-263 widened:
+    one half for `atan`, `asinh`, `exp`, `sinh`, `cosh` and `tanh`; for `sin` and `cos` the
+    reduced argument plus its radius reaching one radian); the Bernoulli memo holds 730 and
+    1,423 ratios at the default ceiling, and the formula `bits / (2 log2 y)` was wrong and
+    goes (F-300); five phrases of the kernel's description are written out in full.
+  - **The gcd.** The paragraph on the gcd that reduces fractions (F-277, kept as intent by
+    the work order) is removed: the numbers page owns that gcd, and its reason, that
+    settled midpoints are dyadics, is no longer true. The owner asked whether the built-in
+    `gcd` is a second implementation. It is not: it calls the core's one gcd after forming
+    its integers. The page says so. Amends F-277.
+  - **The bounds are not yet reviewed against their sources.** #112's one link moves from
+    the end of the Gamma section to the page's opening, beside the claim it qualifies, in
+    plain words.
+  - **Style.** The order of the sections, the list of terms at the top and the two bullets
+    under "Names" on the decibel and on Lambert's function stay. The definitions of the
+    thirteen exact functions are cut to the corner cases the user docs leave open.
+  - **Code comments** that the page contradicts are corrected in the pull request, in
+    commits of comments only: B-045, B-046 and B-051, the header of `erf.ts` (B-081) and
+    the comment on the gcd of `rational.ts` (B-080).
+
+  Amends F-159, F-263, F-277, F-300, F-416, B-015, work orders 00, 17 and 18 and
+  `audit/principles.md`; marks B-045, B-046 and B-051 corrected; adds B-077 to B-081.
+
 ### The review's other corrections
 
 Applied on 2026-10-13 with the answers above; none needed a decision.

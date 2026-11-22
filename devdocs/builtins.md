@@ -92,8 +92,9 @@ The design rests on these decisions:
 - **The Gamma family is computed from memoized ratios of Bernoulli numbers, and the incomplete functions by the route that costs less.**
   Every result carries a bound on its error
   ([The Gamma and Beta families](#the-gamma-and-beta-families)).
-- **`round` takes no mode argument, and `factorial` takes no non-integer.**
-  Both are excluded on purpose, and no built-in takes a complex value
+- **`round` takes no mode argument, `factorial` takes no non-integer, and no remainder is truncated.**
+  All three are excluded on purpose, and no built-in takes a complex
+  value
   ([Not in this design](#not-in-this-design)).
 
 The code is laid out this way. Each built-in is in a module of its own
@@ -871,10 +872,13 @@ the first of these cases that fits it:
    - A base that is negative throughout goes to log space as its
      magnitude, and the parity of the exponent's fraction gives the
      sign of the power (`minusOneTo`).
-   - A base whose interval contains zero has no logarithm, so no
-     precision would compute its power. The call is refused past the
-     significand limit, unless the classifier at the exponent bound
-     gives it an error of its own first.
+   - A base whose interval contains zero has no logarithm. The call is
+     refused past the significand limit, unless the classifier at the
+     exponent bound gives it an error of its own first. The refusal is a
+     defect: it ends the retry loop at the first pass, although a later
+     pass may narrow the base off zero, and it names a limit that is not
+     the cause
+     ([#263](https://github.com/bsidhom/exucal/issues/263)).
 6. **An inexact exponent** takes log space for a base that is positive
    throughout. A base whose interval lies at or below zero is a `domain`
    error. Any other base whose interval contains zero is `unresolved` at
@@ -1127,11 +1131,15 @@ built-in's error.
 The probe measures how fast the device computes, to propose a precision
 limit ([The probe](settings.md#the-probe)). The expression it runs is
 `sin(atan(exp(1)) + ln(3) radian)`: one call each of four elementary
-functions, `exp`, `atan`, `sin` and `ln`. `exp(1)` is the memoized `e`,
-so that call runs the series of `e` and not the exponential's routine.
-The hyperbolic functions and the other inverses are compositions of the
-four. The probe evaluates the expression at the ceiling it is testing,
-against a table of the one primitive that the angle needs.
+functions, `exp`, `atan`, `sin` and `ln`. The hyperbolic functions and
+the other inverses are compositions of the four. The probe evaluates the
+expression at the ceiling it is testing, against a table of the one
+primitive that the angle needs.
+
+One of the four calls does not run its routine, which is a defect.
+`exp(1)` is the memoized `e`, so that call runs the series of `e` and
+not the exponential's routine, and the probe times the expression low
+([#264](https://github.com/bsidhom/exucal/issues/264)).
 
 ## The exact functions
 
@@ -1221,19 +1229,25 @@ from the size limits:
 ### Floored division
 
 `div(a, b)` is `floor(a / b)`, and `mod(a, b)` is `a - b × div(a, b)`.
-The two are floored division and its remainder, **F-division** in the
-terms of Raymond T. Boute ("The Euclidean definition of the functions
+The two are division by flooring and its remainder, the **F-definition**
+of Raymond T. Boute's paper ("The Euclidean definition of the functions
 div and mod", ACM Transactions on Programming Languages and Systems
 14(2), 1992, pages 127 to 144). Three properties hold:
 
-- `a = b × div(a, b) + mod(a, b)`, exactly.
+- `a = b × div(a, b) + mod(a, b)`, exactly. The paper names this the
+  **division rule**.
 - `|mod(a, b)| < |b|`.
 - The remainder is zero or has the divisor's sign.
 
-A pair of `div` and `mod` that satisfies the first property is
-**concordant**, which is Boute's requirement of any such pair. The two
-are one definition here, so they are concordant by construction. Both
-are defined on exact rationals and on quantities of one dimension.
+The paper requires the first two of any definition, with a quotient that
+is an integer, and it calls a definition that breaks one of them wrong.
+The division rule makes the two functions a pair: either one, with the
+rule, defines the other. `mod` is defined from `div` here, so the rule
+holds by construction.
+
+Both functions are defined on exact rationals and on quantities of one
+dimension. The paper states its definitions for real numbers too, and
+not for integers alone.
 
 | You type                | Into  | Exucal shows | Note                    |
 | ----------------------- | ----- | ------------ | ----------------------- |
@@ -1244,20 +1258,39 @@ are defined on exact rationals and on quantities of one dimension.
 | `mod(-30 deg, 360 deg)` | `deg` | `≈ 330 deg`  | two angles              |
 | `div(7 ft, 2 ft)`       |       | `= 3`        | a count, a plain number |
 
-The design follows Boute's paper on purpose. He sets three definitions
-side by side:
+The design follows the paper on purpose. The paper compares three
+definitions that keep the division rule:
 
-- the truncated pair, whose remainder has the dividend's sign;
-- the floored pair, whose remainder has the divisor's sign;
-- the Euclidean pair, whose remainder is never negative.
+- the T-definition, by truncation, whose remainder has the dividend's
+  sign;
+- the F-definition, by flooring, whose remainder has the divisor's sign;
+- the E-definition, the Euclidean one, whose remainder is never
+  negative.
 
-His case is that each is consistent only as a pair, and that the
-Euclidean pair has the cleanest theory. Two rules of the design come
-from the paper:
+The design takes four of its conclusions:
 
-- `div` and `mod` are always one concordant pair, and never the quotient
-  of one definition beside the remainder of another.
+- A remainder should be **periodic**: `mod(x, d)` and `mod(y, d)` are
+  equal exactly when `x` and `y` differ by a multiple of `d`. The F- and
+  E-definitions are periodic, and the T-definition is not.
+- The E- and F-definitions are the ones to prefer as the standard
+  convention, and the T-definition is far inferior to both. Of the two,
+  the E-definition is the more regular, and the F-definition keeps the
+  sign of the divisor.
+- A second definition can always be expressed in terms of the first.
+- The E- and F-definitions differ only for a negative divisor, and one
+  check of the divisor's sign tells them apart.
+
+Three rules of the design follow:
+
+- `div` and `mod` are always one pair under the division rule, and never
+  the quotient of one definition beside the remainder of another.
 - The pair is the floored one or the Euclidean one.
+- The truncated pair is ruled out, because its remainder is not
+  periodic. Truncation gives `-1` for the remainder of `-1` by `3` and
+  `2` for the remainder of `2` by `3`, although `-1` and `2` differ by
+  `3`. An angle shows the cost: `mod(-30 deg, 360 deg)` is `330 deg`,
+  where a truncated remainder would be `-30 deg`, a second value for one
+  direction.
 
 The floored pair is the one built in today, because it is the simpler
 core:
@@ -1947,7 +1980,10 @@ The function is refused for its size in the three places of the
 incomplete gamma functions:
 
 - The call's bits past the significand limit are a `tooLarge` with the
-  count of bits, as for `incbetareg(1e20000, 2, 0.5)`.
+  count of bits, as for `incbetareg(1e20000, 2, 0.5)`. Where a
+  parameter's magnitude alone has more bits than the limit, the count
+  shown is too low, which is a defect of these functions and of `beta`
+  ([#265](https://github.com/bsidhom/exucal/issues/265)).
 - The two ends of a wide `x` that cannot be formed within the
   significand limit are a `tooLarge` with no count.
 - Each orientation has a limit of 50,000 terms, a constant of the
@@ -2064,7 +2100,7 @@ stands in for.
 
 ## Not in this design
 
-Two designs are excluded on purpose:
+Three designs are excluded on purpose:
 
 - **A mode argument to `round`.** The grammar has no strings, and a bare
   name is a unit
@@ -2074,13 +2110,16 @@ Two designs are excluded on purpose:
   functions point at them
   ([The errors of the integer functions](#the-errors-of-the-integer-functions)).
 
+- **A truncated `div` and `mod`.** The truncated remainder is not
+  periodic ([Floored division](#floored-division)). The truncated
+  quotient itself is `trunc(a / b)`.
+
 These two are facts about today:
 
 - **No function computes Euclidean division.** `div` and `mod` are the
   floored pair. [Floored division](#floored-division) gives the
   Euclidean pair as expressions over them, and says that functions for
-  it are future work and not ruled out. The truncated quotient is
-  `trunc(a / b)`.
+  it are future work and not ruled out.
 - **No built-in takes or gives a complex value.** No argument leaves the
   real line, since the language has no complex literal
   ([Real values only](../docs/numbers.md#real-values-only) states it for

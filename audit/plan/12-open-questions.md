@@ -1777,13 +1777,35 @@ decision, are listed after the answers.
     and `x = 1.5`, the counts are about 700 and 440,000, and the page says that the
     estimate runs high. The page also defines the terms the reader found used before their
     definition (the call's bits, the stepped shift, the index factor), and gives `pow`'s
-    cases as one ordered list. Four observations are recorded for the code track and not
-    filed as issues, pending the owner: B-082 to B-085. Two attributions on the page are
-    still unchecked against Boute's paper, which this environment cannot reach: the term
-    "F-division" and the word "concordant" (both in the terminology table, F-449).
+    cases as one ordered list. Four observations were recorded for the code track (B-082 to
+    B-085), and two attributions to Boute's paper were left unchecked, since this
+    environment cannot reach the paper. The next item settles both.
+  - **Boute's paper, the truncated pair and the four observations** (2026-11-22). The
+    owner supplied the paper: "Read it and amend any docs as needed as a result." Read in
+    full. Its terms are "T-definition", "F-definition" and "E-definition"; it never says
+    "F-division" or "concordant", and it calls `a = b × div(a, b) + mod(a, b)` the
+    "division rule", under which the two functions are "paired". The page, the comment in
+    `division.ts` and the terminology table take the paper's words (F-449 amended). The
+    page now reports what the paper concludes, as far as the design takes it: periodicity
+    holds for the F- and E-definitions only; those two are preferred and the T-definition
+    is "far inferior"; a secondary definition can be expressed in terms of the primary one;
+    and the E- and F-definitions differ only by a check of the divisor's sign. On the
+    truncated pair the owner: "The lack of periodicity in the residue is reason enough to
+    rule out the truncated pair from my perspective." The paper gives the same reason, so
+    the truncated pair is a design ruled out on purpose: "Floored division" states the
+    rule with the reason, "Not in this design" lists it, and `docs/builtins.md`,
+    "Division", gains the one sentence that the rule on a design ruled out by intent asks
+    of the user page (Q-011, as amended). On the observations the owner: "File issues for
+    any of the points you listed if they are existing gaps and you're confident they're
+    correct findings". Each was checked again, and two were found stronger than first
+    recorded. Filed: #263 (B-085; the refusal hides a value that a later pass computes),
+    #264 (B-084; the probe times its expression about a fifth low at the default limit and
+    almost three times low at a precision limit of 20,000), #265 (B-083; `beta` does the
+    same) and #266 (B-082). The page links the first three where it states the behaviour.
 
   Amends F-159, F-263, F-277, F-300, F-416, B-015, work orders 00, 17 and 18 and
-  `audit/principles.md`; marks B-045, B-046 and B-051 corrected; adds B-077 to B-085.
+  `audit/principles.md`; marks B-045, B-046 and B-051 corrected; adds B-077 to B-085;
+  amends F-449 and the terminology table (plan §8).
 
 ### The review's other corrections
 

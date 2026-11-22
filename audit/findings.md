@@ -6625,6 +6625,7 @@ link they write to the old name targets the new one.
 - Proposed call: add to §8 as devdocs-only terms, each glossed once where first used.
 - Related: F-265
 - Decision: Stands; new §8 rows (devdocs-only, glossed once).
+- Amended on 2026-11-22 (plan §12.3): the owner supplied Boute's paper, and the two terms taken as his were checked against it. The paper says "F-definition" (with "T-definition" and "E-definition") and never "F-division"; it does not use "concordant", and calls `a = b × div(a, b) + mod(a, b)` the "division rule", under which the two functions are "paired". `devdocs/builtins.md` and the comment in `division.ts` use the paper's words.
 
 #### F-450. "recognizes as exact" for an exact case
 

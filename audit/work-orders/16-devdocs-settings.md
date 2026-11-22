@@ -47,6 +47,10 @@ is the concept map in `audit/plan/07-docs-outline.md`, `§3` is
 - **Not in scope.** `docs/settings.md` (work order 06) and
   `docs/app.md` (08); the code (B-012, B-026, B-069 are the code
   track's); the probe's memo claim is checked, not changed (Q-110).
+  The probe's `exp(1)` is answered from the memo of `e` and does not
+  run the exponential's routine (#264, B-084, found in the review of
+  work order 15 on 2026-11-22): the page says what the probe times
+  today, and links the issue where it does.
 
 ## 2. The reader, and what earlier pages taught
 

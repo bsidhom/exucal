@@ -240,7 +240,10 @@ page links (Q-012).
   2026-11-20, plan §12.3: the floored pair stays the implemented core,
   the Euclidean pair is preferred for the bare names `div` and `mod`,
   and the second pair comes as built-ins or as defined functions over
-  the first; `devdocs/builtins.md#Floored division` cites Boute's paper
+  the first; the truncated pair is ruled out on purpose, for its
+  remainder is not periodic, so it is no future work (the owner,
+  2026-11-22);
+  `devdocs/builtins.md#Floored division` cites Boute's paper
   and the two rules taken from it, and links this page's `#Extensions
   that fit` twice for the Euclidean pair, so that heading stays); what a
   built-in reports for an argument too wide to bound (#260, a study for

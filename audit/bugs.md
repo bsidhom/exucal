@@ -904,6 +904,8 @@ listed last: they are not defects, but the pages will quote their result.
 
 ### B-082. `division.ts` says the textbook form of `mod` passes the exponent bound
 
+- Issue: #266 (opened 2026-11-22, on the owner's instruction in the review of work order 15's pull request)
+
 - Category: misleading comment
 - Severity (guess): low — a reason that does not hold
 - Location: `src/core/builtins/division.ts` (the header and the comment on `modBall`)
@@ -912,32 +914,38 @@ listed last: they are not defects, but the pages will quote their result.
 - Docs side: — (the page says only that the two forms are the same value)
 - Rewrite impact: none.
 
-### B-083. `incbeta`'s refusal names a count of bits for a magnitude counted at its cap
+### B-083. `beta` and the incomplete beta functions state a capped count of bits as the need of a refusal
+
+- Issue: #265 (opened 2026-11-22, on the owner's instruction in the review of work order 15's pull request)
 
 - Category: behaviour (a message)
 - Severity (guess): low — the count is a lower bound shown as the need
 - Location: `src/core/builtins/incbeta.ts` (the refusal for the call's bits); compare `capped` in `src/core/builtins/incomplete.ts`
-- Description: `incbetareg(1e20000, 2, 0.5)` reports a need of 65,682 bits. `magnitudeBits` counts a magnitude of more bits than the limit at its cap, so the count only bounds the need from below. The incomplete gamma functions leave the count out in that case (`lowergammareg(1e20000, 1)` names none).
+- Description: `incbetareg(1e20000, 2, 0.5)` reports a need of 65,682 bits. `magnitudeBits` counts a magnitude of more bits than the limit at its cap, so the count only bounds the need from below. `incbetareg(1e25000, 2, 0.5)` and `incbetareg(1e30000, 2, 0.5)` report the same 65,682 bits, and `beta(1e20000, 1.5)` reports 65,662 the same way (`src/core/builtins/beta.ts`). The incomplete gamma functions leave the count out in that case (`lowergammareg(1e20000, 1)` names none).
 - Units: none; found by the session of work order 15 (the fourth reading, 2026-11-22)
-- Docs side: — (`devdocs/builtins.md` says that the incomplete beta functions' refusal carries the count, which is what the app shows)
+- Docs side: — (`devdocs/builtins.md`, "The incomplete beta function", states the defect with its one link)
 - Rewrite impact: none.
 
 ### B-084. The probe's `exp(1)` does not run the exponential's routine
 
+- Issue: #264 (opened 2026-11-22, on the owner's instruction in the review of work order 15's pull request)
+
 - Category: behaviour (a design question)
-- Severity (guess): unknown — whether it changes the probe's proposal is not measured
+- Severity (guess): medium — the probe times its expression low: 50 ms against 63 ms with `exp(3/2)` at the default precision limit, and 8.3 s against 23.2 s at a precision limit of 20,000 (single runs)
 - Location: `src/limits.ts` (`COMPOSITE`); `src/core/builtins/exp.ts` (`eBall` for an exact argument of one)
 - Description: the probe's expression, `sin(atan(exp(1)) + ln(3) radian)`, is described as the four costliest built-ins of the kernel benchmark, each once. `exp(1)` is answered from the memo of `e`, whose series is summed by binary splitting, so `expFixed` is not run. `expFixed` is the routine that the cost page names among the causes of the hangs at the hard bound.
 - Units: none; found by the session of work order 15 (the fourth reading, 2026-11-22)
-- Docs side: — (`devdocs/builtins.md`, "The expression that the probe measures", states the fact; `devdocs/settings.md#the-probe` is work order 16's)
+- Docs side: — (`devdocs/builtins.md`, "The expression that the probe measures", states the defect with its one link; `devdocs/settings.md#the-probe` is work order 16's)
 - Rewrite impact: none for work order 15; work order 16 states what the probe measures.
 
 ### B-085. `pow` of a base that contains zero is refused past the significand limit when the exponent's fraction cannot be formed
 
+- Issue: #263 (opened 2026-11-22, on the owner's instruction in the review of work order 15's pull request)
+
 - Category: behaviour (a message)
-- Severity (guess): low — rare input; the message misnames the cause
+- Severity (guess): medium — a wrong refusal: `pow(sqrt(2)^2 - 2 + 1e-60, 1e-30000)` is refused at the first pass, where the value is `≈ 1` and the same call with `approx(1e-30000)` gives it
 - Location: `src/core/builtins/pow.ts` (`unformable`, the `straddles` case)
 - Description: `pow(sqrt(2)^2 - 2, 1e-30000)` is refused as past the significand limit, with no count. The cause is that the base cannot be told from zero, so its logarithm cannot be taken at any precision. The same base with an inexact exponent is `unresolved` at zero. With B-079 (#260): what a call reports when its argument's width is the cause.
 - Units: none; found by the session of work order 15 (the fourth reading, 2026-11-22)
-- Docs side: — (`devdocs/builtins.md`, "`pow`, and `^` with it", states the refusal)
+- Docs side: — (`devdocs/builtins.md`, "`pow`, and `^` with it", states the refusal as a defect with its one link)
 - Rewrite impact: none.

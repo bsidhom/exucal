@@ -43,7 +43,7 @@ Two rules bind all of the code:
   - The verification of a root of degree three or more throws for a
     positive ball whose radius is large against its midpoint
     ([Roots and powers](numbers.md#roots-and-powers)).
-  - `erf`, `erfc` and the incomplete beta functions throw for a ball
+  - `erf`, `erfc` and the incomplete functions throw for a wide ball
     whose radius is too large or too small to form
     ([A wide argument gets a trivial bound](builtins.md#a-wide-argument-gets-a-trivial-bound)).
   - `lgamma` and the functions that call it throw for a positive ball

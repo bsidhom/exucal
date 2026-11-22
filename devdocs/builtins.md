@@ -35,11 +35,11 @@ These words are used in a particular sense:
   ([Passes and errors](architecture.md#passes-and-errors)).
 - The **kernel** is the set of routines that compute the inexact
   functions in binary fixed point. A routine takes a `Fixed`, a
-  fixed-point integer that carries a bound on its own error. The
-  **working bits** of a pass are the bits that its precision needs plus
-  32 guard bits, and they are written `bits` in a formula. An **ulp** is
-  one unit in the last place of a `Fixed`, `2^-bits`
-  ([The kernel](numbers.md#the-kernel)).
+  fixed-point integer that carries a bound on its own error in ulps, its
+  **error count**. The **working bits** of a pass are the bits that its
+  precision needs plus 32 guard bits, and they are written `bits` in a
+  formula. An **ulp** is one unit in the last place of a `Fixed`,
+  `2^-bits` ([The kernel](numbers.md#the-kernel)).
 - The **working grid** is the decimal grid that a pass rounds its
   inexact results onto, a little finer than the pass's precision
   ([Settling](numbers.md#settling)).
@@ -237,25 +237,26 @@ argument must.
 
 ### A built-in that reaches the kernel is a module and a routine
 
+Such a built-in is split in two:
+
 - The module under `builtins/` makes the checks on the ball: the domain,
   the edges and the exact cases. It converts the argument to a `Fixed`
   and hands it to a kernel routine, in one of the `fixed-*.ts` modules.
 - The routine reduces the argument, runs its series, and cuts the result
-  to its significant bits (`keepSignificant`). The cut keeps the same
-  count of significant bits whatever the result's magnitude: a result of
-  magnitude `2^k` keeps `k` fewer fraction bits.
+  to `bits` significant bits (`keepSignificant`), whatever the result's
+  magnitude: a result of magnitude `2^k` keeps `k` fewer fraction bits.
+
+#### The argument's error is carried through the series
 
 The routine runs its series on the argument with the argument's error
-included from the start. Its **error count**, a bound on its error in
-ulps, grows with that error at every operation that takes the argument.
-So no bound from a derivative has to be written and proved for each
-function. The truncation bound of a series is taken at the upper end of
-the argument's interval.
+included from the start. The error count grows with that error at every
+operation that takes the argument. So no bound from a derivative has to
+be written and proved for each function. The bound on the terms that a
+series leaves out is taken at the largest magnitude in the argument's
+interval.
 
-Propagating the error this way has a price. Where a series takes the
-argument in two places,
-the radius of a narrow ball exceeds the derivative's bound by a small
-factor. The sine of a
+Carrying the error this way has a price. For a narrow ball the result's
+radius is a little larger than the derivative's bound. The sine of a
 ball of midpoint `1` and radius `1e-20` has a radius of `6e-21`, where
 the derivative gives `cos(1) × 1e-20`, about `5.4e-21`.
 
@@ -278,19 +279,20 @@ the same scaling in `rootBall`.
 ### A wide argument gets a trivial bound
 
 An argument can be too wide for a routine. Over a wide interval the
-terms of a series stop shrinking, or a value that the routine needs
-positive is no longer so under the error rules. Each routine has a
-threshold on the radius:
+terms of a series stop shrinking, or the error rules can no longer show
+that a value is positive where the routine needs it so. Eight routines
+test for such an argument:
 
-- For `sin` and `cos`, the magnitude of the reduced argument plus its
-  radius reaches one radian. The reduced argument lies within `pi/4` of
-  zero, so the radius is about a fifth of a radian at the least.
-- For `atan`, `asinh`, `exp`, `sinh`, `cosh` and `tanh`, the radius is
-  one half.
+- For `sin` and `cos`, the argument is wide when the magnitude of the
+  reduced argument plus its radius is one radian or more. The reduced
+  argument lies within `pi/4` of zero, so the radius is about a fifth of
+  a radian at the least.
+- For `atan`, `asinh`, `exp`, `sinh`, `cosh` and `tanh`, the argument is
+  wide when its radius is one half or more.
 
-The series is not run on such an argument. The answer is a
-**trivial bound**: a ball that covers every value the function takes
-over the argument.
+The series is not run on such an argument. For every routine but
+`asinh`, the answer is a **trivial bound**: a ball that covers every
+value the function takes over the argument.
 
 - `sin`, `cos` and `tanh` give zero within one, the function's whole
   range.
@@ -302,18 +304,20 @@ over the argument.
   would then read as an overflow.
 - `sinh` and `cosh` give zero within the exponential of the largest
   magnitude in the interval.
-- `asinh` gives the value at the midpoint, with the argument's radius
-  added to the result's, since the slope of `asinh` is at most one
-  everywhere. The routine's own formula, `ln(x + sqrt(x^2 + 1))`, does
-  not serve a wide ball. The product rule centers the interval of `x^2`
-  on the midpoint's square
-  ([Error bounds for the four operations](numbers.md#error-bounds-for-the-four-operations)),
-  and for a wide enough ball that interval reaches below `-1`, so that
-  `x^2 + 1` under the root is not positive. A radius of one half keeps
-  clear of that.
 
 A trivial bound certifies no digit. The next pass computes the argument
 at a higher precision, which narrows it.
+
+`asinh` gives more than a trivial bound. Its answer is the value at the
+midpoint, with the argument's radius added to the result's, which is
+sound because the slope of `asinh` is at most one everywhere. The
+routine's own formula, `ln(x + sqrt(x^2 + 1))`, does not serve a wide
+ball. The product rule centers the interval of `x^2` on the midpoint's
+square
+([Error bounds for the four operations](numbers.md#error-bounds-for-the-four-operations)),
+and for a wide enough ball that interval reaches below `-1`, so that
+`x^2 + 1` under the root is not positive. A radius of one half keeps
+clear of that.
 
 The ends of the interval would give a tighter bound for a monotone
 function, as `[tanh(lo), tanh(hi)]` is for the hyperbolic tangent. These
@@ -324,31 +328,37 @@ bounded radius no pass narrows. No argument has such a radius today, and
 binary form of `approx`.
 
 `erf`, `erfc` and the incomplete functions do take the two ends of a
-wide ball. The routine of the incomplete gamma functions cannot run on a
-wide argument
+wide ball. Each has its own measure of a wide argument `x`, which its
+section gives. The routine of the incomplete gamma functions cannot run
+on a wide argument
 ([The incomplete gamma functions](#the-incomplete-gamma-functions)), and
-each of these functions is monotone in its argument `x`. The two results
-are **hulled**, that is, covered by one ball (`hullOfEnds`). Three cases
-of the hull are special:
+each of these functions is monotone in `x`. The two results are
+**hulled**, that is, covered by one ball (`hullOfEnds`). Three cases of
+the hull are special:
 
 - Where one end gives a value and the other is refused past the bottom
   of the exponent bound, the hull is the hull of the value with zero.
 - Where one end gives a value and the other is refused past the top of
   the bound, the call is `unresolved` at the bound.
 - For two results whose midpoints are too far apart to align, the hull
-  takes the sum of their magnitudes as its bound.
+  is centered on one result, and its radius takes the sum of the two
+  magnitudes.
 
-One case is a defect. The two ends are formed from the exact value of
-the radius, and a radius above `2^65536` or below `2^-65536` is too
-costly to form. For a ball with such a radius, `erf`, `erfc` and the
-incomplete beta functions throw an exception, where every failure that
-an input can cause is meant to be an error
-([#258](https://github.com/bsidhom/exucal/issues/258)).
+The route by the two ends has a defect. The ends are formed from the
+exact value of the radius, and the code does not form a radius above
+`2^65536` or below `2^-65536`, which would cost too much. The two
+thresholds are constants, and no setting moves them. For a wide ball
+with such a radius, `erf`, `erfc` and the incomplete functions throw an
+exception, where every failure that an input can cause is meant to be an
+error ([#258](https://github.com/bsidhom/exucal/issues/258)). The radius
+below `2^-65536` belongs to a ball around a midpoint that small, which
+is wide by the function's own measure.
 
-| You type                                 | Exucal shows          | Note                      |
-| ---------------------------------------- | --------------------- | ------------------------- |
-| `erf(approx(1e19700) - approx(1e19700))` | `≈ 0`, within a bound | the two ends, hulled      |
-| `erf(approx(1e19800) - approx(1e19800))` | an exception          | the defect: a huge radius |
+| You type                                                      | Exucal shows          | Note                      |
+| ------------------------------------------------------------- | --------------------- | ------------------------- |
+| `erf(approx(1e19700) - approx(1e19700))`                      | `≈ 0`, within a bound | the two ends, hulled      |
+| `erf(approx(1e19800) - approx(1e19800))`                      | an exception          | the defect: a huge radius |
+| `lowergammareg(2, 1e-19800 * (2 + sin(approx(1e30) radian)))` | an exception          | the defect: a tiny radius |
 
 ### An argument outside the domain is an error, and one at an edge is retried
 
@@ -364,25 +374,33 @@ a user) this way:
   that edge. So is one that straddles any other point where the result
   depends on the side. The retry loop raises the precision, and at the
   ceiling the message says that the value cannot be told from the edge.
-- A built-in that cannot bound its result over a wide ball returns
-  `unresolved` too, as its way to ask for a narrower ball
-  ([The incomplete beta function](#the-incomplete-beta-function)).
 - A ball that touches an end of a domain counts as one that straddles
   it, even where the end belongs to the domain. `asin` of the interval
   `[0.5, 1]`, `acosh` of `[1, 1.5]` and `atanh` of `[0.5, 1]` are
-  `unresolved` at the edge. The rule is by design: no check of an edge
-  has to know whether the end it tests is closed. The rounding functions
-  follow it too. Two touches are not straddles, the one in the next
-  item and the ends of the incomplete beta function's domain
-  ([The incomplete beta function](#the-incomplete-beta-function)).
-- A ball that touches zero from below, such as `[-2, 0]`, holds no
-  positive value. For a logarithm or for a base it is outside the domain
-  throughout, a `domain` error.
-- For the exponent of a zero base, a ball that touches zero is
-  `unresolved`, since `0^0` differs from zero to a negative power.
+  `unresolved` at the edge. The rule is by design: a touch is a straddle
+  at every edge, so that no check has to know whether the end it tests
+  belongs to the domain. The rounding functions follow it too.
+- The exponent of a zero base follows the same rule. A ball that touches
+  zero is `unresolved` there, since the power is zero for a positive
+  exponent, one for a zero exponent and a division by zero for a
+  negative one.
+- Two touches are decided differently:
+  - For a logarithm, and for the base of a power with an inexact
+    exponent, a ball that touches zero from below, such as `[-2, 0]`, is
+    a `domain` error. Zero is outside the domain, so no value in the
+    ball is inside it.
+  - For the incomplete beta functions, a ball of `x` that touches `0`
+    or `1` is taken at its two ends
+    ([The incomplete beta function](#the-incomplete-beta-function)).
+- A built-in that cannot bound its result over a wide parameter, such as
+  the order of an incomplete gamma function, returns `unresolved` too,
+  as its way to ask for a narrower ball. No edge is the cause of that
+  error, and the edge it carries is one that the built-in borrows
+  ([The incomplete beta function](#the-incomplete-beta-function) lists
+  the cases).
 
-The message names the edge that an `unresolved` carries, in one of four
-forms:
+The message names the edge that an `unresolved` carries, borrowed or
+not, in one of four forms:
 
 - Zero.
 - A point, written to twelve digits. The point is `1`, `-1`, a value at
@@ -414,9 +432,10 @@ works on an interval that contains the logarithm of the result:
   `underflow` below the bottom of the bound, as for `exp` of a negative
   argument and for a power toward zero, and an `overflow` above the top.
   `sinh` and `cosh` overflow for an argument of either sign.
-- An argument whose ball reaches across an edge of the exponent bound is
-  `unresolved` there, and it is retried.
-- Within the exponent bound no result is refused, whatever its decimal
+- A result that is past the bound for some values of the argument's
+  ball and within it for others is `unresolved` at the bound, and the
+  call is retried.
+- The test refuses no result within the bound, whatever its decimal
   exponent, the power of ten of its magnitude
   ([Large and small results](numbers.md#large-and-small-results)).
 
@@ -424,8 +443,8 @@ works on an interval that contains the logarithm of the result:
 argument. `tanh` **saturates**: past a magnitude that grows with the
 working bits, the built-in answers `1` or `-1` within a radius, without
 the kernel ([Huge and tiny arguments](#huge-and-tiny-arguments)). So the
-kernel is handed only an argument below about 181,727, at the largest
-ceiling the settings allow, and it can hold every such argument.
+kernel is handed only an argument below that magnitude, and it can hold
+every such argument at any setting.
 
 | You type      | Exucal shows                  | Note               |
 | ------------- | ----------------------------- | ------------------ |
@@ -443,14 +462,14 @@ kernel is entered. The entries of
 [Built-in functions](../docs/builtins.md) say which of these arguments
 are refused. Three sizes of argument matter:
 
-- An argument is **tiny** when it lies below `2^-significandLimitBits`
-  throughout its ball (`isTiny`).
-- An argument is **huge** when its ball reaches
+- An argument is **tiny** when its magnitude lies below
+  `2^-significandLimitBits` throughout its ball (`isTiny`).
+- An argument is **huge** when the largest magnitude in its ball reaches
   `2^significandLimitBits` (`isHuge`).
-- An argument is **beyond the working bits** when it lies at or beyond
-  `2^bits` throughout its ball (`isBeyond`). The working bits are at
-  most half of `significandLimitBits`, so this size starts far below the
-  huge one.
+- An argument is **beyond the working bits** when its magnitude is at
+  least `2^bits` throughout its ball (`isBeyond`). The settings keep the
+  working bits to at most half of `significandLimitBits`, so this size
+  starts far below the huge one.
 
 #### A tiny argument takes the expansion at zero
 
@@ -515,40 +534,52 @@ conversion):
   `ln(1e999999999)` is a value, and `log10(1e999999999)` is exactly
   `999999999`.
 
-#### `atan` and `atan2` at either end
+#### `atan2` without a ratio, and a huge ball
 
 `atan2` compares the magnitudes of its arguments before it forms their
 ratio, through the low-precision `Radius` type. For a `y` of definite
-sign:
+sign, two cases are answered without a ratio:
 
-- The result is `pi/2` or `-pi/2`, by the sign of `y`, when `|y|` is at
-  least `|x| × 2^bits` throughout.
-- The result is `pi` or `-pi` when `x` is negative and `|y| / |x|` lies
-  below `2^-bits`.
-- For a positive `x`, a tiny ratio is its own arctangent within its
-  cube.
+- Where `|y|` is at least `|x| × 2^bits` throughout, the result is
+  `pi/2` or `-pi/2`, by the sign of `y`, within `2^-bits`.
+- Where `x` is negative and `|y| / |x|` lies below `2^-bits`
+  throughout, the result is `pi` or `-pi`, by the sign of `y`, within
+  `2^-bits`.
 
-Neither `atan` nor `atan2` is refused for the radius of an argument. A
-ball can be so wide that it is huge while part of it lies below
-`2^bits`. Such a ball gives the function's whole range: zero within two
-for `atan`, and zero within four for `atan2`. Two and four are the
-powers of two above `pi/2` and `pi`, the kernel's own trivial bound. The
-fractions of `pi` themselves would certify nothing more, since a ball
-around zero of either radius certifies no digit. They would change only
-the radius that the display shows at the ceiling.
+Every other call forms a ratio, `y / x` or `x / y`
+([The arctangent and the inverse trigonometric functions](#the-arctangent-and-the-inverse-trigonometric-functions)).
 
-`atan2` forms the ratio `x / y` where `x` straddles zero and `y` has a
-definite sign ([The elementary routines](#the-elementary-routines)).
-Where that ratio is such a ball, the call does not give the whole range:
-it is `unresolved` at zero, for `x`. The value could then lie almost
-anywhere between `0` and `pi`, and the side of zero that `x` lies on
-decides which end it is near.
+A ball can be huge for its radius alone, with part of it below
+`2^bits`. `sin`, `cos` and `tan` refuse such a ball as they refuse
+every huge argument. `atan` and `atan2` refuse none. What a huge ball
+gives depends on what it is:
 
-#### Known defects
+- An argument of `atan` that is huge, and not beyond the working bits
+  throughout, gives zero within two.
+- A huge ratio `y / x` gives zero within four.
+- A huge ratio `x / y` is `unresolved` at zero, for `x`. `atan2` forms
+  this ratio where `x` straddles zero and `y` has a definite sign.
+
+Zero within two and zero within four cover the function's whole range.
+Two and four are the powers of two above `pi/2` and `pi`, the kernel's
+own trivial bound. The fractions of `pi` themselves would certify
+nothing more, since a ball around zero of either radius certifies no
+digit. They would change only the radius that the display shows at the
+ceiling.
+
+The third case is an error because a ball around zero would misdescribe
+it. Over such an `x` the value lies almost anywhere between `0` and
+`pi`, and the side of zero that `x` lies on decides which end it is
+near. That is what an `unresolved` at zero says. A huge ratio `y / x`
+is not like this: where `y` straddles zero over a positive `x`, the
+range is symmetric about zero, and a ball around zero describes it.
+
+#### Two known defects
 
 - `asin`, `acos` and `acosh` of an exact argument with a long
-  significand are refused, as `asin(0.1 + 1e-15000)` is. Their exact
-  `1 - x^2` does not align within the significand limit
+  significand are refused, as `asin(0.1 + 1e-15000)` is. The exact
+  difference they form, `1 - x^2` or `x^2 - 1` for `acosh`, does not
+  align within the significand limit
   ([#63](https://github.com/bsidhom/exucal/issues/63)).
 - `tanh` takes one pass more for an argument in a band below the
   magnitude at which it saturates. The band starts where the routine for
@@ -817,41 +848,58 @@ Three terms describe what `pow` adds:
 - **Log space** is the third route, `exp(y ln x)`.
 
 `pow` takes two exponents that `^` does not: an inexact exponent, and an
-exact exponent whose fraction cannot be formed.
+exact exponent whose fraction cannot be formed. A call is answered by
+the first of these cases that fits it:
 
-- **An exact exponent whose fraction cannot be formed** takes log
-  space. An exact base whose power lies past the exponent
-  bound is refused first, so `pow(2, 1e999999999)` is an `overflow`. For a
-  negative base, the parity of the exponent's fraction decides between a
-  value and an even root of a negative value, and the canonical form
-  gives the parity.
-- **An inexact exponent** takes log space for a positive base. A base
-  at or below zero with an inexact exponent is a `domain` error.
-- **A negative base under an even root** is a `negativeRadicand`, and a
-  base that straddles zero is `unresolved`.
-- **An exact zero base** is exactly zero for an exponent positive
-  throughout, a division by zero for an exponent negative throughout,
-  and `unresolved` at zero for an exponent that straddles zero.
-  `pow(0, 0)` is one.
+1. **An exact exponent of zero** gives exactly `1` for any base, so
+   `pow(0, 0)` is one.
+2. **An exact base of one** gives exactly `1` for any exponent, inexact
+   or huge.
+3. **An exact base of zero** is decided by the side of zero that the
+   exponent lies on. The power is exactly zero for an exponent that is
+   positive throughout its interval, and a division by zero for one that
+   is negative throughout. For an inexact exponent whose interval
+   contains zero, the call is `unresolved` at zero.
+4. **An exact exponent whose fraction can be formed** takes the three
+   routes. `pow` adds nothing here to what `^` does: a negative base
+   under an even root is a `negativeRadicand` for both.
+5. **An exact exponent whose fraction cannot be formed** takes log
+   space, by the base:
+   - An exact base whose power lies past the exponent bound is refused
+     first, so `pow(2, 1e999999999)` is an `overflow`.
+   - A base that is positive throughout goes to log space as it is.
+   - A base that is negative throughout goes to log space as its
+     magnitude, and the parity of the exponent's fraction gives the
+     sign of the power (`minusOneTo`).
+   - A base whose interval contains zero has no logarithm, so no
+     precision would compute its power. The call is refused past the
+     significand limit, unless the classifier at the exponent bound
+     gives it an error of its own first.
+6. **An inexact exponent** takes log space for a base that is positive
+   throughout. A base whose interval lies at or below zero is a `domain`
+   error. Any other base whose interval contains zero is `unresolved` at
+   zero.
 
-An exact exponent of zero is answered first, as `1`. Three bases then
-need no arithmetic, and they are answered in this order, before the
-exponent's fraction is formed:
+The parity of a fraction that cannot be formed is read from the
+exponent's canonical form. The exponent is a significand `n/d` times
+`10^k`, and the denominator `d` has no factor of two, so it is odd.
 
-1. `pow(1, y)` is exactly `1` for any `y`, inexact or huge.
-2. `pow(0, y)` is decided as the zero base above.
-3. `pow(-1, y)`, for an exact `y` whose fraction cannot be formed, is
-   decided by the parity that the canonical form gives (`minusOneTo`):
-   - With `k > 0`, the fraction's numerator is a multiple of ten over
-     an odd denominator, so the power is `1`.
-   - With `k < 0`, the fraction's denominator is even unless the
-     significand's numerator holds at least `-k` factors of
-     two. An even denominator makes the power an even root of a negative
-     value. Under an odd denominator, the parity of the fraction's
-     numerator gives `-1` or `1`.
+- With `k > 0`, the fraction is `n × 10^k` over `d`: an even numerator
+  over an odd denominator. The power is positive.
+- Otherwise the fraction is `n` over `d × 10^-k`, before any factors of
+  two cancel. Three cases follow from the count of factors of two in
+  `n`:
+  - With fewer than `-k`, the denominator stays even. The power is an
+    even root of a negative value, a `negativeRadicand`.
+  - With exactly `-k`, the numerator and the denominator are both odd,
+    and the power is negative.
+  - With more than `-k`, the numerator stays even, and the power is
+    positive.
 
-   An exponent whose fraction can be formed keeps the rational route, so
-   `pow(-1, 1/3)` is `-1` and `pow(-1, 2/3)` is `1`.
+For a base of `-1` the power of the magnitude is exactly `1`, so the
+result is exactly `1` or `-1`. An exponent whose fraction can be formed
+keeps the rational route of case 4, so `pow(-1, 1/3)` is `-1` and
+`pow(-1, 2/3)` is `1`.
 
 | You type                 | Exucal shows                                    | Note                                     |
 | ------------------------ | ----------------------------------------------- | ---------------------------------------- |
@@ -919,10 +967,11 @@ root costs an order less. `bench/kernel.bench.ts` reports each.
 Its precondition is an argument below `2^62`, which the exponent bound
 ensures.
 
-The series is summed term by term, the one series here that is not
-summed by rectangular splitting. That costs most at the **hard bound**,
-the most the significand limit can be set to.
-[The hangs](cost.md#the-hangs) lists the expressions that the cost
+The series is summed term by term, and each term gains a fixed eight
+bits. It is the one series of the elementary routines that is not summed
+by rectangular splitting. The cost shows most at the hard bound, the
+most the significand limit can be set to, where a pass runs at the most
+bits. [The hangs](cost.md#the-hangs) lists the expressions that the cost
 measurements could not finish there, and names this sum among the
 causes.
 
@@ -984,10 +1033,12 @@ together, since they share the reduction and the powers of the series.
   integer part. So the three ulps of error in `pi`, times `n / 2`, stay
   under one ulp of the result. The quadrant comes from `n`.
 - **The two series**, in `v = -r^2` for the reduced argument `r`, share
-  their powers and are summed by rectangular splitting. The terms of a
-  block are scaled, exactly, onto one denominator, the largest product
-  of consecutive integers in the block. So a block costs one division,
-  where a division for each term would cost more than all the rest.
+  their powers and are summed by rectangular splitting. Within a block,
+  each term's divisor is a product of consecutive integers, and the
+  last term's product is a multiple of every other. Each term is scaled
+  by an exact integer onto that last product, so a block takes one
+  division. One division for each term would cost more than the rest of
+  the sum together.
 
 With those extra bits of `pi`, the margin of the memo of `pi` serves
 every argument below `2^256` at the ceiling pass. A larger argument
@@ -1075,11 +1126,12 @@ built-in's error.
 
 The probe measures how fast the device computes, to propose a precision
 limit ([The probe](settings.md#the-probe)). The expression it runs is
-`sin(atan(exp(1)) + ln(3) radian)`: the four elementary functions `exp`,
-`atan`, `sin` and `ln`, each once. The hyperbolic functions and the
-other inverses are compositions of those four. The probe evaluates the
-expression at the ceiling it is testing, against a table of the one
-primitive that the angle needs.
+`sin(atan(exp(1)) + ln(3) radian)`: one call each of four elementary
+functions, `exp`, `atan`, `sin` and `ln`. `exp(1)` is the memoized `e`,
+so that call runs the series of `e` and not the exponential's routine.
+The hyperbolic functions and the other inverses are compositions of the
+four. The probe evaluates the expression at the ceiling it is testing,
+against a table of the one primitive that the angle needs.
 
 ## The exact functions
 
@@ -1102,15 +1154,15 @@ Four of the thirteen take quantities. `abs` and `mod` return their
 argument's dimension, and `sign` and `div` return a plain number. The
 other nine take plain numbers ([Dimension rules](#dimension-rules)).
 
-### The corner cases of the definitions
+### The corner cases
 
-The user docs define the thirteen functions. The modules fix these
-corner cases, which the definitions leave open:
+The user docs say what the thirteen functions compute. The modules fix
+these corner cases, which those statements leave open:
 
 - `round(x, 0)` is `round(x)`.
 - A zero divisor of `div` or `mod` is a division by zero.
 - `gcd(a, 0)` is the absolute value of `a`, `gcd(0, 0)` is `0`, and
-  `lcm(a, 0)` is `0`.
+  `lcm` with a zero argument is `0`.
 - `doublefactorial(-1)` and `doublefactorial(0)` are both `1`.
 - `binomial(n, k)` takes any integer `k`, and it is zero for a `k`
   outside the range from `0` to `n`.
@@ -1126,18 +1178,18 @@ corner cases, which the definitions leave open:
 | `binomial(5, 7)`      | `= 0`                        | `k` outside `0` to `n`    |
 
 `gcd` and `lcm` are never negative. Their sign is a normalization, the
-same choice as the positive denominator of a fraction. Euclid's
-identity, `gcd(a, b) = gcd(b, a - q b)`, holds for any quotient `q`,
-however a division defines it, and the implementation takes absolute
-values first.
+same choice as the positive denominator of a fraction. Neither depends
+on which definition of division is in use, since Euclid's identity,
+`gcd(a, b) = gcd(b, a - q b)`, holds for any quotient `q`.
 
 The built-in `gcd` has no algorithm of its own. The core has one gcd,
 the function that reduces a fraction to lowest terms
 ([Exact operations](numbers.md#exact-operations)), and the built-in is a
 thin layer over it. The layer takes each argument's exact integer as a
 `bigint`, takes the absolute values, and answers a zero second argument
-itself, since that function requires a positive one. `lcm` divides the
-product of the absolute values by the same gcd.
+itself, since that function requires a positive one. `lcm` answers a
+zero argument itself too, and otherwise divides the product of the
+absolute values by the same gcd.
 
 ### `round` and the rounding mode
 
@@ -1160,10 +1212,11 @@ from the size limits:
 - A result whose count of units has more digits than the limit holds is
   `tooLarge` too. `round(1/3, 20000)` is refused, where
   `round(1/3, 19000)` is a value of nineteen thousand digits.
-- A value below a tenth of the rounding unit, `10^-places`, is answered
-  by its sign, and the unit is not formed. So `round(1e-999999999, 2)`
-  is `0`, or one unit away from zero under a directed mode that rounds
-  that way.
+- A value below a tenth of the rounding unit, `10^-places`, needs no
+  division. Its count of units is zero, or one under a directed mode
+  that rounds away from zero on the value's side, so the sign and the
+  mode decide it. The power of ten that the division would take is not
+  formed. So `round(1e-999999999, 2)` is `0` at the default mode.
 
 ### Floored division
 
@@ -1215,9 +1268,11 @@ core:
 - The Euclidean quotient and remainder are each a small expression over
   the floored pair: the remainder is `mod(a, abs(b))`, and the quotient
   is `sign(b) div(a, abs(b))`. The two take one `sign` between them.
-- The opposite derivation is larger. Over a Euclidean core, the floored
-  quotient and the floored remainder each take the divisor's sign on the
-  dividend, and the remainder takes it once more.
+- The opposite derivation is larger. Write `ediv` and `emod` for a
+  Euclidean pair, which name no function today. The floored quotient is
+  then `ediv(sign(b) a, abs(b))`, and the floored remainder is
+  `sign(b) emod(sign(b) a, abs(b))`. The two take three `sign` between
+  them.
 
 The two pairs differ only for a negative divisor: the quotient of `7` by
 `-2` is `-4` floored and `-3` Euclidean. No function is named for the
@@ -1238,10 +1293,12 @@ or straddles zero it is `unresolved` at zero.
 `floor`, `ceil`, `trunc` and `round` decide a ball by its position
 against a cell. A **rounding boundary** is a value at which the
 function's result changes, and a **cell** is the open interval between
-two neighboring boundaries. For `floor`, `ceil` and `trunc` the
-boundaries are the integers. For `round` they depend on `places` and on
-the rounding mode, and a **tie** is the boundary of a mode that rounds
-to nearest. The cell tested is the one that holds the midpoint.
+two neighboring boundaries. For `floor` and `ceil` the boundaries are
+the integers. For `trunc` they are the integers other than zero, since
+its result is `0` on both sides of zero. For `round` they depend on
+`places` and on the rounding mode, and a **tie** is the boundary of a
+mode that rounds to nearest. The cell tested is the one that holds the
+midpoint.
 
 - A ball inside the cell gives the exact integer, or the exact rounded
   value, of that cell.
@@ -1260,20 +1317,18 @@ ends exactly on the closed end of its cell is therefore `unresolved`,
 although every value in it has one answer. The interval `[2, 2.5]` is
 such a ball for `floor`.
 
-`div` and `mod` take one division between them. The quotient
-`q = a / b` is formed once, as a ball.
+`div` and `mod` each form the quotient `q = a / b` once, as a ball, and
+take their result from it.
 
 - `div` is the floor of `q`, decided against the floor's cell. The
   boundary is named in the terms of `a`: the quotient's boundary times
   `b`.
-- `mod` is `(q - floor(q)) × b`, from the same quotient. It is the same
-  value as `a - b × floor(q)`, and it is exact on exact arguments. Where
-  `div` is `unresolved`, `mod` is too. The
-  textbook form builds the product `b × floor(q)`, which passes the
-  exponent bound where `a` and `b` lie at its opposite ends, although
-  the remainder does not.
+- `mod` is `(q - floor(q)) × b`. It is the same value as
+  `a - b × floor(q)`, and it is exact on exact arguments.
 - A quotient past the top of the exponent bound makes `div` an
-  `overflow` and `mod` a `tooLarge`.
+  `overflow`, since its floor is past the bound too. It makes `mod` a
+  `tooLarge`: the remainder lies within `|b|` and passes no bound, and
+  what cannot be formed is the floor.
 - A quotient below the bottom of the bound, which the division refuses,
   has a floor all the same: zero or minus one, by the signs.
 - A remainder whose alignment passes the significand limit is
@@ -1338,9 +1393,9 @@ prediction is Stirling's formula. It takes
   `n! / (2^k k!)` for an odd `n`.
 
 A prediction past the limit is a `tooLarge` at the call, with the reach
-`exceeds`, so the message offers no remedy. The two remedies that a
-refused sum is offered, `approx` around an operand and decimal mode, do
-not apply:
+`exceeds`, and a message with that reach offers no remedy. The two
+remedies that a refused sum is offered, `approx` around an operand and
+decimal mode, do not apply:
 
 - Decimal mode does not help. The evaluator runs the built-in at an
   exact-mode context there, where it would form the exact product before
@@ -1348,12 +1403,15 @@ not apply:
 - `approx` around the argument does not help. An inexact argument is a
   `domain` error here, and not a way to an inexact result.
 
+One remedy does exist, and the message does not name it:
 `gamma(n + 1)` gives the digits asked for
 ([`lgamma` and `gamma`](#lgamma-and-gamma)).
 
-For an argument past one million (`FACTORIAL_LIMIT`), or a `binomial`
-whose smaller index is past it, the prediction is not evaluated. The
-refusal then carries no count of bits, and the message names none.
+An argument past one million (`FACTORIAL_LIMIT`) is refused without the
+comparison, and so is a `binomial` whose smaller index is past it. Every
+such result is past any significand limit that the settings allow.
+`factorial` still names the count of bits. `doublefactorial` and
+`binomial` name none there.
 
 The other exact functions need no prediction of their own. `gcd` and
 `lcm` form nothing larger than the product of their arguments. `div`,
@@ -1387,7 +1445,17 @@ numbers and returns a plain number. The functions build on one another:
 
 - `digamma` and `lgamma` each **shift** a positive argument up by a
   recurrence, to a value `y` large enough for an asymptotic series. The
-  two share the shift, the series' loop and the Bernoulli numbers.
+  shift has two forms:
+  - The **stepped shift** applies the recurrence one step at a time, at
+    the working bits. It serves any argument.
+  - The **exact shift** serves an exact argument with a short
+    denominator, as a typed decimal or fraction has. It is computed
+    exactly, by binary splitting, and it goes four times as far, so that
+    the series is half as long.
+
+  The two functions share the routine that sums the series, and the
+  Bernoulli numbers.
+
 - `gamma` is the exponential of `lgamma`.
 - `beta` is three values of `lgamma`.
 - The incomplete functions need the Gamma function for their regularized
@@ -1399,23 +1467,30 @@ numbers and returns a plain number. The functions build on one another:
 The asymptotic series of `lgamma` and `digamma` take the even Bernoulli
 numbers through the ratios of consecutive ones, `|B_(2k+2) / B_2k|`
 (`bernoulli.ts`, `bernoulli-ratios.ts`). Each term of a series is the
-term before it times the ratio, an index factor and `1 / y^2`.
+term before it times three factors: the ratio, `1 / y^2`, and an
+**index factor**, a fraction of small integers that depends on the
+term's index `k`.
 
 - The numbers are exact rationals. A **run** computes as many as a
   series asks for, from the tangent numbers, which are integers found by
   one recurrence.
-- The ratios are formed from one run, in fixed point, and memoized by
-  their count and by the bits they serve. The run's numbers are released
-  once the ratios are formed.
-- A ratio holds the bits that the term it makes still needs. So the
-  first ratios are held in full, and the last in a few hundred bits.
+- The ratios are formed from one run, in fixed point, and memoized. The
+  memo holds one set of ratios at a time, with its count and the bits it
+  serves. The run's numbers are released once the ratios are formed.
+- A ratio holds only the bits that the term it makes still needs. The
+  terms shrink down the series, so the first ratios are held in full and
+  the last in far fewer bits.
 
 These figures give the memo's size:
 
-- At the default ceiling the memo holds about 730 ratios for an exact
-  shift and about 1,420 for the loop's shorter one, about 0.8 to 1 MB in
-  all. The first are held at the ceiling's bits plus the margin, and the
-  last of the longer run at about two hundred bits.
+- At the default ceiling the memo holds about 730 ratios, in about
+  0.8 MB, once a call with an exact shift has reached the ceiling. It
+  holds about 1,420 ratios, in about 1 MB, once a call with a stepped
+  shift has, since that call's series is longer.
+- The first ratios are held at the ceiling's bits plus the margin that
+  the memoized constants hold
+  ([Memoized constants](numbers.md#memoized-constants)). The last ratio
+  of the longer set is held at about two hundred bits.
 - While a run is computed, its exact numbers take up to about 1.8 MB and
   the tangent numbers up to about 2.2 MB.
 - At a thousand digits the memo is about 80 KB, and at forty digits it
@@ -1425,44 +1500,46 @@ A series predicts its count of terms before it sums, from its first term
 and a bound on the ratio of consecutive terms, and it reserves that many
 ratios. So a pass that needs more ratios than the last pass computes one
 run for all that it takes. A memo grown term by term would recompute the
-run several times within one pass that starts with an empty memo. The
-ratios of a larger run replace those of a smaller one, so the memo holds
-one set. [#103](https://github.com/bsidhom/exucal/issues/103) tracks the
-memo's footprint.
+run several times within one pass that starts with an empty memo. A call
+that needs more ratios, or more bits, than the memo holds computes a new
+run, and its ratios replace the set held.
+[#103](https://github.com/bsidhom/exucal/issues/103) tracks the memo's
+footprint.
 
 ### `digamma`
 
 For `x > 0`, `digamma` (`builtins/gamma.ts`, `fixed-gamma.ts`) shifts
 its argument up and then sums an asymptotic series:
 
-- **The shift.** The recurrence `ψ(x + 1) = ψ(x) + 1/x` shifts the
-  argument up to a value of about a third of the working bits, where the
-  terms of the series fall fast enough.
+- **The stepped shift.** The recurrence `ψ(x + 1) = ψ(x) + 1/x` shifts
+  the argument up to a value of about a third of the working bits, where
+  the terms of the series fall fast enough.
 - **The series** is `ln y` less `1 / (2y)` less the terms
   `B_2k / (2k y^2k)`, for the shifted argument `y`. Each term is computed
-  from the term before it, by four factors in a fixed order: the
-  numerator of the index factor, which is exact; then the ratio of the
-  Bernoulli numbers; then the denominator of the index factor; then
-  `1 / y^2`. The order keeps a term's error at a few ulps however small
-  the term is. The rounding of the ratio is scaled down by `1 / y^2`,
-  and no truncation is scaled up by the ratio, which grows like `k^2`.
-  A power of `1 / y^2` held on its own would lose its relative precision
+  from the term before it, by four factors in a fixed order:
+  1. the numerator of the index factor, which is exact;
+  2. the ratio of the Bernoulli numbers;
+  3. the denominator of the index factor;
+  4. `1 / y^2`.
+
+  The order keeps a term's error at a few ulps however small the term
+  is. The rounding of the ratio is scaled down by `1 / y^2`, and no
+  rounding error is scaled up by the ratio, which grows like `k^2`. A
+  power of `1 / y^2` held on its own would lose its relative precision
   as it shrinks.
+
 - **The end of the sum** is the first term within eight ulps. For a
   positive argument the remainder is bounded by the first omitted term,
   and that bound is the truncation bound the routine adds.
-- **The exact shift.** An exact argument with a short denominator, as a
-  typed decimal or fraction has, is shifted exactly (`digammaRational`):
-  the sum of the reciprocals as one fraction, by binary splitting, and
-  then one division. It is shifted four times as far, where the series
-  is half as long.
+- **The exact shift** is the sum of the reciprocals as one fraction, by
+  binary splitting, and then one division (`digammaRational`).
 
-Two details keep the bound tight:
+Two details matter to the cost and to the bound:
 
-- The working bits are the result's plus a guard, whatever bits the
-  argument comes at. A small argument comes at extra bits, so that its
-  reciprocal, the first term of the shift, keeps its digits. That term
-  alone is taken at those bits.
+- The routine works at the bits asked of its result plus a guard,
+  whatever bits the argument comes at. A small argument comes at extra
+  bits, so that its reciprocal, the first term of the shift, keeps its
+  digits. That term alone is taken at those bits.
 - The square `1 / y^2` is formed as the square of `1 / y`, and not as
   the reciprocal of `y^2`. The interval that the product rule gives
   `y^2` can reach zero where the interval of `y` does not, and the
@@ -1502,7 +1579,7 @@ a value:
 `lgamma(x)` is `ln |Γ(x)|`. For `x > 0` it shifts the argument up as
 `digamma` does and then sums Stirling's series:
 
-- **The shift** uses the recurrence
+- **The stepped shift** uses the recurrence
   `Γ(x + n) = x (x + 1) … (x + n - 1) Γ(x)`. The product is kept as a
   significand at the working bits with a binary exponent, and it is
   normalized after each factor. So the `n` multiplications stay at the
@@ -1510,16 +1587,14 @@ a value:
   the ceiling. Its logarithm is taken once, with the exponent as the
   scale of `lnFixed`. The first factor may come at extra bits when it is
   small, and its logarithm is taken separately, at those bits.
-- **The exact shift.** An exact argument of short denominator takes the
-  product exactly, by binary splitting, with one logarithm
-  (`lgammaRational`). It is shifted four times as far.
+- **The exact shift** takes the product exactly, by binary splitting,
+  with one logarithm (`lgammaRational`).
 - **Stirling's series**, at the shifted argument `y`, is the sum of
   `(y - 1/2) ln y`, `-y`, `ln(2π) / 2` and the terms
-  `B_2k / (2k (2k - 1) y^(2k - 1))`. It
-  shares the loop of the series with `digamma`, one routine over the
-  index factors of the term ratio. Its remainder for a positive argument
-  is again bounded by the first omitted term. `ln π` is memoized at the
-  ceiling, as the constants are.
+  `B_2k / (2k (2k - 1) y^(2k - 1))`. It shares the routine that sums the
+  series with `digamma`, and the two differ only in their index factors.
+  Its remainder for a positive argument is again bounded by the first
+  omitted term. `ln π` is memoized at the ceiling, as the constants are.
 
 For a negative `x` that is not an integer, the reflection
 `Γ(x) Γ(1 - x) = π / sin(π x)` gives `lgamma(x)` as
@@ -1570,13 +1645,14 @@ where a ball of midpoint `2` throws from a radius of about `0.1`
 
 At the ceiling, a call on an inexact argument costs several times a call
 on the same argument typed exactly with a short denominator, and the
-loop of the shift is most of it. As a rough, illustrative figure, the
+stepped shift is most of it. As a rough, illustrative figure, the
 factor is between two and seven in timings of `gamma`, `lgamma` and
 `digamma` at `1/3`. Far below the ceiling the series is cheap.
 
 [The costliest expressions](cost.md) catalogues the costliest cases
 found, and its exact and inexact cases of this family overlap in cost,
-since an exact argument of long denominator takes the loop too.
+since an exact argument of long denominator takes the stepped shift
+too.
 [What the costs come from](cost.md#what-the-costs-come-from) names the
 shift of a wide argument among the causes.
 
@@ -1660,11 +1736,11 @@ complement. Two routes exist, a series for the lower function and a
 continued fraction for the upper, and the cheaper route is taken.
 
 The lower function's series is
-`x^s e^-x Σ x^n / (s (s + 1) … (s + n))`. Its terms are positive, so
-nothing cancels. Once the ratio `r = x / (s + n + 1)` is below one, the
-tail after a term is bounded by that term times `r / (1 - r)`. The ratio
-is taken from `|x|`, since an argument below half an ulp converts to
-zero within an ulp.
+`x^s e^-x / s × Σ x^n / ((s + 1) … (s + n))`. Its terms are positive, so
+nothing cancels, and the sum `Σ` is at least one. Once the ratio
+`r = x / (s + n + 1)` is below one, the tail after a term is bounded by
+that term times `r / (1 - r)`. The ratio is taken from `|x|`, since an
+argument below half an ulp converts to zero within an ulp.
 
 The upper function's route is Legendre's continued fraction, evaluated
 by the modified Lentz method:
@@ -1684,71 +1760,92 @@ by the modified Lentz method:
 A plain rule would take the fraction wherever `x > s + 1`. Two estimates
 of the cost refine it:
 
-- The fraction's convergents number about `(bits ln 2)^2 / (7 x)`, a
-  measured rate: 768 at forty digits for `x = 1.5`, and 443,000 at a
-  thousand digits. Each costs a few times what a term of the series
-  costs.
+- The fraction's convergents are estimated at `(b ln 2)^2 / (7 x)`,
+  where `b` is the count of bits the call works at. The rate of `7` was
+  fitted to measured counts, and the estimate runs high. For `s = 1/2`
+  and `x = 1.5`, the fraction takes about 700 convergents at forty
+  digits, where the estimate is about 1,250, and about 440,000 at a
+  thousand digits, where it is about 515,000. Each convergent costs a
+  few times what a term of the series costs.
 - The series' terms number about `x - s` up to the largest, plus what
   the bits need, or about `sqrt(2 s bits ln 2)` where `x` is near a
   large `s`.
 
-The cheaper route runs, within its limits: 50,000 terms, 20,000
-convergents and 20,000 steps of the reduction. One case overrides the
-estimate. The upper function takes the fraction wherever the complement
-of the series would lose half the working bits to cancellation, since
-the pass would then not certify.
+Each route has fixed limits: 50,000 terms for the series, and 20,000
+convergents and 20,000 steps of the reduction for the fraction. A route
+whose estimate passes a limit is out, and the cheaper of the routes that
+remain runs. One case overrides the estimate. The upper function takes
+the fraction wherever the complement of the series would lose half the
+call's bits to cancellation, since the pass would then not certify.
 
-#### The exponential, the complement and the two refusals
+#### The exponential, the complement and the refusals
 
 The kernel gives the factor of order one. The built-in forms the rest as
 one exponential in log space, `e^(s ln x - x - ln s + ln Σ)` for the
 series and the like for the fraction, with the classifier on the whole
 exponent. So a value past the exponent bound is refused as a value of
-`exp` is. The logarithm is formed at the working bits plus the bits of
-the magnitudes of `s` and `x`, since the exponent
-`s ln x - x - ln Γ(s + 1)` cancels.
+`exp` is.
+
+**The call's bits** are the working bits plus the bits of the magnitudes
+of `s` and `x`. The exponent is formed at the call's bits, and the
+kernel's factor is computed at them. The reason is that an absolute
+error in the exponent is a relative error in the result, so the exponent
+needs as many bits more as its own magnitude has.
 
 The regularized forms carry `ln Γ(s)` in the exponent, through
 `logGamma`, and do not divide by `gamma(s)`. The lower form carries
 `ln Γ(s + 1)`.
 
-The complement is taken from whichever function is computed. It is
-taken on the working grid, and not at the pass's precision, so that the
-digits below one are kept: `uppergammareg(1e6, 1.01e6)` is about
-`1.06e-23`. Where the function computed passes the bottom of the
-exponent bound, its complement is `Γ(s)`, or one, within `10^-(10^18)`.
-
-A call is refused for its size in two places, and the two differ:
-
-- **The working bits pass the significand limit.** The working bits of a
-  call are the pass's bits plus the bits of the magnitudes of `s` and
-  `x`. Past the significand limit the call is `tooLarge`, with the reach
-  `exceeds` and the count of bits. The count is left out where a
-  magnitude alone has more bits than the limit. This is the refusal that
-  [Rules every built-in follows](../docs/builtins.md#rules-every-built-in-follows)
-  in the user docs states.
-- **Neither route is within its limits.** The limits on terms,
-  convergents and steps are constants of the module. No setting moves
-  them, and they are the same at every pass. A large order with the
-  argument at or past it is such a call. It is refused as a `tooLarge`
-  too, with the reach `exceeds` and no count of bits.
-
-The second refusal misnames its cause, which is a defect. The working
-bits of such a call are far within the significand limit:
-`uppergammareg(1e6, 1.5e6)` works at under two hundred bits at the first
-pass of the default settings. So the message names a limit that raising
-does not satisfy
-([#107](https://github.com/bsidhom/exucal/issues/107)). The limits bound
-the time a call may take
-([What the costs come from](cost.md#what-the-costs-come-from) names the
-regime). A refusal claims nothing false about the value, where digits
-that nothing certifies would.
+The complement is taken from whichever function is computed. That
+function is rounded at the digits of the call's bits, and not at the
+pass's precision, so its complement keeps the digits that the extra bits
+hold. `uppergammareg(1e6, 1.01e6)` is about `1.06e-23`, the complement
+of a lower function that differs from one at the twenty-third digit.
+Where the function computed passes the bottom of the exponent bound, its
+complement is `Γ(s)`, or one, within `10^-(10^18)`.
 
 An argument whose radius is above `2^-16` of its magnitude is taken at
 its two ends, and the results are hulled, since each function is
 monotone in `x`. The fraction's denominators reach zero over such a
-width. An argument whose own two ends cannot be formed within the
-significand limit makes the call `tooLarge`, with the reach `exceeds`.
+width.
+
+A wide order is not taken at two ends. Where its error through the terms
+puts the interval of the kernel's factor at zero, the call is
+`unresolved` at zero, an edge that is not the cause
+([The incomplete beta function](#the-incomplete-beta-function) lists the
+cases of such an edge).
+
+A call is refused for its size in three places. The first two are the
+significand limit's own refusals, and the third is not:
+
+- **The call's bits pass the significand limit.** The call is
+  `tooLarge`, with the reach `exceeds` and the count of bits. The count
+  is left out where a magnitude alone has more bits than the limit. This
+  is the refusal that
+  [Rules every built-in follows](../docs/builtins.md#rules-every-built-in-follows)
+  in the user docs states.
+- **The ends of a wide argument cannot be formed.** Where the two ends
+  do not fit the significand limit, the call is `tooLarge`, with the
+  reach `exceeds` and no count.
+- **Neither route is within its fixed limits.** The limits on terms,
+  convergents and steps are constants of the module. No setting moves
+  them, and they are the same at every pass. Such a call has an order
+  above 20,000, which rules the fraction out, and a series of more than
+  50,000 terms: an argument that lies more than about 50,000 past the
+  order, or an order in the millions with the argument near it. The call
+  is refused as a `tooLarge` too, with the reach `exceeds` and no count
+  of bits.
+
+The third refusal misnames its cause, which is a defect. The bits of
+such a call are far within the significand limit:
+`uppergammareg(1e6, 1.5e6)` works at under two hundred bits at the first
+pass of the default settings. So the message names the significand
+limit, and raising that limit does not make the call run
+([#107](https://github.com/bsidhom/exucal/issues/107)). The fixed limits
+bound the time a call may take
+([What the costs come from](cost.md#what-the-costs-come-from) names the
+regime). The alternative to a refusal there is a value of unbounded
+radius, whose digits nothing certifies, and the call is refused instead.
 
 The convergents of the fraction grow with the square of the working
 bits, and the terms of the series grow with the bits. So a call far
@@ -1761,7 +1858,7 @@ term of the series also costs a division at full precision
 | `uppergamma(2, 0)`           | `= 1`                               | `Γ(2)`, at `x = 0`                          |
 | `lowergamma(1, 2)`           | `≈ 0.86466472`                      | the closed form `1 - e^-x`                  |
 | `uppergammareg(1e6, 1.01e6)` | `≈ 1.0606997e-23`                   | the digits below one are kept               |
-| `lowergammareg(1e19700, 1)`  | refused: past the significand limit | the working bits pass the limit             |
+| `lowergammareg(1e19700, 1)`  | refused: past the significand limit | the call's bits pass the limit              |
 | `uppergammareg(1e6, 1.5e6)`  | refused: past the significand limit | the fixed limits: neither route within them |
 | `lowergammareg(1e8, 1e8)`    | refused: past the significand limit | the fixed limits                            |
 
@@ -1826,25 +1923,33 @@ keeps the direct orientation. At forty digits the direct series takes
 11,837 terms there, and the swapped one takes 89.
 
 The complement is taken from the swapped orientation. One case
-overrides the choice: where the value wanted is tiny, the complement
-would lose half the working bits to cancellation, which the factor in
-front of the sum estimates.
+overrides the choice. Where the value is very small, its complement in
+the swapped orientation loses bits to cancellation, about as many as the
+binary exponent of the value is below zero. The factor in front of the
+sum estimates that loss, and the swapped orientation is not taken where
+it would be half the call's bits.
 
 #### The exponential and the limits
 
 The kernel gives the sum. The built-in forms the rest as one exponential
 in log space, `e^(a ln x + b ln(1 - x) - ln a + ln Σ)`, less the three
-`ln Γ` for the regularized form. It works at the working bits plus the
-bits of the parameters' magnitudes, under the classifier. The
-exponential is taken on the working grid, so that a complement keeps the
-digits below one. A tiny `x` whose complement does not align within the
-significand limit has its complement as one within `|x|`.
+`ln Γ` for the regularized form, under the classifier. The call's bits
+are the working bits plus the bits of the magnitudes of `a` and `b`. As
+for the incomplete gamma functions
+([The incomplete gamma functions](#the-incomplete-gamma-functions)), the
+sum and the exponent are formed at the call's bits, and the exponential
+is rounded at their digits, so that a complement keeps the digits that
+the extra bits hold. An `x` so small that its complement `1 - x` does
+not align within the significand limit has that complement as one
+within `|x|`.
 
-The function has the two refusals of the incomplete gamma functions
-([The incomplete gamma functions](#the-incomplete-gamma-functions)):
+The function is refused for its size in the three places of the
+incomplete gamma functions:
 
-- Working bits past the significand limit are a `tooLarge` with the
+- The call's bits past the significand limit are a `tooLarge` with the
   count of bits, as for `incbetareg(1e20000, 2, 0.5)`.
+- The two ends of a wide `x` that cannot be formed within the
+  significand limit are a `tooLarge` with no count.
 - Each orientation has a limit of 50,000 terms, a constant of the
   module. Past it in both orientations the call is a `tooLarge` with no
   count, and its message misnames the cause in the same way. Large
@@ -1855,14 +1960,15 @@ A term whose error reaches its value ends the sum, as happens for wide
 parameters, whose intervals grow through the ratios. Where no tail bound
 holds at that term, the built-in cannot bound its result. It returns
 `unresolved`, which asks the retry loop for a narrower ball. No edge is
-the cause, so the error names one at hand, in three places:
+the cause, so the error carries a borrowed edge. It does so in three
+places:
 
-- Here, it names `1` for `x`.
-- Where the interval of the series' sum reaches zero, it names zero for
-  `x`.
+- Where the series has no tail bound, the error names `1` for `x`.
+- Where the interval of the series' sum reaches zero, the error names
+  zero for `x`.
 - In the incomplete gamma functions, where a wide order puts the
-  interval of the kernel's factor at zero, it names zero for the wider
-  of the order and the argument.
+  interval of the kernel's factor at zero, the error names zero for the
+  wider of the order and the argument.
 
 The retry is the purpose, and the result is sound. A call that is still
 too wide at the ceiling shows a message about an edge that is not the
@@ -1899,7 +2005,7 @@ both orientations then take many terms
 | `incbetareg(5001, 5000, 1/2)`                             | `≈ 0.49601068`                         | exact: `a + b - 1` is ten thousand       |
 | `incbetareg(5002, 5000, 1/2)`                             | `≈ 0.49202215`                         | inexact: past ten thousand               |
 | `incbetareg(2, 3, 1e-20)`                                 | `≈ 6e-40`                              | at the first pass                        |
-| `incbetareg(1e20000, 2, 0.5)`                             | refused: past the significand limit    | the working bits pass the limit          |
+| `incbetareg(1e20000, 2, 0.5)`                             | refused: past the significand limit    | the call's bits pass the limit           |
 | `incbetareg(1e7, 1e7, 0.5)`                               | refused: past the significand limit    | the fixed limit, in both orientations    |
 | `incbeta(0.4 + approx(1e4048) - approx(1e4048), 30, 0.3)` | an error: `x` cannot be told from zero | the first parameter is too wide to bound |
 
@@ -1923,12 +2029,13 @@ function. These calls pay for a run, each through the dependency named:
   take it: `uppergamma` at `x = 0`, and either function where it
   computes the other part and subtracts it from `gamma(s)`.
 
-The run at the ceiling is paid once, by the first evaluation whose retry
-loop reaches the ceiling. An inexact argument asks for a longer run than
-an exact argument of short denominator, since its shift stops sooner
-and its series is longer. As rough, illustrative figures at the default
-ceiling, the run takes a fraction of a second for an exact shift and a
-second or two for an inexact argument's.
+A run at the ceiling is paid by the first evaluation whose retry loop
+reaches the ceiling. Its ratios then serve every later call that needs
+no more ratios and no more bits than the memo holds. A call with a
+stepped shift asks for a longer run than one with an exact shift, since
+its shift stops sooner and its series is longer. As rough, illustrative
+figures at the default ceiling, the run takes a fraction of a second for
+an exact shift and a second or two for a stepped one.
 
 [The costliest expressions](cost.md) catalogues what these families cost
 at raised ceilings, and [The hangs](cost.md#the-hangs) lists the cases
@@ -1970,13 +2077,10 @@ Two designs are excluded on purpose:
 These two are facts about today:
 
 - **No function computes Euclidean division.** `div` and `mod` are the
-  floored quotient and remainder, and no function is named for the
-  Euclidean quotient or the Euclidean remainder.
-  [Floored division](#floored-division) writes both as expressions over
-  `div` and `mod`. That is not a decision against Euclidean division:
-  the design allows either definition, and functions for the second are
-  future work ([Extensions that fit](future.md#extensions-that-fit)).
-  The truncated quotient is `trunc(a / b)`.
+  floored pair. [Floored division](#floored-division) gives the
+  Euclidean pair as expressions over them, and says that functions for
+  it are future work and not ruled out. The truncated quotient is
+  `trunc(a / b)`.
 - **No built-in takes or gives a complex value.** No argument leaves the
   real line, since the language has no complex literal
   ([Real values only](../docs/numbers.md#real-values-only) states it for

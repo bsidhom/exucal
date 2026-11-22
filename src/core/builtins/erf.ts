@@ -15,9 +15,10 @@
 // has `erf` at `±1` within `erfc(|x|)`, which is below `e^-x^2 < 10^-(10^18)`
 // there, so `erf(1e400)` is one within the bound's edge and `erfc(1e400)`
 // is `underflow`, `erfc(-1e400)` two within the edge. A tiny argument,
-// whose square passes below the bound or below `2^-significandLimitBits`, has `erf(x)`
+// below `2^-significandLimitBits` throughout (`isTiny`), has `erf(x)`
 // as `2x / √π` within `|x|^3`, the next term of its series being
-// `-2x^3 / (3 √π)`, and `erfc` as one less that.
+// `-2x^3 / (3 √π)`, and `erfc` as one less that; an argument whose square
+// passes below the bound takes the same route, and is tiny already.
 //
 // The exact cases: `erf(0)` is `0` and `erfc(0)` is `1`. A ball touching
 // or straddling zero, whose square the routine refuses, is taken at its

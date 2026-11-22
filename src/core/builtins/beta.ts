@@ -23,8 +23,9 @@
 // the arguments puts the result past an edge of the exponent bound
 // (`beta(1e19, 1e19)` is `underflow`) and leaves a ball across an edge
 // `unresolved` at the bound. The three logarithms cancel when an
-// argument is large (`beta(1e15, 1)` is `1e-15`, from logarithms near
-// `2^55`), so each is taken at the working bits plus the bits of the
+// argument is large (`beta(1e15, 1.5)` is `2.8024956e-23`, from
+// logarithms near `2^55`; `beta(1e15, 1)` itself is the exact case), so
+// each is taken at the working bits plus the bits of the
 // largest argument's magnitude, uncapped, which keeps the absolute error
 // of `L`, the result's relative error, below the working ulp; an
 // argument whose magnitude would need more bits than the significand limit allows

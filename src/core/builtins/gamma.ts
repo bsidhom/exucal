@@ -43,7 +43,8 @@
 // `gamma(x)` is `exp(lgamma(x))` with that sign, except for an exact
 // integer `x >= 1`, whose factorial is the exact value when it fits Most
 // bits (`factorialOf`) and the kernel's value, inexact, when it does not,
-// which is the remedy the factorial's refusal names: `gamma(20001)` is a
+// which is the way to the digits of a factorial past the limit, though
+// the factorial's refusal names no remedy: `gamma(20001)` is a
 // value of 77,338 digits in log space. The result takes the guard every
 // exponential takes (devdocs/numbers.md, "The exponent bound"): the
 // classifier of ball.ts

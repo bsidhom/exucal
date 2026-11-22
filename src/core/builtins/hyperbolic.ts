@@ -60,10 +60,11 @@
 // keeps the digits of `small` and `asinh(1e-50)`, `atanh(1e-50)` and
 // `acosh(1 + 1e-30)` certify on the first pass; the odd functions convert
 // a tiny argument the same way for the kernel, as `sin` does. An argument
-// of `asinh` whose interval is wider than one half is taken at its
+// of `asinh` whose radius is one half or more is taken at its
 // midpoint with the argument's radius added to the result's, `asinh`
-// being within the identity's slope everywhere, since the square under
-// the root would not stay positive under the error rules.
+// being within the identity's slope everywhere, since for a wide enough
+// ball the square under the root would not stay positive under the
+// error rules.
 //
 // The two ends of the exponent are answered before the kernel is
 // entered. An argument below `2^-significandLimitBits` throughout is its own `sinh`,
@@ -216,7 +217,7 @@ export function asinhBall(
   const bits = bitsFor(context.precision);
   if (isBeyond(x, bits)) return ok(farLogarithm(x, context));
   if (compareRadius(x.rad, powerOfTwoRadius(-1n)) >= 0) {
-    // Wider than one half: the value at the midpoint, and the radius added
+    // A radius of one half or more: the value at the midpoint, and the radius added
     // to the result's, the slope of `asinh` being at most one.
     const at = asinhBall(exact(x.mid), context);
     if (!at.ok) return at;

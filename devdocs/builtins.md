@@ -1102,46 +1102,34 @@ Four of the thirteen take quantities. `abs` and `mod` return their
 argument's dimension, and `sign` and `div` return a plain number. The
 other nine take plain numbers ([Dimension rules](#dimension-rules)).
 
-### The definitions of the thirteen functions
+### The corner cases of the definitions
 
-The definitions are those of the user docs, with the corner cases that
-the modules fix:
+The user docs define the thirteen functions. The modules fix these
+corner cases, which the definitions leave open:
 
-- `abs(x)` is the absolute value, and `sign(x)` is `-1`, `0` or `1`.
-- `floor(x)` is the largest integer at or below `x`, `ceil(x)` is the
-  smallest integer at or above it, and `trunc(x)` is the integer part,
-  toward zero.
-- `round(x)` rounds to an integer. `round(x, places)` rounds to `places`
-  decimal places, that is, to a multiple of `10^-places`.
-  `round(x, 0)` is `round(x)`, and a negative count rounds to the left
-  of the point.
-- `div(a, b)` is `floor(a / b)`, and `mod(a, b)` is `a - b × div(a, b)`.
-  A divisor of zero is a division by zero.
-- `gcd(a, b)` and `lcm(a, b)` take integers and are never negative.
-  `gcd(a, 0)` is the absolute value of `a`, `gcd(0, 0)` is `0`, and
+- `round(x, 0)` is `round(x)`.
+- A zero divisor of `div` or `mod` is a division by zero.
+- `gcd(a, 0)` is the absolute value of `a`, `gcd(0, 0)` is `0`, and
   `lcm(a, 0)` is `0`.
-- `factorial(n)` takes an integer `n >= 0`.
-- `doublefactorial(n)` takes an integer `n >= -1`. Both
-  `doublefactorial(-1)` and `doublefactorial(0)` are `1`.
-- `binomial(n, k)` takes an integer `n >= 0` and any integer `k`. It is
-  zero for a `k` outside the range from `0` to `n`.
+- `doublefactorial(-1)` and `doublefactorial(0)` are both `1`.
+- `binomial(n, k)` takes any integer `k`, and it is zero for a `k`
+  outside the range from `0` to `n`.
 
-| You type              | Exucal shows | Note                      |
-| --------------------- | ------------ | ------------------------- |
-| `trunc(-3.5)`         | `= -3`       | toward zero               |
-| `round(3.14159, 2)`   | `= 3.14`     |                           |
-| `round(1234, -2)`     | `= 1200`     | to the left of the point  |
-| `gcd(-6, 4)`          | `= 2`        | never negative            |
-| `gcd(-9, 0)`          | `= 9`        | the absolute value of `a` |
-| `lcm(-6, 4)`          | `= 12`       |                           |
-| `doublefactorial(-1)` | `= 1`        |                           |
-| `binomial(5, 7)`      | `= 0`        | `k` outside `0` to `n`    |
+| You type              | Exucal shows                 | Note                      |
+| --------------------- | ---------------------------- | ------------------------- |
+| `round(2.567, 0)`     | `= 3`                        | as `round(2.567)`         |
+| `mod(7, 0)`           | an error: a division by zero |                           |
+| `gcd(-9, 0)`          | `= 9`                        | the absolute value of `a` |
+| `gcd(0, 0)`           | `= 0`                        |                           |
+| `lcm(5, 0)`           | `= 0`                        |                           |
+| `doublefactorial(-1)` | `= 1`                        |                           |
+| `binomial(5, 7)`      | `= 0`                        | `k` outside `0` to `n`    |
 
-The sign of `gcd` and `lcm` is a normalization, the same choice as the
-positive denominator of a fraction. Euclid's identity,
-`gcd(a, b) = gcd(b, a - q b)`, holds for any quotient `q`, however a
-division defines it, and the implementation takes absolute values
-first.
+`gcd` and `lcm` are never negative. Their sign is a normalization, the
+same choice as the positive denominator of a
+fraction. Euclid's identity, `gcd(a, b) = gcd(b, a - q b)`, holds for
+any quotient `q`, however a division defines it, and the implementation
+takes absolute values first.
 
 The built-in `gcd` has no algorithm of its own. The core has one gcd,
 the function that reduces a fraction to lowest terms
@@ -1179,10 +1167,11 @@ from the size limits:
 
 ### Floored division
 
-`div` and `mod` are floored division and its remainder, **F-division**
-in the terms of Raymond T. Boute ("The Euclidean definition of the
-functions div and mod", ACM Transactions on Programming Languages and
-Systems 14(2), 1992, pages 127 to 144). Three properties hold:
+`div(a, b)` is `floor(a / b)`, and `mod(a, b)` is `a - b × div(a, b)`.
+The two are floored division and its remainder, **F-division** in the
+terms of Raymond T. Boute ("The Euclidean definition of the functions
+div and mod", ACM Transactions on Programming Languages and Systems
+14(2), 1992, pages 127 to 144). Three properties hold:
 
 - `a = b × div(a, b) + mod(a, b)`, exactly.
 - `|mod(a, b)| < |b|`.

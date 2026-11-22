@@ -241,7 +241,9 @@ argument must.
   the edges and the exact cases. It converts the argument to a `Fixed`
   and hands it to a kernel routine, in one of the `fixed-*.ts` modules.
 - The routine reduces the argument, runs its series, and cuts the result
-  to the bits that its magnitude calls for (`keepSignificant`).
+  to its significant bits (`keepSignificant`). The cut keeps the same
+  count of significant bits whatever the result's magnitude: a result of
+  magnitude `2^k` keeps `k` fewer fraction bits.
 
 The routine runs its series on the argument with the argument's error
 included from the start. Its **error count**, a bound on its error in
@@ -957,7 +959,7 @@ routes:
    summed by rectangular splitting, each power divided by its odd
    number.
 4. It scales the logarithm back for the eight roots, adds the multiple
-   of `ln 2`, and keeps the bits that the result's magnitude calls for.
+   of `ln 2`, and cuts the result to its significant bits.
 
 A caller whose value is far from one scales it to order one and passes
 the power of two as `scale`, so that `ln(1e-300)` loses nothing to the
@@ -969,8 +971,8 @@ The constants and the other logarithms are built on the same pieces:
   `atanh(1/q)` is summed by binary splitting, within two ulps, and
   memoized ([Memoized constants](numbers.md#memoized-constants)).
 - `log10` and `log2` divide by the memoized constants.
-- `log(b, x)` is the quotient of two `ln`. `divideFixed` cuts the
-  quotient to the bits its magnitude calls for.
+- `log(b, x)` is the quotient of two `ln`, cut to its significant
+  bits.
 
 ### The sine and the cosine
 
@@ -982,17 +984,18 @@ together, since they share the reduction and the powers of the series.
   integer part. So the three ulps of error in `pi`, times `n / 2`, stay
   under one ulp of the result. The quadrant comes from `n`.
 - **The two series**, in `v = -r^2` for the reduced argument `r`, share
-  their powers and are summed by rectangular splitting. Each block is
-  scaled through its largest product of consecutive integers, so that a
-  block costs one division where a division per term would cost many.
+  their powers and are summed by rectangular splitting. The terms of a
+  block are scaled, exactly, onto one denominator, the largest product
+  of consecutive integers in the block. So a block costs one division,
+  where a division for each term would cost more than all the rest.
 
 With those extra bits of `pi`, the margin of the memo of `pi` serves
 every argument below `2^256` at the ceiling pass. A larger argument
 computes `pi` for the call
 ([Memoized constants](numbers.md#memoized-constants)).
 
-`tan` is the quotient, formed in `builtins/trig.ts` and cut to the bits
-its magnitude calls for. When the cosine's ball contains zero, `tan` is
+`tan` is the quotient, formed in `builtins/trig.ts` and cut to its
+significant bits. When the cosine's ball contains zero, `tan` is
 `unresolved` at a pole. The three share one dimension rule
 (`angleToNumber` in `builtin.ts`).
 
@@ -1169,9 +1172,10 @@ from the size limits:
 - A result whose count of units has more digits than the limit holds is
   `tooLarge` too. `round(1/3, 20000)` is refused, where
   `round(1/3, 19000)` is a value of nineteen thousand digits.
-- A value below a tenth of the unit forms no power of ten. So
-  `round(1e-999999999, 2)` is `0`, or one unit away from zero under a
-  directed mode that rounds that way.
+- A value below a tenth of the rounding unit, `10^-places`, is answered
+  by its sign, and the unit is not formed. So `round(1e-999999999, 2)`
+  is `0`, or one unit away from zero under a directed mode that rounds
+  that way.
 
 ### Floored division
 
@@ -1446,12 +1450,15 @@ its argument up and then sums an asymptotic series:
   argument up to a value of about a third of the working bits, where the
   terms of the series fall fast enough.
 - **The series** is `ln y` less `1 / (2y)` less the terms
-  `B_2k / (2k y^2k)`, for the shifted argument `y`. It is summed as a
-  recurrence on its terms, the exact scaling first and the truncating
-  steps last. Two other orders lose precision. A power of `1 / y^2` held
-  on its own loses its relative precision as it shrinks. A Bernoulli
-  numerator multiplied in turns an ulp of error into a bound that grows
-  where the term vanishes.
+  `B_2k / (2k y^2k)`, for the shifted argument `y`. Each term is computed
+  from the term before it, by four factors in a fixed order: the
+  numerator of the index factor, which is exact; then the ratio of the
+  Bernoulli numbers; then the denominator of the index factor; then
+  `1 / y^2`. The order keeps a term's error at a few ulps however small
+  the term is. The rounding of the ratio is scaled down by `1 / y^2`,
+  and no truncation is scaled up by the ratio, which grows like `k^2`.
+  A power of `1 / y^2` held on its own would lose its relative precision
+  as it shrinks.
 - **The end of the sum** is the first term within eight ulps. For a
   positive argument the remainder is bounded by the first omitted term,
   and that bound is the truncation bound the routine adds.
@@ -1473,8 +1480,11 @@ Two details keep the bound tight:
   series takes `1 / y` as well.
 
 For a negative `x` that is not an integer, `digamma` takes the
-reflection `ψ(1 - x) - ψ(x) = π cot(π x)`, at the fractional part folded
-to the half nearer zero. `floorBall` decides whether the ball lies
+reflection `ψ(1 - x) - ψ(x) = π cot(π x)`. The cotangent is taken at the
+fractional part `t` of `x`, which lies between `0` and `1`, so that a
+large negative argument costs no reduction of a large angle. A `t` above
+one half is replaced by `1 - t`, with the sign changed, since the sine
+keeps its digits near zero. `floorBall` decides whether the ball lies
 inside one integer's cell or reaches a pole, and a sine whose ball
 reaches zero is reported as the pole.
 

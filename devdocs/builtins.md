@@ -1126,10 +1126,10 @@ corner cases, which the definitions leave open:
 | `binomial(5, 7)`      | `= 0`                        | `k` outside `0` to `n`    |
 
 `gcd` and `lcm` are never negative. Their sign is a normalization, the
-same choice as the positive denominator of a
-fraction. Euclid's identity, `gcd(a, b) = gcd(b, a - q b)`, holds for
-any quotient `q`, however a division defines it, and the implementation
-takes absolute values first.
+same choice as the positive denominator of a fraction. Euclid's
+identity, `gcd(a, b) = gcd(b, a - q b)`, holds for any quotient `q`,
+however a division defines it, and the implementation takes absolute
+values first.
 
 The built-in `gcd` has no algorithm of its own. The core has one gcd,
 the function that reduces a fraction to lowest terms

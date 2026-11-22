@@ -12,7 +12,10 @@ The built-ins are the functions a calculator is used for: the
 elementary functions, `approx`, the exact functions such as `floor` and
 `gcd`, and the Gamma and Beta families with the incomplete functions
 and the error functions. Each returns an exact value in its exact cases,
-and everywhere else a ball whose radius bounds its error.
+and everywhere else a ball whose radius bounds its error. The bounds are
+derived in the code and argued on this page. They have not yet been
+reviewed against their sources, which
+[#112](https://github.com/bsidhom/exucal/issues/112) tracks.
 
 A built-in computes on balls.
 [Numbers and precision](numbers.md) describes the arithmetic it runs on,
@@ -1931,10 +1934,6 @@ second or two for an inexact argument's.
 [The costliest expressions](cost.md) catalogues what these families cost
 at raised ceilings, and [The hangs](cost.md#the-hangs) lists the cases
 that run past the catalogue's deadline at the highest precision limits.
-
-[#112](https://github.com/bsidhom/exucal/issues/112) tracks an audit of
-every numeric routine and its bound against the literature, with
-citations.
 
 ### The functions that are not built-ins
 

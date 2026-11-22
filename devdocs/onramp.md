@@ -55,10 +55,12 @@ exactly one such form,
 
 $$e = \min(\nu_2(x), \nu_5(x)) \qquad m = x / 10^{e}$$
 
-where the **valuation** $\nu_p(x)$ is the exponent of the prime $p$ in
-the factorization of $x$, negative when $p$ divides the denominator.
-Dividing by $10^{e}$ lowers both valuations by $e$, and the conditions
-on $m$ say that neither is then negative and that one is zero. Zero is
+where the **valuation** $\nu_p(x)$ is the number of times the prime $p$
+divides the numerator of $x$, less the number of times it divides the
+denominator. It is the $p$-adic valuation of an integer, which is never
+negative, extended to fractions: $\nu_2(3/8) = -3$. Dividing by
+$10^{e}$ lowers both valuations by $e$, and the conditions on $m$ say
+that neither is then negative and that one is zero. Zero is
 $0 \cdot 10^{0}$. `2.54` is $127 / (2 \cdot 5^{2})$, so
 $e = \min(-1, -2) = -2$ and $m = 254$. `1/6` is $1 / (2 \cdot 3)$, so
 $e = \min(-1, 0) = -1$ and $m = \frac{5}{3}$.

@@ -239,6 +239,11 @@ the rounding functions do
 `mod` is inexact, or an error where `div` is. A remainder that would
 need a significand past the significand limit is refused.
 
+No function gives a truncated remainder, which takes the sign of `a`.
+Such a remainder does not repeat as `a` grows by `b`: it would give
+`-30 deg` for `mod(-30 deg, 360 deg)`, which is `330 deg`. The truncated
+quotient is `trunc(a / b)`.
+
 | You type                   | Exucal shows                                                                           | Note                                                  |
 | -------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | `div(-7, 2)`               | `= -4`                                                                                 | floored                                               |

@@ -92,9 +92,8 @@ The design rests on these decisions:
 - **The Gamma family is computed from memoized ratios of Bernoulli numbers, and the incomplete functions by the route that costs less.**
   Every result carries a bound on its error
   ([The Gamma and Beta families](#the-gamma-and-beta-families)).
-- **`round` takes no mode argument, `factorial` takes no non-integer, and no remainder is truncated.**
-  All three are excluded on purpose, and no built-in takes a complex
-  value
+- **`round` takes no mode argument, `factorial` takes no non-integer, and `div` and `mod` have no truncated form.**
+  All three are excluded on purpose
   ([Not in this design](#not-in-this-design)).
 
 The code is laid out this way. Each built-in is in a module of its own
@@ -873,11 +872,11 @@ the first of these cases that fits it:
      magnitude, and the parity of the exponent's fraction gives the
      sign of the power (`minusOneTo`).
    - A base whose interval contains zero has no logarithm. The call is
-     refused past the significand limit, unless the classifier at the
-     exponent bound gives it an error of its own first. The refusal is a
-     defect: it ends the retry loop at the first pass, although a later
-     pass may narrow the base off zero, and it names a limit that is not
-     the cause
+     `tooLarge`, unless the classifier at the exponent bound refuses it
+     or finds it `unresolved` first. The `tooLarge` is a defect. It ends
+     the retry loop at the first pass, although a later pass may narrow
+     the base off zero, and it names the significand limit, which is not
+     the cause. Case 6 reports the same base as `unresolved` at zero
      ([#263](https://github.com/bsidhom/exucal/issues/263)).
 6. **An inexact exponent** takes log space for a base that is positive
    throughout. A base whose interval lies at or below zero is a `domain`
@@ -905,21 +904,22 @@ result is exactly `1` or `-1`. An exponent whose fraction can be formed
 keeps the rational route of case 4, so `pow(-1, 1/3)` is `-1` and
 `pow(-1, 2/3)` is `1`.
 
-| You type                 | Exucal shows                                    | Note                                     |
-| ------------------------ | ----------------------------------------------- | ---------------------------------------- |
-| `pow(8, 1/3)`            | `= 2`                                           | the exact root                           |
-| `pow(1/4, 3/2)`          | `= 0.125`                                       | the exact root                           |
-| `pow(2, 1e999999999)`    | refused: too large to compute                   | the bound, tested on the base's value    |
-| `pow(2, 1e-30000)`       | `≈ 1`                                           | log space: the fraction cannot be formed |
-| `pow(-2, 1e-30000)`      | an error: an even root of a negative value      | the parity, from the canonical form      |
-| `pow(-2, approx(1))`     | an error: the base is not positive              | a `domain` error                         |
-| `pow(0, -2)`             | an error: a division by zero                    |                                          |
-| `pow(0, sqrt(2)^2 - 2)`  | an error: the exponent cannot be told from zero | `unresolved`, at zero                    |
-| `pow(1, approx(1e400))`  | `= 1`                                           | the base `1`                             |
-| `pow(-1, 1e999999999/3)` | `= 1`                                           | `k > 0`                                  |
-| `pow(-1, 1e-30000)`      | an error: an even root of a negative value      | `k < 0`, an even denominator             |
-| `pow(-1, 5^-16000)`      | `= -1`                                          | an odd denominator and an odd numerator  |
-| `pow(-1, 2 * 5^-16000)`  | `= 1`                                           | an odd denominator and an even numerator |
+| You type                               | Exucal shows                                    | Note                                     |
+| -------------------------------------- | ----------------------------------------------- | ---------------------------------------- |
+| `pow(8, 1/3)`                          | `= 2`                                           | the exact root                           |
+| `pow(1/4, 3/2)`                        | `= 0.125`                                       | the exact root                           |
+| `pow(2, 1e999999999)`                  | refused: too large to compute                   | the bound, tested on the base's value    |
+| `pow(2, 1e-30000)`                     | `≈ 1`                                           | log space: the fraction cannot be formed |
+| `pow(-2, 1e-30000)`                    | an error: an even root of a negative value      | the parity, from the canonical form      |
+| `pow(-2, approx(1))`                   | an error: the base is not positive              | a `domain` error                         |
+| `pow(sqrt(2)^2 - 2 + 1e-60, 1e-30000)` | refused: past the significand limit             | the defect: the value is `≈ 1`           |
+| `pow(0, -2)`                           | an error: a division by zero                    |                                          |
+| `pow(0, sqrt(2)^2 - 2)`                | an error: the exponent cannot be told from zero | `unresolved`, at zero                    |
+| `pow(1, approx(1e400))`                | `= 1`                                           | the base `1`                             |
+| `pow(-1, 1e999999999/3)`               | `= 1`                                           | `k > 0`                                  |
+| `pow(-1, 1e-30000)`                    | an error: an even root of a negative value      | `k < 0`, an even denominator             |
+| `pow(-1, 5^-16000)`                    | `= -1`                                          | an odd denominator and an odd numerator  |
+| `pow(-1, 2 * 5^-16000)`                | `= 1`                                           | an odd denominator and an even numerator |
 
 ## The elementary routines
 
@@ -1136,9 +1136,11 @@ the other inverses are compositions of the four. The probe evaluates the
 expression at the ceiling it is testing, against a table of the one
 primitive that the angle needs.
 
-One of the four calls does not run its routine, which is a defect.
-`exp(1)` is the memoized `e`, so that call runs the series of `e` and
-not the exponential's routine, and the probe times the expression low
+`exp(1)` does not run the exponential's routine, which is a defect. The
+built-in answers an argument of exactly one with the memoized `e`
+([Values taken from a memoized constant](#values-taken-from-a-memoized-constant)).
+So the time that the probe measures leaves the exponential's series out,
+and the limit it proposes can be too high
 ([#264](https://github.com/bsidhom/exucal/issues/264)).
 
 ## The exact functions
@@ -1245,9 +1247,9 @@ The division rule makes the two functions a pair: either one, with the
 rule, defines the other. `mod` is defined from `div` here, so the rule
 holds by construction.
 
-Both functions are defined on exact rationals and on quantities of one
-dimension. The paper states its definitions for real numbers too, and
-not for integers alone.
+Neither function is limited to integers. Both take rationals and
+quantities of one dimension, as the paper's definitions take real
+numbers.
 
 | You type                | Into  | Exucal shows | Note                    |
 | ----------------------- | ----- | ------------ | ----------------------- |
@@ -1267,33 +1269,33 @@ definitions that keep the division rule:
 - the E-definition, the Euclidean one, whose remainder is never
   negative.
 
-The design takes four of its conclusions:
+Three rules of the design come from the paper:
 
-- A remainder should be **periodic**: `mod(x, d)` and `mod(y, d)` are
-  equal exactly when `x` and `y` differ by a multiple of `d`. The F- and
-  E-definitions are periodic, and the T-definition is not.
-- The E- and F-definitions are the ones to prefer as the standard
-  convention, and the T-definition is far inferior to both. Of the two,
-  the E-definition is the more regular, and the F-definition keeps the
-  sign of the divisor.
-- A second definition can always be expressed in terms of the first.
-- The E- and F-definitions differ only for a negative divisor, and one
-  check of the divisor's sign tells them apart.
+- **`div` and `mod` are one pair under the division rule.** The design
+  never puts the quotient of one definition beside the remainder of
+  another.
+- **The truncated pair is ruled out.** Its remainder is not periodic. A
+  remainder is **periodic** when `mod(x, d)` and `mod(y, d)` are equal
+  exactly when `x` and `y` differ by an integer multiple of `d`. The F-
+  and E-definitions are periodic and the T-definition is not, and the
+  paper finds the T-definition far inferior to both. Truncation gives
+  `-1` for the remainder of `-1` by `3` and `2` for the remainder of `2`
+  by `3`, although `-1` and `2` differ by `3`. An angle shows the cost:
+  `mod(-30 deg, 360 deg)` is `330 deg`, where a truncated remainder
+  would be `-30 deg`, a second value for one direction.
+- **The pair is the floored one or the Euclidean one.** These are the
+  two that the paper prefers as the standard convention. Of the two, it
+  finds the E-definition the more regular, since the sign of its
+  remainder does not depend on the divisor, and it notes that the
+  F-definition keeps the divisor's sign.
 
-Three rules of the design follow:
-
-- `div` and `mod` are always one pair under the division rule, and never
-  the quotient of one definition beside the remainder of another.
-- The pair is the floored one or the Euclidean one.
-- The truncated pair is ruled out, because its remainder is not
-  periodic. Truncation gives `-1` for the remainder of `-1` by `3` and
-  `2` for the remainder of `2` by `3`, although `-1` and `2` differ by
-  `3`. An angle shows the cost: `mod(-30 deg, 360 deg)` is `330 deg`,
-  where a truncated remainder would be `-30 deg`, a second value for one
-  direction.
+The paper adds two points that the choice between the two rests on. Once
+one definition is the primary one, any other can be expressed in terms
+of it. And one check of the divisor's sign tells the E- and
+F-definitions apart.
 
 The floored pair is the one built in today, because it is the simpler
-core:
+pair to build the other on:
 
 - `div` is the floor of the quotient. It reuses what the rounding
   functions do with an inexact argument, and nothing tests the divisor's
@@ -1302,8 +1304,8 @@ core:
   the floored pair: the remainder is `mod(a, abs(b))`, and the quotient
   is `sign(b) div(a, abs(b))`. The two take one `sign` between them.
 - The opposite derivation is larger. Write `ediv` and `emod` for a
-  Euclidean pair, which name no function today. The floored quotient is
-  then `ediv(sign(b) a, abs(b))`, and the floored remainder is
+  Euclidean pair. The floored quotient is then
+  `ediv(sign(b) a, abs(b))`, and the floored remainder is
   `sign(b) emod(sign(b) a, abs(b))`. The two take three `sign` between
   them.
 
@@ -1724,7 +1726,10 @@ reflections, under the classifier. So large arguments pass through
   the largest argument's magnitude, with no cap, since the logarithms
   cancel when an argument is large: `beta(1e15, 1.5)` comes from
   logarithms near `2^55`. An argument whose magnitude would need more
-  bits than the significand limit allows is `tooLarge`.
+  bits than the significand limit allows is `tooLarge`. The count of
+  bits that this refusal shows can be too low
+  ([The incomplete beta function](#the-incomplete-beta-function) has the
+  defect).
 - **The sum** `a + b` is formed exactly where it aligns within the
   limit. Otherwise it is the larger argument within the magnitude of the
   smaller, so that `beta(2.5, 1e-20000)` is a value. A sum at or past
@@ -1980,9 +1985,11 @@ The function is refused for its size in the three places of the
 incomplete gamma functions:
 
 - The call's bits past the significand limit are a `tooLarge` with the
-  count of bits, as for `incbetareg(1e20000, 2, 0.5)`. Where a
-  parameter's magnitude alone has more bits than the limit, the count
-  shown is too low, which is a defect of these functions and of `beta`
+  count of bits, as for `incbetareg(1e19700, 2, 0.5)`. For a parameter
+  whose magnitude alone has more bits than the limit, as in
+  `incbetareg(1e20000, 2, 0.5)`, the count shown is too low, where the
+  incomplete gamma functions leave the count out. That is a defect of
+  `incbeta`, `incbetareg` and `beta`
   ([#265](https://github.com/bsidhom/exucal/issues/265)).
 - The two ends of a wide `x` that cannot be formed within the
   significand limit are a `tooLarge` with no count.
@@ -2041,7 +2048,7 @@ both orientations then take many terms
 | `incbetareg(5001, 5000, 1/2)`                             | `≈ 0.49601068`                         | exact: `a + b - 1` is ten thousand       |
 | `incbetareg(5002, 5000, 1/2)`                             | `≈ 0.49202215`                         | inexact: past ten thousand               |
 | `incbetareg(2, 3, 1e-20)`                                 | `≈ 6e-40`                              | at the first pass                        |
-| `incbetareg(1e20000, 2, 0.5)`                             | refused: past the significand limit    | the call's bits pass the limit           |
+| `incbetareg(1e19700, 2, 0.5)`                             | refused: past the significand limit    | the call's bits pass the limit           |
 | `incbetareg(1e7, 1e7, 0.5)`                               | refused: past the significand limit    | the fixed limit, in both orientations    |
 | `incbeta(0.4 + approx(1e4048) - approx(1e4048), 30, 0.3)` | an error: `x` cannot be told from zero | the first parameter is too wide to bound |
 
@@ -2109,7 +2116,6 @@ Three designs are excluded on purpose:
   `gamma` and `beta` give those values, and the errors of the integer
   functions point at them
   ([The errors of the integer functions](#the-errors-of-the-integer-functions)).
-
 - **A truncated `div` and `mod`.** The truncated remainder is not
   periodic ([Floored division](#floored-division)). The truncated
   quotient itself is `trunc(a / b)`.
@@ -2117,9 +2123,10 @@ Three designs are excluded on purpose:
 These two are facts about today:
 
 - **No function computes Euclidean division.** `div` and `mod` are the
-  floored pair. [Floored division](#floored-division) gives the
-  Euclidean pair as expressions over them, and says that functions for
-  it are future work and not ruled out.
+  floored pair, and the Euclidean pair is written as expressions over
+  them ([Floored division](#floored-division)). The Euclidean pair is
+  not ruled out: functions for it are future work
+  ([Extensions that fit](future.md#extensions-that-fit)).
 - **No built-in takes or gives a complex value.** No argument leaves the
   real line, since the language has no complex literal
   ([Real values only](../docs/numbers.md#real-values-only) states it for

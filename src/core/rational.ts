@@ -285,8 +285,12 @@ function henrici(a: bigint, b: bigint, c: bigint, d: bigint): Rational {
  * `a × b`, by cross-cancellation: each numerator against the other
  * denominator, which is all a product of two fractions in lowest terms
  * can share. For operands bounded by construction (the kernel's grid
- * points, a radius, a dimension's exponents); `multiplyWithin` holds an
- * exact product to the significand limit.
+ * points, a radius); `multiplyWithin` holds an exact product to the
+ * significand limit. A dimension's exponents are multiplied here too
+ * (`powDimension`), and added and subtracted by `add` and `subtract`
+ * under a product or a quotient of quantities. Nothing bounds them,
+ * which is issue #262 (devdocs/architecture.md, "The size of a
+ * dimension's exponents").
  */
 export function multiply(a: Rational, b: Rational): Rational {
   if (a.num === 0n || b.num === 0n) return ZERO;

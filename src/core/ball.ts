@@ -663,8 +663,13 @@ function multiplyBallsCore(
   // An operand of more bits than the working grid, an exact value times
   // an inexact one: the product is inexact in any case, so each operand
   // is put on the grid first (`onGrid`; devdocs/numbers.md, "Settling"),
-  // as a sum that cannot align does, and two grid significands multiply
-  // within the limit by the limits' relation (`precisionLimitFor`).
+  // as a sum that cannot align does. Two grid significands are meant to
+  // multiply within the limit by the limits' relation
+  // (`precisionLimitFor`), which falls two or four bits short for the
+  // longest midpoints at the ceiling. There the second attempt is refused
+  // as the first was, whether an operand was put on the grid or both were
+  // on it already, and input reaches the throw below, which is issue #261
+  // (devdocs/numbers.md, "The significand limit").
   const settledA = onGrid(a, context);
   if (!settledA.ok) return settledA;
   const settledB = onGrid(b, context);

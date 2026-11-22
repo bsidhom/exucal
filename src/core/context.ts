@@ -51,7 +51,9 @@
 // four times the precision limit plus the guard, so that the largest request has two
 // doublings of room for cancellation above it. The precision limit's own hard bound,
 // `precisionLimitFor`, follows from the significand limit: a settled midpoint at the
-// ceiling must fit it with room for a product of two. The defaults are
+// ceiling is meant to fit it with room for a product of two, and the
+// relation that is kept falls two or four bits short of that, which is
+// issue #261. The defaults are
 // the display's rules before the settings existed, with the rounding
 // mode changed to ties-to-even, and the limits the earliest code had:
 // eight digits, half even, 2^16 bits, and a precision limit of a
@@ -243,10 +245,15 @@ export function ceilingContext(context: NumberContext): NumberContext {
 /**
  * The most the precision limit may be under the significand limit
  * `significandLimitBits`: the largest `precisionLimitDigits` whose ceiling, at the kernel's bits,
- * is at most half the significand limit, so that a settled midpoint at the
- * ceiling fits the limit with room for a product of two
- * (devdocs/numbers.md, "The significand limit"). About 2,450 at the
- * default significand limit; zero when the limit holds no digits.
+ * is at most half the significand limit, meant to let a settled midpoint
+ * at the ceiling fit the limit with room for a product of two
+ * (devdocs/numbers.md, "The significand limit"). The kernel's bits count
+ * 32 guard bits, and a midpoint on the ceiling's grid can have ten digits
+ * more than the ceiling, which take 33.2 bits. So the longest midpoints are
+ * one or two bits longer than counted, and the product of two is sized
+ * two or four bits past what the relation allows, which is issue #261.
+ * About 2,450 at the default significand limit; zero when the limit holds
+ * no digits.
  */
 export function precisionLimitFor(significandLimitBits: number): Precision {
   const fits = (precisionLimitDigits: Precision) =>

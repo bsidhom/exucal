@@ -49,15 +49,19 @@ result needs.
 
 A `Scaled` is a `Rational` $m$ times $10^{e}$, with a `bigint` $e$.
 Every midpoint is a `Scaled`, and so is every exact value. The form is
-**canonical**: a value $x \ne 0$ has exactly one,
+**canonical**: $m$ is in lowest terms, its denominator is coprime to
+ten, and its numerator is not divisible by ten. A value $x \ne 0$ has
+exactly one such form,
 
 $$e = \min(\nu_2(x), \nu_5(x)) \qquad m = x / 10^{e}$$
 
-where $\nu_2$ and $\nu_5$ are the 2-adic and 5-adic valuations. Zero is
-$0 \cdot 10^{0}$. Equivalently, $m$ is in lowest terms, its denominator
-is coprime to ten, and its numerator is not divisible by ten. `2.54`,
-`254/100` and `127/50` are all $254 \cdot 10^{-2}$, and `1/6` is
-$\frac{5}{3} \cdot 10^{-1}$.
+where the **valuation** $\nu_p(x)$ is the exponent of the prime $p$ in
+the factorization of $x$, negative when $p$ divides the denominator.
+Dividing by $10^{e}$ lowers both valuations by $e$, and the conditions
+on $m$ say that neither is then negative and that one is zero. Zero is
+$0 \cdot 10^{0}$. `2.54` is $127 / (2 \cdot 5^{2})$, so
+$e = \min(-1, -2) = -2$ and $m = 254$. `1/6` is $1 / (2 \cdot 3)$, so
+$e = \min(-1, 0) = -1$ and $m = \frac{5}{3}$.
 
 Four things follow:
 

@@ -844,14 +844,14 @@ listed last: they are not defects, but the pages will quote their result.
 - Docs side: — (`devdocs/functions.md#Build-time checks`, "A check at the ceiling depends on the precision limit", states it as a defect of the design with its one link)
 - Rewrite impact: none — the page is written; the answer, when there is one, rewrites that passage.
 
-### B-077. `erf`, `erfc` and the incomplete beta functions throw for a ball whose radius is not formed
+### B-077. `erf`, `erfc` and the incomplete functions throw for a ball whose radius is not formed
 
 - Issue: #258 (opened 2026-11-18, during the review of work order 15's pull request)
 
 - Category: behaviour
-- Severity (guess): high — an exception a user can reach (`erf(approx(1e19800) - approx(1e19800))`, `erf(approx(1e-19700) - approx(1e-19700))`)
+- Severity (guess): high — an exception a user can reach (`erf(approx(1e19800) - approx(1e19800))`, `erf(approx(1e-19700) - approx(1e-19700))`, `lowergammareg(2, 1e-19800 * (2 + sin(approx(1e30) radian)))`)
 - Location: `atEnds` in `src/core/builtins/erf.ts`, `incbeta.ts` and `incomplete.ts`; `radiusValue` and `radiusScaled` in `src/core/ball.ts` (`FORMABLE_RADIUS_BITS`)
-- Description: each `atEnds` forms the two ends of a ball from `radiusValue`, and throws when it returns `undefined`, taking that to mean an unbounded radius. `radiusScaled` also returns `undefined` for a bounded radius whose power of two is past `2^65536` in either direction, which it does not form. The incomplete gamma functions carry the same lines; no input was found that reaches them.
+- Description: each `atEnds` forms the two ends of a ball from `radiusValue`, and throws when it returns `undefined`, taking that to mean an unbounded radius. `radiusScaled` also returns `undefined` for a bounded radius whose power of two is past `2^65536` in either direction, which it does not form. The incomplete gamma functions carry the same lines and throw too (amended 2026-11-22: the fourth reading of the page found the input above, a wide positive ball around a midpoint below `2^-65536`, which a first pass gives when `sin` of a wide argument is its trivial bound; the entry first said that no input reaches them).
 - Units: none; found by the session of work order 15 while it ran the page's examples
 - Docs side: — (`devdocs/builtins.md`, "A wide argument gets a trivial bound", states it as a defect with its one link; `devdocs/architecture.md` lists it among the breaches of the rule on exceptions)
 - Rewrite impact: none — the page is written; the fix removes the passage and its two examples.
@@ -901,3 +901,43 @@ listed last: they are not defects, but the pages will quote their result.
 - Docs side: F-297
 - Rewrite impact: none.
 - Status: corrected in work order 15's pull request (#257, 2026-11-22; plan §12.3).
+
+### B-082. `division.ts` says the textbook form of `mod` passes the exponent bound
+
+- Category: misleading comment
+- Severity (guess): low — a reason that does not hold
+- Location: `src/core/builtins/division.ts` (the header and the comment on `modBall`)
+- Description: both say that `mod` is computed as `(q - floor(q)) × b` because the product `b × floor(q)` "passes the exponent bound where `a` and `b` lie at its opposite ends". The product lies within `|b|` of `a`, so it is held wherever `a` is. Where `a` and `b` lie at opposite ends the quotient itself is past the bound, and both forms need its floor. The fourth reader of the page doubted the sentence, and the page no longer repeats it.
+- Units: none; found by the session of work order 15 (the fourth reading, 2026-11-22)
+- Docs side: — (the page says only that the two forms are the same value)
+- Rewrite impact: none.
+
+### B-083. `incbeta`'s refusal names a count of bits for a magnitude counted at its cap
+
+- Category: behaviour (a message)
+- Severity (guess): low — the count is a lower bound shown as the need
+- Location: `src/core/builtins/incbeta.ts` (the refusal for the call's bits); compare `capped` in `src/core/builtins/incomplete.ts`
+- Description: `incbetareg(1e20000, 2, 0.5)` reports a need of 65,682 bits. `magnitudeBits` counts a magnitude of more bits than the limit at its cap, so the count only bounds the need from below. The incomplete gamma functions leave the count out in that case (`lowergammareg(1e20000, 1)` names none).
+- Units: none; found by the session of work order 15 (the fourth reading, 2026-11-22)
+- Docs side: — (`devdocs/builtins.md` says that the incomplete beta functions' refusal carries the count, which is what the app shows)
+- Rewrite impact: none.
+
+### B-084. The probe's `exp(1)` does not run the exponential's routine
+
+- Category: behaviour (a design question)
+- Severity (guess): unknown — whether it changes the probe's proposal is not measured
+- Location: `src/limits.ts` (`COMPOSITE`); `src/core/builtins/exp.ts` (`eBall` for an exact argument of one)
+- Description: the probe's expression, `sin(atan(exp(1)) + ln(3) radian)`, is described as the four costliest built-ins of the kernel benchmark, each once. `exp(1)` is answered from the memo of `e`, whose series is summed by binary splitting, so `expFixed` is not run. `expFixed` is the routine that the cost page names among the causes of the hangs at the hard bound.
+- Units: none; found by the session of work order 15 (the fourth reading, 2026-11-22)
+- Docs side: — (`devdocs/builtins.md`, "The expression that the probe measures", states the fact; `devdocs/settings.md#the-probe` is work order 16's)
+- Rewrite impact: none for work order 15; work order 16 states what the probe measures.
+
+### B-085. `pow` of a base that contains zero is refused past the significand limit when the exponent's fraction cannot be formed
+
+- Category: behaviour (a message)
+- Severity (guess): low — rare input; the message misnames the cause
+- Location: `src/core/builtins/pow.ts` (`unformable`, the `straddles` case)
+- Description: `pow(sqrt(2)^2 - 2, 1e-30000)` is refused as past the significand limit, with no count. The cause is that the base cannot be told from zero, so its logarithm cannot be taken at any precision. The same base with an inexact exponent is `unresolved` at zero. With B-079 (#260): what a call reports when its argument's width is the cause.
+- Units: none; found by the session of work order 15 (the fourth reading, 2026-11-22)
+- Docs side: — (`devdocs/builtins.md`, "`pow`, and `^` with it", states the refusal)
+- Rewrite impact: none.

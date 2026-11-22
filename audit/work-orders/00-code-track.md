@@ -217,6 +217,9 @@ answers word:
 - (B-045, B-046 and B-051 were corrected in work order 15's pull
   request, #257, with B-080 and B-081: the pass checks them and moves
   on.)
+- B-082: the header of `src/core/builtins/division.ts` and the comment
+  on `modBall` stop saying that `b × floor(q)` passes the exponent
+  bound.
 - B-045 (F-292), B-046, B-047, B-048, B-049, B-050 ("Most bits" becomes
   the significand limit), B-051, B-052, B-055 ("under the Mode radios"),
   B-058: as described.

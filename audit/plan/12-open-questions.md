@@ -1812,6 +1812,14 @@ decision, are listed after the answers.
     the form `docs/numbers.md` uses for its one citation. On the page's terms the owner
     did not mind "concordant" and "F-division" and had no strong opinion, so the
     paper's words stay, since the page attributes them to the paper.
+  - **The form of `mod`** (2026-11-23). The owner recalls no reason for computing `mod` as
+    `(q - floor(q)) × b`, and asked for a recommendation. The two forms were compared over
+    the core's arithmetic: the same values and refusals on 6,750 random exact pairs, and
+    radii equal or a fraction of a bit tighter for the definition's form on 2,000 inexact
+    inputs. Recommended and agreed: compute `mod` by its definition, `a - b × div(a, b)`,
+    as a code change of its own, since the code is then the definition and one special
+    case goes. #266 is rewritten from a comment-only issue into that change (B-082
+    amended). `devdocs/builtins.md` states today's form until it lands.
 
   Amends F-159, F-263, F-277, F-300, F-416, B-015, work orders 00, 17 and 18 and
   `audit/principles.md`; marks B-045, B-046 and B-051 corrected; adds B-077 to B-085;

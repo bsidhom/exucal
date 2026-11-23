@@ -1820,6 +1820,20 @@ decision, are listed after the answers.
     as a code change of its own, since the code is then the definition and one special
     case goes. #266 is rewritten from a comment-only issue into that change (B-082
     amended). `devdocs/builtins.md` states today's form until it lands.
+  - **Which arguments `div` and `mod` take** (2026-11-23). The owner had first thought of
+    integers alone, and asked what to do about rationals and irrationals. Kept: exact
+    rationals ("I can see how they follow from the remainder and integer division
+    definitions anyway"; the paper states its definitions for reals on purpose) and
+    inexact arguments, which are sound, follow the rule of `floor`, and carry the reduction
+    of an angle. The owner's concern, that the floored pair built on `div` and the
+    Euclidean pair built on `mod` might disagree on which inexact calls can be computed,
+    was checked and is not merited: the division rule makes `div` and `mod` step at the
+    same points, the integer multiples of the divisor, for both pairs, and 3,000 pairs of
+    balls gave the same verdicts for the floored pair, the Euclidean pair derived from it
+    and a Euclidean pair written on its own (#237 has the table). What does fail, for every
+    pair, is an inexact dividend that is an exact multiple of the divisor, as in
+    `mod(720 deg, 360 deg)`: filed as #267 (B-086), stated on the user page with what to
+    write instead, and on the developer page with its link.
 
   Amends F-159, F-263, F-277, F-300, F-416, B-015, work orders 00, 17 and 18 and
   `audit/principles.md`; marks B-045, B-046 and B-051 corrected; adds B-077 to B-085;

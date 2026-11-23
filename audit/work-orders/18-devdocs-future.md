@@ -245,7 +245,12 @@ page links (Q-012).
   2026-11-22);
   `devdocs/builtins.md#Floored division` cites Boute's paper
   and the two rules taken from it, and links this page's `#Extensions
-  that fit` twice for the Euclidean pair, so that heading stays); what a
+  that fit` twice for the Euclidean pair, so that heading stays); `div`
+  and `mod` of an inexact dividend that is an exact multiple of the
+  divisor, as in `mod(720 deg, 360 deg)`, which the symbolic layer would
+  make exact (#267; "Symbolic values" names the case among what the
+  layer gains, and `devdocs/builtins.md` links the issue where it states
+  today's behaviour); what a
   built-in reports for an argument too wide to bound (#260, a study for
   after the revamp, which `devdocs/builtins.md` links where it states
   today's behaviour); the

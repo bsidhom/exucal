@@ -950,3 +950,16 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: none; found by the session of work order 15 (the fourth reading, 2026-11-22)
 - Docs side: — (`devdocs/builtins.md`, "`pow`, and `^` with it", states the refusal as a defect with its one link)
 - Rewrite impact: none.
+
+### B-086. `div` and `mod` fail on an inexact dividend that is an exact multiple of the divisor
+
+- Issue: #267 (opened 2026-11-23, on the owner's instruction in the review of work order 15's pull request)
+
+- Category: behaviour (a limit of the numeric model, and a message)
+- Severity (guess): medium — sound, but it is the commonest use of `mod` on angles: `mod(720 deg, 360 deg)` is an error, since `deg` carries `pi()`
+- Location: `quotientFloor` in `src/core/builtins/division.ts`; `floorBall` in `src/core/builtins/round.ts`
+- Description: the quotient of the two balls is a ball around an integer at every pass, so the floor is `unresolved` to the ceiling. `div(720 deg, 360 deg)`, `div(1 turn, 90 deg)` and `mod(2 pi(), pi())` fail the same way. The message names the multiple in base units (`"720 deg" cannot be told from 12.5663706143`). `mod(720, 360) deg` is exactly zero. The general fix is the symbolic layer of `devdocs/future.md`; a quotient formed from the counts of a shared unit, and a message in the terms typed, are the two smaller steps the issue sets out.
+- Units: none; found by the session of work order 15 (2026-11-23), answering the owner's question on inexact arguments
+- Docs side: — (`docs/builtins.md`, "Division", states the case with what to write instead; `devdocs/builtins.md`, "The exact functions on an inexact argument", states it with its one link)
+- Rewrite impact: work order 18 names the case under "Symbolic values".
+

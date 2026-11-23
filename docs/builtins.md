@@ -246,6 +246,11 @@ truncated one is not: `mod(-30 deg, 360 deg)` and `mod(330 deg, 360 deg)`
 are both `330 deg`, where the truncated remainders would be `-30 deg`
 and `330 deg`. `trunc(a / b)` is the truncated quotient.
 
+The choice follows a comparison of the definitions of `div` and `mod`
+that prefers the floored definition used here and the Euclidean one, and
+finds the truncated one far inferior
+([Boute, 1992](https://doi.org/10.1145/128861.128862)).
+
 | You type                   | Exucal shows                                                                           | Note                                                  |
 | -------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | `div(-7, 2)`               | `= -4`                                                                                 | floored                                               |

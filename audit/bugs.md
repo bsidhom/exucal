@@ -913,6 +913,7 @@ listed last: they are not defects, but the pages will quote their result.
 - Units: none; found by the session of work order 15 (the fourth reading, 2026-11-22)
 - Docs side: — (the page says only that the two forms are the same value)
 - Rewrite impact: none.
+- Amended on 2026-11-23 (plan §12.3): no longer a comment-only item. The owner recalls no reason for the form `(q - floor(q)) × b` and agreed to compute `mod` by its definition, `a - b × div(a, b)`. A comparison of the two forms over the core's arithmetic found the same values and the same refusals on 6,750 random exact pairs, and radii that are equal or a fraction of a bit tighter on 2,000 inexact inputs; the tiny-quotient branch of `modBall` falls out of the definition's form. #266 carries the comparison and the outline of the change. Until it lands, the comment's false clause stands.
 
 ### B-083. `beta` and the incomplete beta functions state a capped count of bits as the need of a refusal
 

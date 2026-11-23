@@ -1805,6 +1805,13 @@ decision, are listed after the answers.
     A fifth reading, of the passages rewritten from the paper, merged the paper's
     conclusions and the design's rules into one list and changed the example of a true
     count of bits to a parameter under the limit.
+  - **The citation on the user page** (2026-11-23). The owner had deferred it; asked again:
+    "We should go ahead and cite the paper unless it's already captured in a future work
+    order." No work order captures it (#237 asks for the citation only when the second
+    pair lands), so `docs/builtins.md`, "Division", cites the paper in one sentence, in
+    the form `docs/numbers.md` uses for its one citation. On the page's terms the owner
+    did not mind "concordant" and "F-division" and had no strong opinion, so the
+    paper's words stay, since the page attributes them to the paper.
 
   Amends F-159, F-263, F-277, F-300, F-416, B-015, work orders 00, 17 and 18 and
   `audit/principles.md`; marks B-045, B-046 and B-051 corrected; adds B-077 to B-085;

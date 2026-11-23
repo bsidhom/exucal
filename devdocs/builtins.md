@@ -1372,18 +1372,44 @@ take their result from it.
   inexactly. So the message offers the remedy that a sum's does, an
   inexact operand.
 
-| You type                          | Exucal shows                                     | Note                                 |
-| --------------------------------- | ------------------------------------------------ | ------------------------------------ |
-| `abs(-sqrt(2))`                   | `≈ 1.4142136`                                    | the radius carried through           |
-| `sign(sqrt(2) - sqrt(2))`         | an error: the argument cannot be told from zero  | `unresolved`, at zero                |
-| `round(sqrt(2), 3)`               | `= 1.414`                                        | exact: the ball is inside one cell   |
-| `round(approx(2.5))`              | an error: the argument cannot be told from `2.5` | a tie                                |
-| `floor(sqrt(2)^2)`                | an error: the argument cannot be told from `2`   | the ball straddles `2` at every pass |
-| `div(8 + sqrt(2) - sqrt(2), 2)`   | an error: the argument cannot be told from `8`   | the boundary in the terms of `a`     |
-| `mod(7 + sqrt(2) - sqrt(2), 2)`   | `≈ 1`                                            | the radius carried through           |
-| `div(-1e-999999999, 1e999999999)` | `= -1`                                           | a quotient below the bound           |
-| `mod(-1, 1e20000)`                | refused: past the significand limit              | the message suggests `approx(-1)`    |
-| `mod(approx(-1), 1e20000)`        | `≈ 1e+20000`                                     | an inexact operand gives a value     |
+`div` and `mod` are `unresolved` on the same balls. Since
+`a = b × div(a, b) + mod(a, b)`, a step of one in the quotient is a step
+of `b` in the remainder, so the two functions are discontinuous at the
+same points, the integer multiples of `b`. Two things follow:
+
+- A call whose quotient is an integer, with either argument inexact, is
+  `unresolved` at every pass, and an error at the ceiling. The
+  quotient's ball has a radius that shrinks at each pass and is never
+  zero, so it always straddles the integer. Angles in degrees meet this,
+  since a value in degrees is inexact through `pi()`:
+  `mod(720 deg, 360 deg)` is an error. That the call fails follows from
+  the numeric model. The message is a defect of its own: it names the
+  multiple in base units, a number that was not typed. One issue tracks
+  both ([#267](https://github.com/bsidhom/exucal/issues/267)).
+- The floored pair and the Euclidean pair are `unresolved` on the same
+  balls too. Both step at the integer multiples of `b`, and they differ
+  only in the values on each side of a step, for a negative divisor. So
+  the choice of the pair to build on
+  ([Floored division](#floored-division)) does not change which calls
+  give a value. The truncated pair alone differs, at a quotient of zero,
+  where it has no step.
+
+| You type                          | Exucal shows                                               | Note                                              |
+| --------------------------------- | ---------------------------------------------------------- | ------------------------------------------------- |
+| `abs(-sqrt(2))`                   | `≈ 1.4142136`                                              | the radius carried through                        |
+| `sign(sqrt(2) - sqrt(2))`         | an error: the argument cannot be told from zero            | `unresolved`, at zero                             |
+| `round(sqrt(2), 3)`               | `= 1.414`                                                  | exact: the ball is inside one cell                |
+| `round(approx(2.5))`              | an error: the argument cannot be told from `2.5`           | a tie                                             |
+| `floor(sqrt(2)^2)`                | an error: the argument cannot be told from `2`             | the ball straddles `2` at every pass              |
+| `mod(750 deg, 360 deg)`           | `≈ 0.52359878 radian`                                      | `30 deg`, shown in radians                        |
+| `mod(720 deg, 360 deg)`           | an error: the argument cannot be told from `12.5663706143` | `720 deg` in radians, an integer multiple of `b`  |
+| `mod(2 pi(), pi())`               | an error: the argument cannot be told from `6.28318530717` | the same, with no unit                            |
+| `mod(720, 360) deg`               | `= 0 radian`                                               | the remainder of the plain numbers, then the unit |
+| `div(8 + sqrt(2) - sqrt(2), 2)`   | an error: the argument cannot be told from `8`             | the boundary in the terms of `a`                  |
+| `mod(7 + sqrt(2) - sqrt(2), 2)`   | `≈ 1`                                                      | the radius carried through                        |
+| `div(-1e-999999999, 1e999999999)` | `= -1`                                                     | a quotient below the bound                        |
+| `mod(-1, 1e20000)`                | refused: past the significand limit                        | the message suggests `approx(-1)`                 |
+| `mod(approx(-1), 1e20000)`        | `≈ 1e+20000`                                               | an inexact operand gives a value                  |
 
 ### The errors of the integer functions
 

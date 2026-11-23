@@ -239,6 +239,15 @@ the rounding functions do
 `mod` is inexact, or an error where `div` is. A remainder that would
 need a significand past the significand limit is refused.
 
+Where `a` is an integer multiple of `b` and either is inexact, both
+functions give an error, since no precision tells the quotient from the
+integer. Angles in degrees meet this, because a value in degrees is
+inexact: `deg` is defined through `pi()`. `mod(750 deg, 360 deg)` is
+`30 deg`, and `mod(720 deg, 360 deg)` is an error, whose message gives
+the multiple in radians. Take the remainder of the plain numbers and
+attach the unit afterwards: `mod(720, 360) deg` is zero, and
+`mod(750, 360) deg` is `30 deg` again.
+
 No function gives the truncated remainder, `a - b trunc(a / b)`, which
 takes the sign of `a`. It is left out on purpose. A remainder should be
 the same for two values of `a` that differ by a multiple of `b`, and the
@@ -251,14 +260,17 @@ that prefers the floored definition used here and the Euclidean one, and
 finds the truncated one far inferior
 ([Boute, 1992](https://doi.org/10.1145/128861.128862)).
 
-| You type                   | Exucal shows                                                                           | Note                                                  |
-| -------------------------- | -------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `div(-7, 2)`               | `= -4`                                                                                 | floored                                               |
-| `mod(-7, 2)`               | `= 1`                                                                                  | the divisor's sign                                    |
-| `mod(approx(4.5), 2)`      | `≈ 0.5`                                                                                | inexact: the radius kept                              |
-| `div(approx(4), 2)`        | an error: the argument cannot be told from `4`                                         | the argument reaches across a multiple of the divisor |
-| `mod(-1, 1e20000)`         | refused: past the significand limit; the message suggests `approx(-1)` or decimal mode | the remainder has twenty thousand digits              |
-| `mod(approx(-1), 1e20000)` | `≈ 1e+20000`                                                                           | the `1` absorbed into the error radius                |
+| You type                   | Exucal shows                                                                           | Note                                                     |
+| -------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `div(-7, 2)`               | `= -4`                                                                                 | floored                                                  |
+| `mod(-7, 2)`               | `= 1`                                                                                  | the divisor's sign                                       |
+| `mod(approx(4.5), 2)`      | `≈ 0.5`                                                                                | inexact: the radius kept                                 |
+| `div(approx(4), 2)`        | an error: the argument cannot be told from `4`                                         | the argument reaches across a multiple of the divisor    |
+| `mod(750 deg, 360 deg)`    | `≈ 0.52359878 radian`                                                                  | `30 deg`, shown in radians                               |
+| `mod(720 deg, 360 deg)`    | an error: the argument cannot be told from `12.5663706143`                             | `720 deg` in radians, an integer multiple of the divisor |
+| `mod(720, 360) deg`        | `= 0 radian`                                                                           | the remainder of the plain numbers, then the unit        |
+| `mod(-1, 1e20000)`         | refused: past the significand limit; the message suggests `approx(-1)` or decimal mode | the remainder has twenty thousand digits                 |
+| `mod(approx(-1), 1e20000)` | `≈ 1e+20000`                                                                           | the `1` absorbed into the error radius                   |
 
 ## Integer functions
 
